@@ -1,0 +1,10 @@
+{
+  "description": "Streamlines automotive accessory sales with integrated POS, inventory, quoting, and customer management tailored for B2B retailers and distributors.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
