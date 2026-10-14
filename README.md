@@ -45,6 +45,7 @@ npm run dev                  # http://localhost:3000
 | `npm run lint` | Run ESLint |
 | `npm run db:push` | Apply `supabase/migrations/` to the database (needs `SUPABASE_DB_URL`) |
 | `npm run db:types` | Regenerate `src/lib/types/database.types.ts` from the live schema |
+| `npm run seed:vehicles` | Load Year/Make/Model data (2015–2026, top 20 makes) from NHTSA into `vehicles`. Safe to re-run; add `-- --dry-run` to preview without writing |
 
 The database can also be managed through the Supabase MCP server configured in `.mcp.json`. See [`docs/supabase-mcp-setup.md`](docs/supabase-mcp-setup.md).
 
@@ -54,6 +55,7 @@ The database can also be managed through the Supabase MCP server configured in `
 carshop_pos/
 ├── src/
 │   ├── app/
+│   │   ├── api/vehicles/     Year → Make → Model lookup API
 │   │   ├── (auth)/           login & register pages
 │   │   ├── (dashboard)/      signed-in app shell + dashboard
 │   │   └── auth/callback/    Supabase email-confirmation handler
@@ -70,7 +72,9 @@ carshop_pos/
 ├── supabase/
 │   ├── config.toml
 │   └── migrations/           schema, RLS policies, payment procedure
-├── scripts/db.mjs            db:push / db:types helper
+├── scripts/
+│   ├── db.mjs                db:push / db:types helper
+│   └── seed-vehicles.mts     NHTSA vehicle seed (npm run seed:vehicles)
 ├── public/                   static assets
 ├── docs/                     spec, founder guide, MCP setup, phase notes
 └── design/figma-ui/          Figma UI export (visual reference only, not built)
@@ -82,8 +86,9 @@ Root-level config files (`package.json`, `tsconfig.json`, `next.config.ts`, `esl
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 1 | Auth, shop registration, multi-tenant schema + RLS, dashboard shell | Built, in testing |
-| 2+ | Vehicle data, inventory, quoting, customers/WhatsApp CRM | See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) |
+| 1 | Auth, shop registration, multi-tenant schema + RLS, dashboard shell | Done |
+| 2 | NHTSA vehicle catalog: seed script + `/api/vehicles` Year → Make → Model lookups | Built, in testing |
+| 3+ | Inventory, customers/WhatsApp CRM, quoting, PDFs | See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) |
 
 ## License
 

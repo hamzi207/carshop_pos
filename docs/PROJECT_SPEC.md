@@ -689,7 +689,7 @@ carshop_pos/
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── scripts/
-│   └── seed-vehicles.ts                <-- NHTSA vPIC ingestion script
+│   └── seed-vehicles.mts               <-- NHTSA vPIC ingestion script
 ├── supabase/
 │   ├── config.toml
 │   └── migrations/

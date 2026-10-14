@@ -458,6 +458,26 @@ export type Database = {
         }
         Returns: undefined
       }
+      vehicle_makes: {
+        Args: { p_year: number }
+        Returns: {
+          make: string
+        }[]
+      }
+      vehicle_models: {
+        Args: { p_make: string; p_year: number }
+        Returns: {
+          id: number
+          model: string
+          trim: string
+        }[]
+      }
+      vehicle_years: {
+        Args: never
+        Returns: {
+          year: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

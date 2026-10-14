@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "node --env-file=.env.local scripts/db.mjs push",
-    "db:types": "node --env-file=.env.local scripts/db.mjs types"
+    "db:types": "node --env-file=.env.local scripts/db.mjs types",
+    "seed:vehicles": "node --experimental-strip-types --disable-warning=ExperimentalWarning --env-file=.env.local scripts/seed-vehicles.mts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
