@@ -21,7 +21,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} antialiased`}>
+    // Browser extensions (and next-themes) add attributes to <html> before React
+    // hydrates; this ignores attribute diffs on this one element only.
+    <html lang="en" className={`${inter.variable} antialiased`} suppressHydrationWarning>
       <body>
         {children}
         <Toaster position="top-right" />
