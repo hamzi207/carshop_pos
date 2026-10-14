@@ -458,6 +458,46 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_inventory_item: {
+        Args: {
+          p_category: string
+          p_cost_price: number
+          p_description?: string
+          p_is_universal: boolean
+          p_item_id?: string
+          p_low_stock_threshold: number
+          p_name: string
+          p_quantity_on_hand: number
+          p_selling_price: number
+          p_sku: string
+          p_vehicle_ids?: number[]
+        }
+        Returns: string
+      }
+      search_inventory_items: {
+        Args: { p_query: string }
+        Returns: {
+          category: string
+          cost_price: number
+          created_at: string
+          description: string | null
+          id: string
+          is_universal: boolean
+          low_stock_threshold: number
+          name: string
+          quantity_on_hand: number
+          selling_price: number
+          sku: string
+          tenant_id: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "inventory_items"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       vehicle_makes: {
         Args: { p_year: number }
         Returns: {

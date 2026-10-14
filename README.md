@@ -57,10 +57,11 @@ carshop_pos/
 │   ├── app/
 │   │   ├── api/vehicles/     Year → Make → Model lookup API
 │   │   ├── (auth)/           login & register pages
-│   │   ├── (dashboard)/      signed-in app shell + dashboard
+│   │   ├── (dashboard)/      signed-in app shell, dashboard, inventory
 │   │   └── auth/callback/    Supabase email-confirmation handler
 │   ├── components/
 │   │   ├── auth/             auth forms
+│   │   ├── inventory/        inventory table, filters, add/edit dialog, YMM selector
 │   │   ├── shared/           sidebar, top bar, branding, user menu
 │   │   └── ui/               shadcn/ui primitives
 │   ├── lib/
@@ -71,7 +72,7 @@ carshop_pos/
 │   └── proxy.ts              session refresh + route protection
 ├── supabase/
 │   ├── config.toml
-│   └── migrations/           schema, RLS policies, payment procedure
+│   └── migrations/           schema, RLS, functions (file names match the remote migration history)
 ├── scripts/
 │   ├── db.mjs                db:push / db:types helper
 │   └── seed-vehicles.mts     NHTSA vehicle seed (npm run seed:vehicles)
@@ -87,8 +88,9 @@ Root-level config files (`package.json`, `tsconfig.json`, `next.config.ts`, `esl
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 1 | Auth, shop registration, multi-tenant schema + RLS, dashboard shell | Done |
-| 2 | NHTSA vehicle catalog: seed script + `/api/vehicles` Year → Make → Model lookups | Built, in testing |
-| 3+ | Inventory, customers/WhatsApp CRM, quoting, PDFs | See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) |
+| 2 | NHTSA vehicle catalog: seed script + `/api/vehicles` Year → Make → Model lookups | Done |
+| 3 | Inventory: parts CRUD, Universal Fit vs vehicle-specific fitment, margins, low-stock alerts (`/inventory`) | Built, in testing |
+| 4+ | Customers/WhatsApp CRM, quoting, PDFs | See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) |
 
 ## License
 

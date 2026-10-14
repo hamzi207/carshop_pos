@@ -693,9 +693,10 @@ carshop_pos/
 ├── supabase/
 │   ├── config.toml
 │   └── migrations/
-│       ├── 20261015000001_initial_schema.sql
-│       ├── 20261015000002_rls_policies.sql
-│       └── 20261015000003_payment_procedure.sql
+│       ├── 20261014193854_initial_schema.sql
+│       ├── 20261014193915_rls_policies.sql
+│       ├── 20261014193924_payment_procedure.sql
+│       └── ...                         <-- one file per later change; names match the remote migration history
 └── src/
     ├── app/
     │   ├── layout.tsx

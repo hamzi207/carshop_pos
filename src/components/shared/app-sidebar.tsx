@@ -27,7 +27,7 @@ type NavItem = {
 const workspaceNav: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
   { href: "/quotes", label: "Quotes & POS", icon: FileText, comingSoon: true },
-  { href: "/inventory", label: "Inventory", icon: Package, comingSoon: true },
+  { href: "/inventory", label: "Inventory", icon: Package },
   { href: "/customers", label: "Customers", icon: Users, comingSoon: true },
 ];
 

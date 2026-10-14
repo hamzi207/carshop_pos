@@ -1,0 +1,72 @@
+import { Suspense } from "react";
+import type { Metadata } from "next";
+import { Plus } from "lucide-react";
+import { getInventoryItems } from "@/lib/actions/inventory";
+import { getShopSession } from "@/lib/auth";
+import { inventoryFiltersSchema } from "@/lib/validations/inventory.schema";
+import { AddItemButton } from "@/components/inventory/add-item-button";
+import { InventoryFilters } from "@/components/inventory/inventory-filters";
+import { InventoryTable } from "@/components/inventory/inventory-table";
+
+export const metadata: Metadata = { title: "Inventory" };
+
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+async function AddItemAction() {
+  const { tenant } = await getShopSession();
+  return <AddItemButton currency={tenant.currency} />;
+}
+
+async function InventoryResults({ searchParams }: { searchParams: SearchParams }) {
+  const raw = await searchParams;
+  const filters = inventoryFiltersSchema.parse({
+    category: first(raw.category),
+    search: first(raw.q) || undefined,
+    fitment: first(raw.fitment),
+  });
+  const [items, { tenant }] = await Promise.all([getInventoryItems(filters), getShopSession()]);
+  const filtered = Boolean(filters.category || filters.search || filters.fitment);
+  return <InventoryTable items={items} currency={tenant.currency} filtered={filtered} />;
+}
+
+function ResultsSkeleton() {
+  return (
+    <section className="card inventory-table-card">
+      <div className="inventory-summary"><div><h2>All inventory</h2></div></div>
+      <div className="empty-state">Loading inventory…</div>
+    </section>
+  );
+}
+
+export default function InventoryPage({ searchParams }: { searchParams: SearchParams }) {
+  return (
+    <div className="page">
+      <div className="page-heading inventory-heading">
+        <div>
+          <span className="eyebrow">CATALOG MANAGEMENT</span>
+          <h1>Inventory &amp; Fitment</h1>
+          <p>Manage products, stock levels, margins, and vehicle compatibility.</p>
+        </div>
+        <div className="heading-actions">
+          <Suspense
+            fallback={
+              <button type="button" className="button button-primary" disabled>
+                <Plus size={14} /> Add New Part
+              </button>
+            }
+          >
+            <AddItemAction />
+          </Suspense>
+        </div>
+      </div>
+      <Suspense fallback={<section className="card filter-card" aria-hidden="true" />}>
+        <InventoryFilters />
+      </Suspense>
+      <Suspense fallback={<ResultsSkeleton />}>
+        <InventoryResults searchParams={searchParams} />
+      </Suspense>
+    </div>
+  );
+}
