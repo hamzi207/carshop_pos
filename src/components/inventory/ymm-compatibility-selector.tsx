@@ -1,27 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Car, Loader2, X } from "lucide-react";
 import { formatMake, formatVehicle } from "@/lib/format";
+import { useVehicleCascade } from "@/lib/hooks/use-vehicle-cascade";
 import type { FitmentVehicle } from "@/lib/types/inventory";
-import type {
-  VehicleMakesResponse,
-  VehicleModelOption,
-  VehicleModelsResponse,
-  VehicleYearsResponse,
-} from "@/lib/types/vehicle";
 
 type Props = {
   value: FitmentVehicle[];
   onChange: (vehicles: FitmentVehicle[]) => void;
   error?: string;
 };
-
-async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`Vehicle lookup failed (${res.status})`);
-  return res.json() as Promise<T>;
-}
 
 /**
  * Links a part to Year / Make / Model records. Picking a model adds it as a
@@ -30,75 +18,7 @@ async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
  * which makes "same model, several years" a two-click job.
  */
 export function YmmCompatibilitySelector({ value, onChange, error }: Props) {
-  const [years, setYears] = useState<number[]>([]);
-  const [year, setYear] = useState<number | "">("");
-  const [makes, setMakes] = useState<string[]>([]);
-  const [make, setMake] = useState("");
-  const [models, setModels] = useState<VehicleModelOption[]>([]);
-  const [loading, setLoading] = useState<"years" | "makes" | "models" | null>("years");
-  const [lookupError, setLookupError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    getJson<VehicleYearsResponse>("/api/vehicles", ctrl.signal)
-      .then((body) => setYears(body.years))
-      .catch((err) => !ctrl.signal.aborted && setLookupError(err.message))
-      .finally(() => !ctrl.signal.aborted && setLoading(null));
-    return () => ctrl.abort();
-  }, []);
-
-  // Abort whichever makes/models lookup is in flight when a newer one starts
-  // (or the selector unmounts), so a slow response can't overwrite a newer one.
-  const pending = useRef<AbortController | null>(null);
-  useEffect(() => () => pending.current?.abort(), []);
-
-  const lookup = async <T,>(url: string, stage: "makes" | "models"): Promise<T | null> => {
-    pending.current?.abort();
-    const ctrl = new AbortController();
-    pending.current = ctrl;
-    setLoading(stage);
-    setLookupError(null);
-    try {
-      return await getJson<T>(url, ctrl.signal);
-    } catch (err) {
-      if (!ctrl.signal.aborted) setLookupError(err instanceof Error ? err.message : "Lookup failed");
-      return null;
-    } finally {
-      if (!ctrl.signal.aborted) setLoading(null);
-    }
-  };
-
-  const loadModels = async (y: number, m: string) => {
-    setModels([]);
-    const body = await lookup<VehicleModelsResponse>(
-      `/api/vehicles?year=${y}&make=${encodeURIComponent(m)}`,
-      "models",
-    );
-    if (body) setModels(body.models);
-  };
-
-  const selectYear = async (next: number | "") => {
-    setYear(next);
-    setMakes([]);
-    setModels([]);
-    if (next === "") {
-      pending.current?.abort();
-      setMake("");
-      return;
-    }
-    const body = await lookup<VehicleMakesResponse>(`/api/vehicles?year=${next}`, "makes");
-    if (!body) return;
-    setMakes(body.makes);
-    // Keep the make when the new year has it: "same model, another year".
-    if (make && body.makes.includes(make)) await loadModels(next, make);
-    else setMake("");
-  };
-
-  const selectMake = (next: string) => {
-    setMake(next);
-    if (year !== "" && next) void loadModels(year, next);
-    else setModels([]);
-  };
+  const { years, year, makes, make, models, loading, error: lookupError, selectYear, selectMake } = useVehicleCascade();
 
   const selectedIds = new Set(value.map((v) => v.id));
 
@@ -109,7 +29,6 @@ export function YmmCompatibilitySelector({ value, onChange, error }: Props) {
   };
 
   const remove = (id: number) => onChange(value.filter((v) => v.id !== id));
-
 
   return (
     <div className="vehicle-multi">

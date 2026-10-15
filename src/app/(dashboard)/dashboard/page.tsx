@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Car, CheckCircle2, Package, Store, Users } from "lucide-react";
+import { CheckCircle2, FileDown, MessageCircle, Store, Wallet } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
 import { ShopClock } from "@/components/dashboard/shop-clock";
 
@@ -63,9 +63,9 @@ async function ShopReadyCard() {
 }
 
 const nextSteps = [
-  { icon: Car, title: "Vehicle catalog", detail: "Year / Make / Model data from NHTSA." },
-  { icon: Package, title: "Inventory & fitment", detail: "Add parts as Universal Fit or Vehicle Specific." },
-  { icon: Users, title: "Customer directory", detail: "Dealerships, fleets and retail clients with WhatsApp." },
+  { icon: FileDown, title: "PDF quotes & invoices", detail: "Branded PDFs with your shop details and terms." },
+  { icon: MessageCircle, title: "Share via WhatsApp", detail: "Send a quote or invoice link in one click." },
+  { icon: Wallet, title: "Payments & stock", detail: "Mark invoices paid; stock is deducted automatically." },
 ];
 
 export default function DashboardPage() {

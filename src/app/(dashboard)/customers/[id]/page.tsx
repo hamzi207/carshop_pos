@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowLeft,
+  FilePlus2,
   FileText,
   Mail,
   MapPin,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { getCustomer } from "@/lib/actions/customers";
 import { getShopSession } from "@/lib/auth";
+import { documentHref, SECTION, sectionForStatus, STATUS_LABEL, STATUS_TONE } from "@/lib/documents";
 import { formatDate, formatMoney, formatVehicle } from "@/lib/format";
 import { formatPhone, whatsappLink } from "@/lib/phone";
 import { CustomerAvatar, CustomerTypeBadge } from "@/components/customers/customer-badges";
@@ -23,14 +25,6 @@ import { CustomerProfileActions } from "@/components/customers/customer-profile-
 export const metadata: Metadata = { title: "Customer" };
 
 type Params = Promise<{ id: string }>;
-
-const STATUS_TONE: Record<string, string> = {
-  paid: "badge-green",
-  invoiced: "badge-amber",
-  accepted: "badge-blue",
-  sent: "badge-blue",
-  cancelled: "badge-red",
-};
 
 function Detail({ icon, label, value, mono }: { icon: ReactNode; label: string; value: string | null; mono?: boolean }) {
   return (
@@ -70,6 +64,9 @@ async function CustomerProfile({ params }: { params: Params }) {
             allowInternationalPhones={tenant.allowInternationalPhones}
             hasQuotes={customer.quotes.length > 0}
           />
+          <Link href={`/quotations/new?customer=${customer.id}`} className="button button-primary">
+            <FilePlus2 size={14} /> New Quotation
+          </Link>
           <a
             className="button button-success"
             href={whatsappLink(customer.whatsapp_number, greeting)}
@@ -115,7 +112,7 @@ async function CustomerProfile({ params }: { params: Params }) {
             <div className="empty-state">
               <span className="header-icon blue"><FileText size={18} /></span>
               <strong>No quotes or invoices yet</strong>
-              Quotes created for this customer will appear here.
+              Drafts, quotations and invoices for this customer will appear here.
             </div>
           ) : (
             <div className="table-wrap">
@@ -123,6 +120,7 @@ async function CustomerProfile({ params }: { params: Params }) {
                 <thead>
                   <tr>
                     <th>NUMBER</th>
+                    <th>TYPE</th>
                     <th>DATE</th>
                     <th>VEHICLE</th>
                     <th>STATUS</th>
@@ -132,13 +130,14 @@ async function CustomerProfile({ params }: { params: Params }) {
                 <tbody>
                   {customer.quotes.map((q) => (
                     <tr key={q.id}>
-                      <td className="mono strong">{q.quote_number}</td>
+                      <td>
+                        <Link href={documentHref(q)} className="mono strong">{q.quote_number}</Link>
+                      </td>
+                      <td>{SECTION[sectionForStatus(q.status)].singular}</td>
                       <td>{formatDate(q.created_at, tenant.timezone)}</td>
                       <td>{q.vehicle ? formatVehicle(q.vehicle) : q.custom_vehicle_notes || "—"}</td>
                       <td>
-                        <span className={`badge ${STATUS_TONE[q.status] ?? ""}`}>
-                          {q.status[0].toUpperCase() + q.status.slice(1)}
-                        </span>
+                        <span className={`badge ${STATUS_TONE[q.status] ?? ""}`}>{STATUS_LABEL[q.status] ?? q.status}</span>
                       </td>
                       <td className="amount">{formatMoney(q.total_amount, tenant.money)}</td>
                     </tr>

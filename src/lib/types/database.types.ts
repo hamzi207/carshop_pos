@@ -223,8 +223,10 @@ export type Database = {
           id: string
           is_labor: boolean
           item_id: string | null
+          price_includes_tax: boolean
           quantity: number
           quote_id: string
+          sort_order: number
           tenant_id: string
           total_price: number
           unit_cost: number
@@ -236,8 +238,10 @@ export type Database = {
           id?: string
           is_labor?: boolean
           item_id?: string | null
+          price_includes_tax?: boolean
           quantity?: number
           quote_id: string
+          sort_order?: number
           tenant_id: string
           total_price?: number
           unit_cost?: number
@@ -249,8 +253,10 @@ export type Database = {
           id?: string
           is_labor?: boolean
           item_id?: string | null
+          price_includes_tax?: boolean
           quantity?: number
           quote_id?: string
+          sort_order?: number
           tenant_id?: string
           total_price?: number
           unit_cost?: number
@@ -287,12 +293,20 @@ export type Database = {
           custom_vehicle_notes: string | null
           customer_id: string
           discount_amount: number
+          discount_type: string
+          discount_value: number
+          draft_number: string | null
           id: string
           inventory_deducted: boolean
+          invoice_number: string | null
+          invoiced_at: string | null
+          notes: string | null
           paid_at: string | null
           payment_method: string | null
           payment_notes: string | null
+          quotation_number: string | null
           quote_number: string
+          quoted_at: string | null
           status: string
           subtotal: number
           tax_amount: number
@@ -308,12 +322,20 @@ export type Database = {
           custom_vehicle_notes?: string | null
           customer_id: string
           discount_amount?: number
+          discount_type?: string
+          discount_value?: number
+          draft_number?: string | null
           id?: string
           inventory_deducted?: boolean
+          invoice_number?: string | null
+          invoiced_at?: string | null
+          notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
           payment_notes?: string | null
-          quote_number: string
+          quotation_number?: string | null
+          quote_number?: string
+          quoted_at?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -329,12 +351,20 @@ export type Database = {
           custom_vehicle_notes?: string | null
           customer_id?: string
           discount_amount?: number
+          discount_type?: string
+          discount_value?: number
+          draft_number?: string | null
           id?: string
           inventory_deducted?: boolean
+          invoice_number?: string | null
+          invoiced_at?: string | null
+          notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
           payment_notes?: string | null
+          quotation_number?: string | null
           quote_number?: string
+          quoted_at?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -381,7 +411,6 @@ export type Database = {
           allow_international_phones: boolean
           clock_24_hour: boolean
           clock_style: string
-          show_clock: boolean
           created_at: string
           currency: string
           email: string | null
@@ -391,6 +420,7 @@ export type Database = {
           phone: string | null
           prices_include_tax: boolean
           quote_footer_notes: string | null
+          show_clock: boolean
           show_paisa: boolean
           slug: string
           tax_rate: number
@@ -402,7 +432,6 @@ export type Database = {
           allow_international_phones?: boolean
           clock_24_hour?: boolean
           clock_style?: string
-          show_clock?: boolean
           created_at?: string
           currency?: string
           email?: string | null
@@ -412,6 +441,7 @@ export type Database = {
           phone?: string | null
           prices_include_tax?: boolean
           quote_footer_notes?: string | null
+          show_clock?: boolean
           show_paisa?: boolean
           slug: string
           tax_rate?: number
@@ -423,7 +453,6 @@ export type Database = {
           allow_international_phones?: boolean
           clock_24_hour?: boolean
           clock_style?: string
-          show_clock?: boolean
           created_at?: string
           currency?: string
           email?: string | null
@@ -433,6 +462,7 @@ export type Database = {
           phone?: string | null
           prices_include_tax?: boolean
           quote_footer_notes?: string | null
+          show_clock?: boolean
           show_paisa?: boolean
           slug?: string
           tax_rate?: number
@@ -473,7 +503,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      convert_quote: {
+        Args: { p_quote_id: string; p_target: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          custom_vehicle_notes: string | null
+          customer_id: string
+          discount_amount: number
+          discount_type: string
+          discount_value: number
+          draft_number: string | null
+          id: string
+          inventory_deducted: boolean
+          invoice_number: string | null
+          invoiced_at: string | null
+          notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_notes: string | null
+          quotation_number: string | null
+          quote_number: string
+          quoted_at: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+          vehicle_id: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_tenant_id: { Args: never; Returns: string }
+      is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
+      next_document_number: { Args: { p_prefix: string }; Returns: string }
       process_quote_payment: {
         Args: {
           p_payment_method: string
@@ -498,6 +568,54 @@ export type Database = {
           p_vehicle_ids?: number[]
         }
         Returns: string
+      }
+      save_quote: {
+        Args: {
+          p_custom_vehicle_notes?: string
+          p_customer_id: string
+          p_discount_type?: string
+          p_discount_value?: number
+          p_items: Json
+          p_notes?: string
+          p_quote_id?: string
+          p_stage?: string
+          p_vehicle_id?: number
+        }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          custom_vehicle_notes: string | null
+          customer_id: string
+          discount_amount: number
+          discount_type: string
+          discount_value: number
+          draft_number: string | null
+          id: string
+          inventory_deducted: boolean
+          invoice_number: string | null
+          invoiced_at: string | null
+          notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_notes: string | null
+          quotation_number: string | null
+          quote_number: string
+          quoted_at: string | null
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+          vehicle_id: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       search_customers: {
         Args: { p_query: string }

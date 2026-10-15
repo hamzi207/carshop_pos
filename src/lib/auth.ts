@@ -23,6 +23,8 @@ export type ShopSession = {
     clockStyle: ClockStyle;
     showClock: boolean;
     clock24Hour: boolean;
+    /** Terms printed on quotes and invoices (tenants.quote_footer_notes). */
+    quoteTerms: string | null;
     /** Pass to formatMoney(). */
     money: MoneyFormat;
   };
@@ -43,7 +45,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour)")
+    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, quote_footer_notes)")
     .eq("id", userId)
     .single();
 
@@ -72,6 +74,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       clockStyle: tenant.clock_style === "analog" ? "analog" : "digital",
       showClock: tenant.show_clock,
       clock24Hour: tenant.clock_24_hour,
+      quoteTerms: tenant.quote_footer_notes,
       money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     },
   };

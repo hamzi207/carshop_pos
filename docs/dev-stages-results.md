@@ -157,3 +157,53 @@ The Supabase database is set up for Phase 1. I applied all three migrations thro
   6. Commit: git add . && git commit -m "feat: phase 4 - b2b customer directory and pakistan localization"
 
   Still waiting on a decision: rls_auto_enable() can be called without signing in, and leaked-password protection is off.
+
+  Phase 4 tweaks (committed as "Phase 4 Tweaks"):
+
+  - Settings: the shop timezone can be changed (any timezone, grouped by region with its UTC offset). The database only accepts real timezone names.
+  - Dashboard clock at the right end of the Overview heading, in the shop timezone, with the day, date and timezone under it.
+    Settings → Dashboard clock: show/hide, digital or analog, and 12-hour or 24-hour for the digital clock. The analog clock has a second hand; the
+    digital one shows hours and minutes only.
+
+  Phase 5:
+
+  Phase 5 is built: Drafts, Quotations and Invoices are live in the sidebar. Type-checking, lint and the production build pass. I also ran a full
+  browser test as a temporary test shop (24 checks, all passed, no browser errors) and deleted that test shop afterwards. Your shop's data was not
+  touched. Nothing is committed yet.
+
+  How it works:
+  - One document moves through the stages: Draft (D-1001) → Quotation (Q-1001) → Invoice (INV-1001). It keeps every number it has had, so an invoice
+    shows "from Q-1001 · D-1001" and old links redirect to where the document is now. Numbers run per shop and start at 1001.
+  - Conversions are one click with a confirmation: Draft → Quotation, Draft → Invoice, Quotation → Invoice. Invoices can't be turned back.
+  - Drafts can be deleted. Quotations can be marked accepted, cancelled, or re-opened. Unpaid invoices can still be edited; paid ones (Phase 6) and
+    cancelled quotations are read-only.
+  - "New" buttons on each page. New Invoice is direct billing for walk-in sales. A customer's profile has a "New Quotation" button that pre-selects
+    them, and their history links to each document.
+
+  The builder:
+  - Customer search (name, phone or NTN), with "Register a new customer" in a pop-up.
+  - Year → Make → Model vehicle picker (optional for parts-only sales) plus a trim/package notes box.
+  - Magic Fit: with a vehicle chosen, the parts list shows only universal parts and parts linked to that vehicle, and the banner says how many fit.
+    Switch off "Compatible parts only" to see everything; parts that aren't linked are labelled.
+  - Line items: quantity stepper, editable unit price, move up/down, remove, and a warning when the quantity is more than the stock. Adding the same
+    part again adds 1 to its quantity. Optional fitting / labour lines with their own description, hours and rate.
+  - Order summary: subtotal, discount in Rs. or %, tax, grand total, internal notes and your quote terms.
+  - Tax follows your settings. Tax-inclusive prices have the tax worked out of them; tax-exclusive prices have it added on top. The final totals are
+    calculated in the database, so they can't be tampered with from the browser.
+
+  Fixed during testing: Next.js keeps visited pages alive in the background, so "New Draft" could reopen the form you had just saved and create a
+  duplicate. The form now resets after each create.
+
+  Your test steps:
+  1. Customers: add a customer if you deleted your test one.
+  2. Drafts → New Draft: pick the customer, then a vehicle that some of your parts are linked to. Check that the list hides parts for other vehicles
+     but still shows universal ones. Turn "Compatible parts only" off and on.
+  3. Add two parts and a labour line, set a 10% discount, and check the totals. (Set a tax rate in Settings first if you want to see tax.)
+  4. Save Draft (D-1001), then Convert to Quotation (Q-1001), Mark Accepted, then Convert to Invoice (INV-1001, "from Q-1001 · D-1001").
+  5. Invoices → New Invoice: bill a walk-in sale with no vehicle.
+  6. Open the customer's profile: the history lists both invoices and links to them.
+  7. Commit: git add . && git commit -m "feat: phase 5 - drafts, quotations, invoices and ymm magic filter"
+
+  Still waiting on a decision: rls_auto_enable() can be called without signing in, and leaked-password protection is off. Before Phase 6:
+  signed-in users can still change a quote's payment fields directly through the database API, so Phase 6 should lock "paid" down to the payment
+  procedure only.

@@ -183,7 +183,7 @@ The product targets Pakistani shops and sellers first. These defaults apply to e
 | Setting | Default | Per-shop option |
 | :--- | :--- | :--- |
 | **Currency** | `Rs.` | `Rs.` or `PKR` (no other currencies) |
-| **Timezone** | `Asia/Karachi` (PKT, UTC+5; covers Islamabad and Karachi) | Fixed for now |
+| **Timezone** | `Asia/Karachi` (PKT, UTC+5; covers Islamabad and Karachi) | Any IANA timezone, chosen in Settings |
 | **Phone numbers** | Pakistani local format starting with `0` | Allow international numbers with a `+` country code |
 
 - **Currency display**: symbol, a space, then the amount with thousands separators: `Rs. 12,500.00` / `PKR 12,500.00`.
@@ -1029,7 +1029,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
      - Quotation → Invoice: status `invoiced`, gets the next `INV-` number and keeps a link to the quotation (e.g. "from Q-1004").
    - Invoices are not converted back. A quotation can be cancelled; an invoice is settled by marking it paid (Phase 6).
    - "New" buttons: create a draft from Drafts or Quotations, or bill directly from Invoices (walk-in sale).
-   - Each document keeps every number it has had (draft → quotation → invoice), so the customer history and PDFs stay traceable. Needs `invoice_number`, `quotation_number` and `converted_from` columns, numbered per tenant.
+   - Each document keeps every number it has had (draft → quotation → invoice), so the customer history and PDFs stay traceable. Built as `draft_number`, `quotation_number` and `invoice_number` columns (unique per tenant), with `quote_number` generated as the current one. Conversions update the same row, so it needs no separate `converted_from` link: an invoice's own `quotation_number` is where it came from.
+   - Totals are worked out in SQL (`save_quote`), with the same maths mirrored in `src/lib/quote-math.ts` for the live preview. The discount is quote-level (Rs. or %), and unit prices are editable per line. Tax-inclusive prices have tax backed out; tax-exclusive prices have it added.
+   - Drafts can be deleted. Quotations can be accepted, cancelled or re-opened. Drafts, open quotations and unpaid invoices can be edited; paid invoices and cancelled quotations are read-only.
 
 🛑 **PAUSE & CHECKPOINT**:  
 *Prompt the human developer*:
