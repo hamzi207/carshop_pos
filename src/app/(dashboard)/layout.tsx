@@ -1,6 +1,5 @@
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AppSidebar } from "@/components/shared/app-sidebar";
-import { StoreCard, StoreCardSkeleton } from "@/components/shared/store-card";
 import { TopNavbar } from "@/components/shared/top-navbar";
 
 /**
@@ -11,13 +10,7 @@ import { TopNavbar } from "@/components/shared/top-navbar";
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
-      <AppSidebar
-        storeCard={
-          <Suspense fallback={<StoreCardSkeleton />}>
-            <StoreCard />
-          </Suspense>
-        }
-      />
+      <AppSidebar />
       <div className="main-shell">
         <TopNavbar />
         <main>{children}</main>

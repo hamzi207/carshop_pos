@@ -388,3 +388,33 @@ The Supabase database is set up for Phase 1. I applied all three migrations thro
   - Follow-up: Settings → Timezone & week → First day of the week (Monday / Sunday / Saturday; tenants.week_start, ISO 1/7/6,
     migration 20261015160000_tenant_week_start). Drives dashboard "This week" (RPC) and the calendar's first column.
     Date picker made compact (~590×300 on a 1366×768 laptop); phones: one month, 3-column shortcuts, fits 360px. 10 checks passed.
+
+  Branding (logos from carshop_logo/):
+  - Sidebar: white CARSHOP wordmark + "POS SYSTEM"; collapsed sidebar shows the round car mark (40px, faint ring).
+  - Sign-in/register: white logo on the dark side panel; on phones (panel hidden) the black logo sits above the form.
+  - New src/app/favicon.ico (16/32/48, car lines thickened so they read at tab size), src/app/icon.png (512),
+    src/app/apple-icon.png (180, black square). Trimmed logos + mark in public/brand/.
+    Browser check: 5 checks passed (logos load at the right sizes; icons served).
+  - Collapsible sidebar: "Collapse sidebar" row at the bottom of the sidebar toggles html[data-sidebar=collapsed] (icons only, round mark,
+    hover labels); remembered per browser in localStorage "carshop.sidebar", restored before hydration by a beforeInteractive
+    script in app/layout.tsx. Screens ≤920px still collapse automatically (button hidden there).
+  - Sidebar header (and top bar) 92px with the logo at 160px wide: ~16px above and below the logo.
+
+  changes.md round 6 (sidebar):
+  - Current-shop card removed from the sidebar (store-card.tsx deleted). Settings gets a "Your shop" card at the top
+    (name, handle, shop ID, signed in as, role); the Overview shop card (under Business overview) gains the shop handle.
+  - Sidebar menu tightened: items 7px padding / 1px apart, section gap 16px, nav top 14px.
+  - Sidebar logo and "POS SYSTEM" centred. Collapse toggle is now a round ‹/› button straddling the sidebar's right edge at the
+    header's bottom border (fixed position beside the sidebar so its scrolling doesn't clip it; slides with the width).
+  - Sidebar header: 30px above the logo, 22px below (no divider); collapse button dark navy like the sidebar (blue on hover), level with the logo.
+  - Collapse button icon: panel-close / panel-open (was a chevron), 30px.
+  - Collapsed sidebar: collapse button moved below the car mark (8px gap), on the edge; no outline on the button.
+  - Collapse button at the same height (72px) open and collapsed; both headers 114px and the section labels keep their
+    (hidden) space when collapsed, so the menu icons don't move.
+
+  Brand colours (from carshop_logo/: black #000, white #fff, racing red #EA1B25):
+  - Accent (active menu, links, focus rings, eyebrows, icons, selected states, date picker): brand red #D9161F (tokens --blue* kept
+    by name, now red). Greys are neutral (no blue tint); sidebar / dark surfaces near-black #111113; primary buttons black.
+  - Information keeps its own blue (--info*): Sent / Dealership / vehicle badges, info notices, info toasts.
+  - Status colours (green success, amber warning, red error) and the validated chart palette unchanged. Checkboxes use the brand red.
+    Browser test on a fresh dev server: 13 checks passed (palette, sidebar collapse persistence, item payment → Paid, toast colours).

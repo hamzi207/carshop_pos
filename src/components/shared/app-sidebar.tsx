@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "./brand";
+import { SidebarToggle } from "./sidebar-toggle";
 
 type NavItem = {
   href: string;
@@ -44,14 +45,14 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   if (item.comingSoon) {
     return (
-      <span className="nav-item" aria-disabled="true" title="Coming soon" style={{ opacity: 0.55, cursor: "default" }}>
+      <span className="nav-item" data-label={`${item.label} (coming soon)`} aria-disabled="true" title="Coming soon" style={{ opacity: 0.55, cursor: "default" }}>
         <Icon size={18} />
         <span>{item.label}</span>
       </span>
     );
   }
   return (
-    <Link href={item.href} className={`nav-item ${active ? "active" : ""}`} aria-current={active ? "page" : undefined}>
+    <Link href={item.href} className={`nav-item ${active ? "active" : ""}`} data-label={item.label} aria-current={active ? "page" : undefined}>
       <Icon size={18} />
       <span>{item.label}</span>
     </Link>
@@ -80,33 +81,34 @@ function ActiveNavLinks() {
 }
 
 /**
- * Dashboard sidebar ported from design/figma-ui/src/App.tsx.
- * `storeCard` is server-rendered (it needs the session) and streamed in.
- * The nav reads the pathname, which isn't known while prerendering routes with
+ * Dashboard sidebar ported from design/figma-ui/src/App.tsx. The shop's details live in
+ * Settings and on the Overview, not here (docs/changes.md). The nav reads the pathname, which isn't known while prerendering routes with
  * dynamic params (e.g. /customers/[id]), so it sits behind Suspense: those
  * pages prerender the links without a highlight and it appears on load.
  */
-export function AppSidebar({ storeCard }: { storeCard: ReactNode }) {
+export function AppSidebar() {
   return (
-    <aside className="sidebar">
-      <Brand />
-      {storeCard}
-      <Suspense fallback={<NavLinks pathname={null} />}>
-        <ActiveNavLinks />
-      </Suspense>
-      <div className="sidebar-foot">
-        <div className="help-card">
-          <div className="help-icon">
-            <Sparkles size={16} />
+    <>
+      <aside className="sidebar">
+        <Brand />
+        <Suspense fallback={<NavLinks pathname={null} />}>
+          <ActiveNavLinks />
+        </Suspense>
+        <div className="sidebar-foot">
+          <div className="help-card">
+            <div className="help-icon">
+              <Sparkles size={16} />
+            </div>
+            <strong>Need a hand?</strong>
+            <span>Visit the CarShop.Pk support center.</span>
+            <button type="button">
+              Get support <ChevronRight size={13} />
+            </button>
           </div>
-          <strong>Need a hand?</strong>
-          <span>Visit the CarShop.Pk support center.</span>
-          <button type="button">
-            Get support <ChevronRight size={13} />
-          </button>
+          <div className="version">CarShop.Pk POS System</div>
         </div>
-        <div className="version">CarShop.Pk POS System</div>
-      </div>
-    </aside>
+      </aside>
+      <SidebarToggle />
+    </>
   );
 }

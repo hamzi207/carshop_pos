@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import { Car, FileText, ShieldCheck } from "lucide-react";
 import { Brand } from "@/components/shared/brand";
 
@@ -31,7 +32,11 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </div>
         <div className="version">CarShop.Pk POS System</div>
       </aside>
-      <main className="auth-main">{children}</main>
+      <main className="auth-main">
+        {/* Phones hide the dark side panel, so the black logo sits above the form instead. */}
+        <Image src="/brand/logo-black.png" alt="CarShop Auto Accessories" width={204} height={56} className="auth-mobile-logo" priority />
+        {children}
+      </main>
     </div>
   );
 }

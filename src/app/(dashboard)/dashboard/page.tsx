@@ -28,6 +28,7 @@ async function ShopReadyCard() {
   const { tenant, role, email } = await getShopSession();
   const rows = [
     { label: "Shop name", value: tenant.name },
+    { label: "Shop handle", value: tenant.slug, mono: true },
     { label: "Shop ID", value: tenant.id, mono: true },
     { label: "Your role", value: role === "admin" ? "Admin" : "Staff" },
     { label: "Signed in as", value: email },

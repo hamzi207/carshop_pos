@@ -1,12 +1,3 @@
-- On the dashboard, remove the date filters from customize, and add a date range selector next to the customize button for the user to see reports on dashboard based on selected dates or date ranges.
-- Dashboard cards: Pending invoice appear under quotations count, and pending quotations appear under the invoice count. Fix the order please.
-- Toaster coloring is wrong. It shows black background with green text on all toasts. For success it should take the theme success color, for error error color, for info info color and for warning warning color. text is either white or black doesnt matter. Please fix this.
-- Customer Profile page should have a section with set of cards on above purchase history, 
-    -- Total Invoices
-    -- Pending Invoices
-    -- Total Due
-    -- Over Due
-No Date Range need, it should be for all time. Please use the same cards design as of dashboard cards, and make them look beautiful and catchy. 
-- On Customer Profile page make the numbers clickable to call, and email clickable to send email.
-- Record Payment Option on Invoice Page: Let the user choose inventory items for partial payments, or enter the amount and choose which items to apply it to. This is very important. Or just enter amount without selecting any item. Let this option be as flexible as possible.
-- The navbar search bar has an icon showing command+k which will be wrong if the user is on a windows device. Use ctrl+k instead and use a cross platform icon. Or can you detect the os without making things complicated in my code?
+= Sidebar
+- Center the logo, and POS System should also be centered.
+- collaps button should be on the right side of the sidebar, it should be on top, and above the border so it appears half on the sidebar and half outside the sidebar on the right.

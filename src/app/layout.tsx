@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -25,6 +26,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // hydrates; this ignores attribute diffs on this one element only.
     <html lang="en" className={`${inter.variable} antialiased`} suppressHydrationWarning>
       <body>
+        {/* Before hydration: restore a collapsed sidebar (see SidebarToggle) so it doesn't flash open. */}
+        <Script id="sidebar-pref" strategy="beforeInteractive">
+          {`try{if(localStorage.getItem("carshop.sidebar")==="collapsed")document.documentElement.dataset.sidebar="collapsed"}catch(e){}`}
+        </Script>
         {children}
         <Toaster position="top-right" richColors closeButton />
       </body>
