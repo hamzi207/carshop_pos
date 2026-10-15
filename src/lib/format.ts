@@ -1,15 +1,22 @@
 // Display formatting shared by server and client components. A fixed locale
 // keeps server-rendered HTML identical to what the browser hydrates.
 
-const moneyFormat = new Intl.NumberFormat("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+/** How a shop shows amounts (tenants.currency / tenants.show_paisa). */
+export type MoneyFormat = { currency: string; showPaisa: boolean };
 
-/** `$1,234.50` using the shop's currency symbol. */
-export function formatMoney(amount: number, currency: string) {
+const withPaisa = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const wholeRupees = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+/** "Rs. 12,500.00" / "PKR 12,500" depending on the shop's settings. */
+export function formatMoney(amount: number, { currency, showPaisa }: MoneyFormat) {
   const sign = amount < 0 ? "-" : "";
-  return `${sign}${currency}${moneyFormat.format(Math.abs(amount))}`;
+  const digits = (showPaisa ? withPaisa : wholeRupees).format(Math.abs(amount));
+  return `${sign}${currency} ${digits}`;
+}
+
+/** "15 Oct 2026" in the shop's timezone (default Asia/Karachi). */
+export function formatDate(value: string | Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone }).format(new Date(value));
 }
 
 /** Gross margin as a percentage of the selling price, or null when unpriced. */

@@ -121,7 +121,9 @@ AI agents implementing this project must adhere strictly to the boundaries defin
   - Shop Logo upload (stored in Supabase Storage bucket `shop-assets`).
   - Tax Rate / VAT % (e.g., 8.25% or 20%).
   - Quote Disclaimer & Terms (e.g., *"All tint warranties require 48 hours cure time without rolling windows down"*).
-  - Default Currency Symbol ($, €, £, etc.).
+  - Currency: `Rs.` (default) or `PKR`, chosen per shop. See §2.3.
+  - Timezone: `Asia/Karachi` (Islamabad / Karachi, PKT) by default. See §2.3.
+  - International phone numbers: off by default; shops with overseas clients can switch it on. See §2.3.
 - **User Management**: Admins can invite staff members to their shop tenant via email.
 
 #### Feature B: The YMM Inventory Engine
@@ -143,7 +145,7 @@ AI agents implementing this project must adhere strictly to the boundaries defin
   - Client Name / Company Name (e.g., "Apex Auto Dealership", "Metro Fleet Logistics", "John Smith").
   - Customer Type: `Dealership`, `Fleet Account`, `Retail Customer`.
   - Contact Person & Position.
-  - WhatsApp Number: Required standard international format (e.g., `+15551234567`).
+  - WhatsApp Number: Required. Pakistani mobile in local format by default (e.g., `0300-1234567`); international `+` numbers only when the shop allows them. See §2.3.
   - Email Address.
   - Billing Address & Tax ID / VAT Number.
   - Customer History View: Chronological list of all past quotes and invoices with payment status.
@@ -158,6 +160,7 @@ AI agents implementing this project must adhere strictly to the boundaries defin
    - **Step 5: Dynamic Totals**: Subtotal, line-item discounts, shop tax rate calculation, and grand total.
 2. **Status Pipeline**:
    - Status transitions: `draft` $\rightarrow$ `sent` $\rightarrow$ `accepted` $\rightarrow$ `invoiced` $\rightarrow$ `paid` (or `cancelled`).
+   - Shown to users as three separate sections, **Drafts**, **Quotations** and **Invoices**, with one-click conversions (Draft → Quotation or Invoice, Quotation → Invoice). See Phase 5, step 4.
 3. **One-Click Professional PDF Generation**:
    - Clean, automotive-branded PDF invoice/quote template generated on demand.
    - Includes Shop Logo, Shop Details, Customer Details, Vehicle YMM, Itemized Table (Parts & Labor), Totals, and Disclaimer.
@@ -173,6 +176,23 @@ AI agents implementing this project must adhere strictly to the boundaries defin
        2. Loops through all `quote_items` that have a non-null `item_id`.
        3. Decrements `inventory_items.quantity_on_hand` by `quote_items.quantity`.
        4. Sets `quotes.inventory_deducted = true` (idempotency flag preventing double deductions).
+
+### 2.3 Localization: Pakistan (Default Market)
+The product targets Pakistani shops and sellers first. These defaults apply to every shop; the per-shop options are set on the shop Settings page.
+
+| Setting | Default | Per-shop option |
+| :--- | :--- | :--- |
+| **Currency** | `Rs.` | `Rs.` or `PKR` (no other currencies) |
+| **Timezone** | `Asia/Karachi` (PKT, UTC+5; covers Islamabad and Karachi) | Fixed for now |
+| **Phone numbers** | Pakistani local format starting with `0` | Allow international numbers with a `+` country code |
+
+- **Currency display**: symbol, a space, then the amount with thousands separators: `Rs. 12,500.00` / `PKR 12,500.00`.
+- **Timezone**: all dates and times shown to users (quote dates, paid-at, "today" on the dashboard) are rendered in the shop's timezone. The database keeps storing `timestamptz` (UTC).
+- **Phone numbers**:
+  - **Pakistani numbers (always accepted)**: entered in local format starting with `0`. Mobiles are 11 digits starting `03` (e.g., `0300-1234567`). Landlines are 10–11 digits with an area code (e.g., `051-1234567`, `042-35123456`). Spaces, dashes and brackets are ignored. `+92` / `0092` / `92` forms are accepted and converted to the `0` format.
+  - **WhatsApp number**: must be a mobile (`03…`) when Pakistani, since landlines can't use WhatsApp.
+  - **International numbers**: accepted only when the shop has switched on international numbers, entered with a `+` country code (e.g., `+971501234567`, E.164: `^\+[1-9]\d{7,14}$`).
+  - **Storage**: numbers are stored normalized in E.164 (`+923001234567`), so WhatsApp links (`https://wa.me/923001234567`) work for local and international clients alike. Pakistani numbers are always displayed back in local format (`0300-1234567`).
 
 ---
 
@@ -197,7 +217,7 @@ create table public.tenants (
   address text,
   phone text,
   email text,
-  currency text not null default '$',
+  currency text not null default '$',  -- Phase 4: changed to 'Rs.' and limited to 'Rs.' / 'PKR' (§2.3)
   tax_rate numeric(5,2) not null default 0.00,
   quote_footer_notes text default 'All quotes are valid for 30 days. 50% deposit required on custom orders.',
   created_at timestamptz not null default now(),
@@ -960,16 +980,21 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ### PHASE 4: B2B Customer Directory & WhatsApp CRM
 **Agent Directive**:
-1. Create Customer Zod schema in `src/lib/validations/customer.schema.ts` with strict international WhatsApp phone validation (e.g., regex `^\+[1-9]\d{1,14}$`).
-2. Build Customer Server Actions in `src/lib/actions/customers.ts` (List, Create, Update, Get with Purchase History).
-3. Build Customer Management UI:
+1. **Pakistan localization (§2.3)**:
+   - Migration on `tenants`: currency limited to `Rs.` / `PKR` with default `Rs.` (existing shops move from `$` to `Rs.`); add `timezone text not null default 'Asia/Karachi'` and `allow_international_phones boolean not null default false`.
+   - Shared phone helpers in `src/lib/phone.ts`: parse/normalize to E.164, format for display (`0300-1234567`), build `wa.me` links.
+   - Currency formatting `Rs. 12,500.00` and date formatting in the shop timezone in `src/lib/format.ts`.
+   - Minimal shop Settings page (`src/app/(dashboard)/settings/page.tsx`, admins only): currency (`Rs.` / `PKR`) and the international-numbers switch. The rest of Feature A settings comes in a later phase.
+2. Create Customer Zod schema in `src/lib/validations/customer.schema.ts` using the §2.3 phone rules (Pakistani local format by default, `+` international only when the shop allows it; WhatsApp must be a mobile).
+3. Build Customer Server Actions in `src/lib/actions/customers.ts` (List, Create, Update, Get with Purchase History).
+4. Build Customer Management UI:
    - `src/app/(dashboard)/customers/page.tsx` (Customer table with badges for Dealership, Fleet, Retail)
-   - `src/app/(dashboard)/customers/new/page.tsx` (Add customer modal/form)
+   - Add / edit customer as a modal on the list page (matching the inventory pattern), instead of a separate `customers/new` page
    - `src/app/(dashboard)/customers/[id]/page.tsx` (Client profile with quick WhatsApp launch button and full quote history).
 
 🛑 **PAUSE & CHECKPOINT**:  
 *Prompt the human developer*:
-> "Phase 4 complete! Navigate to `/customers` and add a test customer (e.g., 'Precision Auto Dealership' with a valid international WhatsApp number). Check that the phone number validates properly. Run `git add . && git commit -m 'feat: phase 4 - b2b customer directory'` and tell me to proceed to Phase 5."
+> "Phase 4 complete! Navigate to `/customers` and add a test customer (e.g., 'Precision Auto Dealership' with WhatsApp `0300-1234567`). Check that Pakistani numbers validate, that `+` international numbers are rejected until you enable them in Settings, and that prices show as `Rs.`. Run `git add . && git commit -m 'feat: phase 4 - b2b customer directory'` and tell me to proceed to Phase 5."
 
 ---
 
@@ -989,7 +1014,22 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
      ```
    - Dynamic Line Items Editor: Add inventory parts OR custom non-inventory labor lines.
    - Live Subtotal, Shop Tax calculation, and Grand Total display.
-3. Build the Quotes Pipeline List at `src/app/(dashboard)/quotes/page.tsx` with status filter tabs (`Draft`, `Sent`, `Invoiced`, `Paid`).
+3. ~~Build the Quotes Pipeline List at `src/app/(dashboard)/quotes/page.tsx` with status filter tabs (`Draft`, `Sent`, `Invoiced`, `Paid`).~~ Replaced by the three sections below (requested by the product owner, 2026-10-15).
+4. **Separate Drafts / Quotations / Invoices sections.** One sidebar item each instead of a single "Quotes & POS" list. All three are the same kind of document (a `quotes` row with line items) at different stages, so nothing is re-typed when converting:
+
+   | Section | Route | Shows statuses | Number series |
+   | :--- | :--- | :--- | :--- |
+   | **Drafts** | `/drafts` | `draft` | `D-1001`… (internal only) |
+   | **Quotations** | `/quotations` | `sent`, `accepted`, `cancelled` | `Q-1001`… |
+   | **Invoices** | `/invoices` | `invoiced`, `paid` | `INV-1001`… |
+
+   - **Conversions** (one click, with confirmation):
+     - Draft → Quotation: status `sent`, gets the next `Q-` number.
+     - Draft → Invoice: status `invoiced`, gets the next `INV-` number.
+     - Quotation → Invoice: status `invoiced`, gets the next `INV-` number and keeps a link to the quotation (e.g. "from Q-1004").
+   - Invoices are not converted back. A quotation can be cancelled; an invoice is settled by marking it paid (Phase 6).
+   - "New" buttons: create a draft from Drafts or Quotations, or bill directly from Invoices (walk-in sale).
+   - Each document keeps every number it has had (draft → quotation → invoice), so the customer history and PDFs stay traceable. Needs `invoice_number`, `quotation_number` and `converted_from` columns, numbered per tenant.
 
 🛑 **PAUSE & CHECKPOINT**:  
 *Prompt the human developer*:

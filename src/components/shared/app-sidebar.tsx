@@ -1,14 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ChevronRight,
+  FilePen,
   FileText,
   LayoutGrid,
   LineChart,
   Package,
+  ReceiptText,
   Settings,
   Sparkles,
   Users,
@@ -26,14 +28,16 @@ type NavItem = {
 
 const workspaceNav: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
-  { href: "/quotes", label: "Quotes & POS", icon: FileText, comingSoon: true },
+  { href: "/drafts", label: "Drafts", icon: FilePen, comingSoon: true },
+  { href: "/quotations", label: "Quotations", icon: FileText, comingSoon: true },
+  { href: "/invoices", label: "Invoices", icon: ReceiptText, comingSoon: true },
   { href: "/inventory", label: "Inventory", icon: Package },
-  { href: "/customers", label: "Customers", icon: Users, comingSoon: true },
+  { href: "/customers", label: "Customers", icon: Users },
 ];
 
 const insightsNav: NavItem[] = [
   { href: "/reports", label: "Reports", icon: LineChart, comingSoon: true },
-  { href: "/settings", label: "Settings", icon: Settings, comingSoon: true },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
@@ -54,28 +58,42 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
+function NavLinks({ pathname }: { pathname: string | null }) {
+  const isActive = (href: string) =>
+    pathname !== null && (pathname === href || pathname.startsWith(`${href}/`));
+  return (
+    <nav className="nav">
+      <span className="nav-label">WORKSPACE</span>
+      {workspaceNav.map((item) => (
+        <NavLink key={item.href} item={item} active={isActive(item.href)} />
+      ))}
+      <span className="nav-label nav-label-gap">INSIGHTS</span>
+      {insightsNav.map((item) => (
+        <NavLink key={item.href} item={item} active={isActive(item.href)} />
+      ))}
+    </nav>
+  );
+}
+
+function ActiveNavLinks() {
+  return <NavLinks pathname={usePathname()} />;
+}
+
 /**
  * Dashboard sidebar ported from design/figma-ui/src/App.tsx.
  * `storeCard` is server-rendered (it needs the session) and streamed in.
+ * The nav reads the pathname, which isn't known while prerendering routes with
+ * dynamic params (e.g. /customers/[id]), so it sits behind Suspense: those
+ * pages prerender the links without a highlight and it appears on load.
  */
 export function AppSidebar({ storeCard }: { storeCard: ReactNode }) {
-  const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-
   return (
     <aside className="sidebar">
       <Brand />
       {storeCard}
-      <nav className="nav">
-        <span className="nav-label">WORKSPACE</span>
-        {workspaceNav.map((item) => (
-          <NavLink key={item.href} item={item} active={isActive(item.href)} />
-        ))}
-        <span className="nav-label nav-label-gap">INSIGHTS</span>
-        {insightsNav.map((item) => (
-          <NavLink key={item.href} item={item} active={isActive(item.href)} />
-        ))}
-      </nav>
+      <Suspense fallback={<NavLinks pathname={null} />}>
+        <ActiveNavLinks />
+      </Suspense>
       <div className="sidebar-foot">
         <div className="help-card">
           <div className="help-icon">

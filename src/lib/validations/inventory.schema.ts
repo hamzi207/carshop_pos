@@ -50,6 +50,8 @@ export const inventoryItemSchema = z
     sellingPrice: price("selling price"),
     quantityOnHand: wholeUnits("stock quantity"),
     lowStockThreshold: wholeUnits("low-stock alert level"),
+    /** Selling price already includes the shop tax (default from shop settings). */
+    priceIncludesTax: z.boolean(),
     isUniversal: z.boolean(),
     vehicleIds: z
       .array(z.number().int().positive())

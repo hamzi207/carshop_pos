@@ -1,0 +1,140 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChevronRight, MessageCircle, Plus, Users } from "lucide-react";
+import { formatMoney, type MoneyFormat } from "@/lib/format";
+import { formatPhone, whatsappLink } from "@/lib/phone";
+import type { CustomerListItem } from "@/lib/types/customer";
+import { CustomerAvatar, CustomerTypeBadge } from "./customer-badges";
+import { CustomerDialog } from "./customer-dialog";
+
+type Props = {
+  customers: CustomerListItem[];
+  money: MoneyFormat;
+  allowInternationalPhones: boolean;
+  /** True when a search or type filter is active (changes the empty state). */
+  filtered: boolean;
+};
+
+export function CustomerTable({ customers, money, allowInternationalPhones, filtered }: Props) {
+  const router = useRouter();
+  const [adding, setAdding] = useState(false);
+
+  if (customers.length === 0) {
+    return (
+      <div className="empty-state">
+        <span className="header-icon blue"><Users size={18} /></span>
+        {filtered ? (
+          <>
+            <strong>No customers match these filters</strong>
+            Try a different search or customer type.
+          </>
+        ) : (
+          <>
+            <strong>No customers yet</strong>
+            Register your first dealership, fleet account or retail client.
+            <div className="empty-state-action">
+              <button type="button" className="button button-primary" onClick={() => setAdding(true)}>
+                <Plus size={14} /> Register Customer
+              </button>
+            </div>
+            <CustomerDialog
+              open={adding}
+              onOpenChange={setAdding}
+              allowInternationalPhones={allowInternationalPhones}
+              onSaved={(id) => router.push(`/customers/${id}`)}
+            />
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="table-wrap">
+        <table className="customer-table">
+          <thead>
+            <tr>
+              <th>CUSTOMER / COMPANY</th>
+              <th>PRIMARY CONTACT</th>
+              <th>WHATSAPP</th>
+              <th>ACTIVITY</th>
+              <th>OUTSTANDING</th>
+              <th><span className="sr-only">Open</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {customers.map((c) => {
+              const href = `/customers/${c.id}`;
+              return (
+                <tr key={c.id} onClick={() => router.push(href)}>
+                  <td>
+                    <div className="customer-name">
+                      <CustomerAvatar name={c.name} />
+                      <div>
+                        <Link href={href} className="row-link" onClick={(e) => e.stopPropagation()}>
+                          <strong>{c.name}</strong>
+                        </Link>
+                        <CustomerTypeBadge type={c.customer_type} />
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="contact-cell">
+                      <strong>{c.contact_person || "—"}</strong>
+                      {c.email && <span>{c.email}</span>}
+                    </div>
+                  </td>
+                  <td>
+                    <a
+                      className="whatsapp-link"
+                      href={whatsappLink(c.whatsapp_number)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`WhatsApp ${c.name} on ${formatPhone(c.whatsapp_number)}`}
+                    >
+                      <MessageCircle size={15} />
+                      {formatPhone(c.whatsapp_number)}
+                    </a>
+                  </td>
+                  <td>
+                    <strong>{c.quoteCount}</strong> {c.quoteCount === 1 ? "quote / invoice" : "quotes / invoices"}
+                  </td>
+                  <td className={c.outstanding > 0 ? "balance" : "settled"}>
+                    {c.outstanding > 0 ? formatMoney(c.outstanding, money) : <span className="badge badge-green">Settled</span>}
+                  </td>
+                  <td><ChevronRight size={16} /></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="table-footer">
+        <span>Showing {customers.length} {customers.length === 1 ? "customer" : "customers"}</span>
+      </div>
+    </>
+  );
+}
+
+export function AddCustomerButton({ allowInternationalPhones }: { allowInternationalPhones: boolean }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="button button-primary" onClick={() => setOpen(true)}>
+        <Plus size={14} /> Register Customer
+      </button>
+      <CustomerDialog
+        open={open}
+        onOpenChange={setOpen}
+        allowInternationalPhones={allowInternationalPhones}
+        onSaved={(id) => router.push(`/customers/${id}`)}
+      />
+    </>
+  );
+}

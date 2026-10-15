@@ -80,6 +80,7 @@ export type Database = {
           is_universal: boolean
           low_stock_threshold: number
           name: string
+          price_includes_tax: boolean
           quantity_on_hand: number
           selling_price: number
           sku: string
@@ -95,6 +96,7 @@ export type Database = {
           is_universal?: boolean
           low_stock_threshold?: number
           name: string
+          price_includes_tax?: boolean
           quantity_on_hand?: number
           selling_price: number
           sku: string
@@ -110,6 +112,7 @@ export type Database = {
           is_universal?: boolean
           low_stock_threshold?: number
           name?: string
+          price_includes_tax?: boolean
           quantity_on_hand?: number
           selling_price?: number
           sku?: string
@@ -375,6 +378,7 @@ export type Database = {
       tenants: {
         Row: {
           address: string | null
+          allow_international_phones: boolean
           created_at: string
           currency: string
           email: string | null
@@ -382,13 +386,17 @@ export type Database = {
           logo_url: string | null
           name: string
           phone: string | null
+          prices_include_tax: boolean
           quote_footer_notes: string | null
+          show_paisa: boolean
           slug: string
           tax_rate: number
+          timezone: string
           updated_at: string
         }
         Insert: {
           address?: string | null
+          allow_international_phones?: boolean
           created_at?: string
           currency?: string
           email?: string | null
@@ -396,13 +404,17 @@ export type Database = {
           logo_url?: string | null
           name: string
           phone?: string | null
+          prices_include_tax?: boolean
           quote_footer_notes?: string | null
+          show_paisa?: boolean
           slug: string
           tax_rate?: number
+          timezone?: string
           updated_at?: string
         }
         Update: {
           address?: string | null
+          allow_international_phones?: boolean
           created_at?: string
           currency?: string
           email?: string | null
@@ -410,9 +422,12 @@ export type Database = {
           logo_url?: string | null
           name?: string
           phone?: string | null
+          prices_include_tax?: boolean
           quote_footer_notes?: string | null
+          show_paisa?: boolean
           slug?: string
           tax_rate?: number
+          timezone?: string
           updated_at?: string
         }
         Relationships: []
@@ -467,12 +482,37 @@ export type Database = {
           p_item_id?: string
           p_low_stock_threshold: number
           p_name: string
+          p_price_includes_tax?: boolean
           p_quantity_on_hand: number
           p_selling_price: number
           p_sku: string
           p_vehicle_ids?: number[]
         }
         Returns: string
+      }
+      search_customers: {
+        Args: { p_query: string }
+        Returns: {
+          billing_address: string | null
+          contact_person: string | null
+          created_at: string
+          customer_type: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          tax_id: string | null
+          tenant_id: string
+          updated_at: string
+          whatsapp_number: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "customers"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       search_inventory_items: {
         Args: { p_query: string }
@@ -485,6 +525,7 @@ export type Database = {
           is_universal: boolean
           low_stock_threshold: number
           name: string
+          price_includes_tax: boolean
           quantity_on_hand: number
           selling_price: number
           sku: string

@@ -14,7 +14,7 @@ import {
   Trash2,
   type LucideIcon,
 } from "lucide-react";
-import { formatMoney, formatVehicleGroups, marginPercent } from "@/lib/format";
+import { formatMoney, formatVehicleGroups, marginPercent, type MoneyFormat } from "@/lib/format";
 import type { InventoryListItem } from "@/lib/types/inventory";
 import { DeleteItemDialog } from "./delete-item-dialog";
 import { InventoryItemDialog } from "./inventory-item-dialog";
@@ -27,7 +27,9 @@ const CATEGORY_ICON: Record<string, LucideIcon> = {
 
 type Props = {
   items: InventoryListItem[];
-  currency: string;
+  money: MoneyFormat;
+  /** Shop default for new items (tenants.prices_include_tax). */
+  pricesIncludeTax: boolean;
   /** True when a search/category/fitment filter is active (changes the empty state). */
   filtered: boolean;
 };
@@ -83,7 +85,7 @@ function StockBadge({ item }: { item: InventoryListItem }) {
   );
 }
 
-export function InventoryTable({ items, currency, filtered }: Props) {
+export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Props) {
   const [editing, setEditing] = useState<InventoryListItem | null>(null);
   const [deleting, setDeleting] = useState<InventoryListItem | null>(null);
   const [adding, setAdding] = useState(false);
@@ -161,8 +163,11 @@ export function InventoryTable({ items, currency, filtered }: Props) {
                     </td>
                     <td><FitmentBadge item={item} /></td>
                     <td><VehicleCell item={item} /></td>
-                    <td>{formatMoney(cost, currency)}</td>
-                    <td className="amount">{formatMoney(selling, currency)}</td>
+                    <td>{formatMoney(cost, money)}</td>
+                    <td className="amount">
+                      {formatMoney(selling, money)}
+                      <span className="price-tax-note">{item.price_includes_tax ? "incl. tax" : "+ tax"}</span>
+                    </td>
                     <td><MarginBadge cost={cost} selling={selling} /></td>
                     <td><StockBadge item={item} /></td>
                     <td>
@@ -191,7 +196,8 @@ export function InventoryTable({ items, currency, filtered }: Props) {
             setEditing(null);
           }
         }}
-        currency={currency}
+        currency={money.currency}
+        pricesIncludeTax={pricesIncludeTax}
         item={editing ?? undefined}
       />
       <DeleteItemDialog item={deleting} onOpenChange={(open) => !open && setDeleting(null)} />

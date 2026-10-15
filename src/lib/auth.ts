@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { MoneyFormat } from "@/lib/format";
 
 export type ShopSession = {
   userId: string;
@@ -14,6 +15,12 @@ export type ShopSession = {
     slug: string;
     currency: string;
     taxRate: number;
+    timezone: string;
+    showPaisa: boolean;
+    pricesIncludeTax: boolean;
+    allowInternationalPhones: boolean;
+    /** Pass to formatMoney(). */
+    money: MoneyFormat;
   };
 };
 
@@ -32,7 +39,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate)")
+    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones)")
     .eq("id", userId)
     .single();
 
@@ -54,6 +61,11 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       slug: tenant.slug,
       currency: tenant.currency,
       taxRate: Number(tenant.tax_rate),
+      timezone: tenant.timezone,
+      showPaisa: tenant.show_paisa,
+      pricesIncludeTax: tenant.prices_include_tax,
+      allowInternationalPhones: tenant.allow_international_phones,
+      money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     },
   };
 });

@@ -77,6 +77,7 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
     p_quantity_on_hand: item.quantityOnHand,
     p_low_stock_threshold: item.lowStockThreshold,
     p_is_universal: item.isUniversal,
+    p_price_includes_tax: item.priceIncludesTax,
     p_vehicle_ids: item.isUniversal ? [] : item.vehicleIds,
   });
 

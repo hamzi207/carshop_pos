@@ -57,11 +57,13 @@ carshop_pos/
 │   ├── app/
 │   │   ├── api/vehicles/     Year → Make → Model lookup API
 │   │   ├── (auth)/           login & register pages
-│   │   ├── (dashboard)/      signed-in app shell, dashboard, inventory
+│   │   ├── (dashboard)/      signed-in app shell: dashboard, inventory, customers, settings
 │   │   └── auth/callback/    Supabase email-confirmation handler
 │   ├── components/
 │   │   ├── auth/             auth forms
 │   │   ├── inventory/        inventory table, filters, add/edit dialog, YMM selector
+│   │   ├── customers/        directory table, filters, add/edit dialog, profile actions
+│   │   ├── settings/         shop settings form
 │   │   ├── shared/           sidebar, top bar, branding, user menu
 │   │   └── ui/               shadcn/ui primitives
 │   ├── lib/
@@ -89,8 +91,10 @@ Root-level config files (`package.json`, `tsconfig.json`, `next.config.ts`, `esl
 | --- | --- | --- |
 | 1 | Auth, shop registration, multi-tenant schema + RLS, dashboard shell | Done |
 | 2 | NHTSA vehicle catalog: seed script + `/api/vehicles` Year → Make → Model lookups | Done |
-| 3 | Inventory: parts CRUD, Universal Fit vs vehicle-specific fitment, margins, low-stock alerts (`/inventory`) | Built, in testing |
-| 4+ | Customers/WhatsApp CRM, quoting, PDFs | See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) |
+| 3 | Inventory: parts CRUD, Universal Fit vs vehicle-specific fitment, vehicle search, margins, low-stock alerts (`/inventory`) | Done |
+| 4 | Customer directory + WhatsApp links (`/customers`), Pakistan localization (Rs./PKR, PKT, local phone format), shop Settings (`/settings`) | Built, in testing |
+| 5 | Drafts, Quotations and Invoices with one-click conversions, YMM fitment filter | Next |
+| 6 | PDFs, WhatsApp sharing, payments and stock deduction | See [`docs/PROJECT_SPEC.md`](docs/PROJECT_SPEC.md) |
 
 ## License
 

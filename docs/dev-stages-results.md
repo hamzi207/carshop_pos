@@ -114,3 +114,46 @@ The Supabase database is set up for Phase 1. I applied all three migrations thro
   The two security warnings from earlier, rls_auto_enable() and leaked-password protection, are still waiting on your decision.
 
   Tell me when Phase 3 passes and is committed, and I'll start Phase 4 (customers and WhatsApp CRM).
+
+  Phase 4:
+
+  Phase 4 is built and ready for you to test in the browser; nothing is committed yet. Type-checking, lint and the production build all pass. Every new
+  page was loaded with a temporary test shop (since deleted) and rendered correctly.
+
+  Pakistan defaults (spec §2.3):
+  - Currency: the shop switched from $ to Rs.; only Rs. or PKR are allowed. Amounts show as Rs. 12,500.00, or whole rupees if paisa is turned off.
+  - Timezone: dates use Pakistan time (Asia/Karachi).
+  - Phone numbers: typed the Pakistani way (0300-1234567, 0300 123 4567, +92 300 1234567 and 3001234567 all work). Landlines like 051-1234567 are
+    fine for "other phone", but WhatsApp numbers must be mobiles starting 03. + international numbers are rejected until switched on in Settings.
+    Numbers are saved in one standard format so WhatsApp links work, and always display as 0300-1234567.
+
+  Settings page (sidebar → Settings; admins edit, staff view only): currency (Rs./PKR), show paisa with a live preview, tax rate (starts at 0%),
+  "selling prices include tax" (on by default), allow international numbers, and timezone (shown, fixed for now).
+
+  Tax-inclusive products: each product has a "Selling price includes tax" checkbox defaulting to the shop setting. The inventory table shows
+  "incl. tax" or "+ tax" under each price. Quotes in Phase 5 will work tax out of the price instead of adding it on top.
+
+  Customers (sidebar → Customers):
+  - List: totals (customers, B2B accounts, outstanding balance), type badges, clickable WhatsApp numbers, quote count / outstanding per customer.
+  - Search covers name, contact, phone (either format), email and NTN. Type filters: Dealerships, Fleet, Retail.
+  - Register / edit in a pop-up, with an NTN / Tax ID field.
+  - Profile page: contact details, notes, a "Message on WhatsApp" button with a greeting pre-filled, and a quote history that fills in from Phase 5.
+  - Delete is blocked once a customer has quotes, so their history is kept.
+
+  Drafts / Quotations / Invoices (requested for Phase 5): the sidebar shows Drafts, Quotations and Invoices as "coming soon" instead of
+  "Quotes & POS". The spec's Phase 5 now says: one document at different stages; conversions Draft → Quotation or Invoice, Quotation → Invoice;
+  number series D-1001 / Q-1001 / INV-1001, with earlier numbers kept ("INV-1007, from Q-1004"); direct billing from Invoices for walk-in sales.
+
+  Also fixed: the customer profile page (the first page with an ID in its address) broke the production build because the sidebar couldn't work
+  out the current page at build time. Fixed the way the Next.js docs recommend (sidebar nav wrapped in Suspense).
+
+  Your test steps:
+  1. Settings: check Rs. is selected. Switch to PKR and turn paisa off; watch the preview. Save, check prices on /inventory, then switch back.
+  2. Inventory: edit a product; check the new tax checkbox and the Rs. prefix on the price fields.
+  3. Customers: register "Precision Auto Dealership" with WhatsApp 0300 123 4567. It should save and display as 0300-1234567.
+  4. Phone rules: WhatsApp +971501234567 should be rejected with a hint about Settings; turn on international numbers and it saves.
+     A landline like 051-1234567 is rejected as WhatsApp but accepted as "other phone".
+  5. Search 0300-123 or the contact's name. Open the profile and click Message on WhatsApp.
+  6. Commit: git add . && git commit -m "feat: phase 4 - b2b customer directory and pakistan localization"
+
+  Still waiting on a decision: rls_auto_enable() can be called without signing in, and leaked-password protection is off.

@@ -16,7 +16,7 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 
 async function AddItemAction() {
   const { tenant } = await getShopSession();
-  return <AddItemButton currency={tenant.currency} />;
+  return <AddItemButton currency={tenant.currency} pricesIncludeTax={tenant.pricesIncludeTax} />;
 }
 
 async function InventoryResults({ searchParams }: { searchParams: SearchParams }) {
@@ -28,7 +28,14 @@ async function InventoryResults({ searchParams }: { searchParams: SearchParams }
   });
   const [items, { tenant }] = await Promise.all([getInventoryItems(filters), getShopSession()]);
   const filtered = Boolean(filters.category || filters.search || filters.fitment);
-  return <InventoryTable items={items} currency={tenant.currency} filtered={filtered} />;
+  return (
+    <InventoryTable
+      items={items}
+      money={tenant.money}
+      pricesIncludeTax={tenant.pricesIncludeTax}
+      filtered={filtered}
+    />
+  );
 }
 
 function ResultsSkeleton() {

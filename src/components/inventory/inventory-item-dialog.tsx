@@ -35,12 +35,14 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currency: string;
+  /** Shop default for "price includes tax" on new items. */
+  pricesIncludeTax: boolean;
   /** Edit this item; omit to create a new one. */
   item?: InventoryListItem;
 };
 
 /** Add / edit inventory part modal (Figma "Add inventory part"). */
-export function InventoryItemDialog({ open, onOpenChange, currency, item }: Props) {
+export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, item }: Props) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -52,6 +54,7 @@ export function InventoryItemDialog({ open, onOpenChange, currency, item }: Prop
                 key={item?.id ?? "new"}
                 item={item}
                 currency={currency}
+                pricesIncludeTax={pricesIncludeTax}
                 onDone={() => onOpenChange(false)}
               />
             )}
@@ -65,10 +68,12 @@ export function InventoryItemDialog({ open, onOpenChange, currency, item }: Prop
 function ItemForm({
   item,
   currency,
+  pricesIncludeTax,
   onDone,
 }: {
   item?: InventoryListItem;
   currency: string;
+  pricesIncludeTax: boolean;
   onDone: () => void;
 }) {
   const isEdit = Boolean(item);
@@ -95,6 +100,7 @@ function ItemForm({
           sellingPrice: Number(item.selling_price),
           quantityOnHand: item.quantity_on_hand,
           lowStockThreshold: item.low_stock_threshold,
+          priceIncludesTax: item.price_includes_tax,
           isUniversal: item.is_universal,
           vehicleIds: item.vehicles.map((v) => v.id),
         }
@@ -105,6 +111,7 @@ function ItemForm({
           category: "Window Film",
           quantityOnHand: 0,
           lowStockThreshold: 5,
+          priceIncludesTax: pricesIncludeTax,
           isUniversal: true,
           vehicleIds: [],
         },
@@ -243,6 +250,13 @@ function ItemForm({
             <span>LOW STOCK ALERT AT</span>
             <input type="number" inputMode="numeric" step="1" min="0" {...invalid("lowStockThreshold")} {...register("lowStockThreshold", { valueAsNumber: true })} />
             {fieldError("lowStockThreshold")}
+          </label>
+          <label className="span-two check-field">
+            <input type="checkbox" {...register("priceIncludesTax")} />
+            <div>
+              <strong>Selling price includes tax</strong>
+              <p>On quotes, tax is worked out of this price instead of added on top. The default comes from Settings.</p>
+            </div>
           </label>
         </div>
 
