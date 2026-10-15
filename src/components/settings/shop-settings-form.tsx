@@ -4,19 +4,21 @@ import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Clock, Coins, Loader2, Phone, Receipt, Save } from "lucide-react";
+import { AlarmClock, Clock, Coins, Loader2, Phone, Receipt, Save } from "lucide-react";
 import { updateShopSettings } from "@/lib/actions/settings";
 import { formatMoney } from "@/lib/format";
-import { CURRENCIES, shopSettingsSchema, type ShopSettingsInput } from "@/lib/validations/settings.schema";
+import { DEFAULT_TIMEZONE, type TimeZoneGroup } from "@/lib/timezones";
+import { CLOCK_STYLES, CURRENCIES, shopSettingsSchema, type ShopSettingsInput } from "@/lib/validations/settings.schema";
 
 type Props = {
   initial: ShopSettingsInput;
-  timezone: string;
+  /** Built on the server so labels match between SSR and hydration. */
+  timeZoneGroups: TimeZoneGroup[];
   /** Staff can see the settings but not change them. */
   canEdit: boolean;
 };
 
-export function ShopSettingsForm({ initial, timezone, canEdit }: Props) {
+export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -29,7 +31,10 @@ export function ShopSettingsForm({ initial, timezone, canEdit }: Props) {
     defaultValues: initial,
   });
 
-  const [currency, showPaisa] = useWatch({ control, name: ["currency", "showPaisa"] });
+  const [currency, showPaisa, showClock, clockStyle] = useWatch({
+    control,
+    name: ["currency", "showPaisa", "showClock", "clockStyle"],
+  });
   const preview = formatMoney(12500, { currency, showPaisa });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -152,10 +157,94 @@ export function ShopSettingsForm({ initial, timezone, canEdit }: Props) {
               <p>Dates and times on quotes, invoices and the dashboard use this timezone.</p>
             </div>
           </div>
-          <div className="settings-row">
-            <span className="settings-label">Shop timezone</span>
-            <span className="settings-value">Pakistan Time (PKT, UTC+5) · {timezone}</span>
+          <label className="settings-row">
+            <span className="settings-label">
+              Shop timezone
+              <small>Default is Pakistan Time ({DEFAULT_TIMEZONE}, UTC+05:00).</small>
+            </span>
+            <select
+              className="filter-select timezone-select"
+              aria-invalid={errors.timezone ? true : undefined}
+              {...register("timezone")}
+            >
+              {timeZoneGroups.map((g) => (
+                <optgroup key={g.region} label={g.region}>
+                  {g.options.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+          {errors.timezone && <span className="field-error settings-error">{errors.timezone.message}</span>}
+        </section>
+
+        <section className="card settings-card">
+          <div className="settings-card-head">
+            <span className="header-icon blue"><AlarmClock size={18} /></span>
+            <div>
+              <h2>Dashboard clock</h2>
+              <p>A live clock on the Overview page, in the shop timezone.</p>
+            </div>
           </div>
+          <label className="settings-row">
+            <span className="settings-label">Show clock on dashboard</span>
+            <input type="checkbox" className="switch" {...register("showClock")} />
+          </label>
+          <div className="settings-row">
+            <span className="settings-label">
+              Clock design
+              {!showClock && <small>The clock is hidden. Turn it on to see this design.</small>}
+            </span>
+            <Controller
+              control={control}
+              name="clockStyle"
+              render={({ field }) => (
+                <div className="segmented" role="radiogroup" aria-label="Clock design">
+                  {CLOCK_STYLES.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      role="radio"
+                      aria-checked={field.value === s}
+                      className={field.value === s ? "active" : ""}
+                      onClick={() => field.onChange(s)}
+                    >
+                      {s === "digital" ? "Digital" : "Analog"}
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
+          </div>
+          {clockStyle === "digital" && (
+            <div className="settings-row">
+              <span className="settings-label">
+                Time format
+                <small>12-hour shows 4:05 PM; 24-hour shows 16:05.</small>
+              </span>
+              <Controller
+                control={control}
+                name="clock24Hour"
+                render={({ field }) => (
+                  <div className="segmented" role="radiogroup" aria-label="Time format">
+                    {[false, true].map((is24) => (
+                      <button
+                        key={String(is24)}
+                        type="button"
+                        role="radio"
+                        aria-checked={field.value === is24}
+                        className={field.value === is24 ? "active" : ""}
+                        onClick={() => field.onChange(is24)}
+                      >
+                        {is24 ? "24-hour" : "12-hour"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              />
+            </div>
+          )}
         </section>
 
         {canEdit && (

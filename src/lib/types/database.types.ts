@@ -379,6 +379,9 @@ export type Database = {
         Row: {
           address: string | null
           allow_international_phones: boolean
+          clock_24_hour: boolean
+          clock_style: string
+          show_clock: boolean
           created_at: string
           currency: string
           email: string | null
@@ -397,6 +400,9 @@ export type Database = {
         Insert: {
           address?: string | null
           allow_international_phones?: boolean
+          clock_24_hour?: boolean
+          clock_style?: string
+          show_clock?: boolean
           created_at?: string
           currency?: string
           email?: string | null
@@ -415,6 +421,9 @@ export type Database = {
         Update: {
           address?: string | null
           allow_international_phones?: boolean
+          clock_24_hour?: boolean
+          clock_style?: string
+          show_clock?: boolean
           created_at?: string
           currency?: string
           email?: string | null

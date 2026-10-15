@@ -29,6 +29,10 @@ export async function updateShopSettings(input: ShopSettingsInput): Promise<Sett
       tax_rate: Math.round(s.taxRate * 100) / 100,
       prices_include_tax: s.pricesIncludeTax,
       allow_international_phones: s.allowInternationalPhones,
+      timezone: s.timezone,
+      show_clock: s.showClock,
+      clock_style: s.clockStyle,
+      clock_24_hour: s.clock24Hour,
       updated_at: new Date().toISOString(),
     })
     .eq("id", session.tenant.id)

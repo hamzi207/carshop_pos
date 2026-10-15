@@ -2,19 +2,23 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Car, CheckCircle2, Package, Store, Users } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
+import { ShopClock } from "@/components/dashboard/shop-clock";
 
 export const metadata: Metadata = { title: "Overview" };
 
 async function Greeting() {
   const session = await getShopSession();
+  const { tenant } = session;
   const firstName = session.fullName.split(" ")[0];
   return (
-    <div className="page-heading">
+    <div className="page-heading overview-heading">
       <div>
         <span className="eyebrow">STORE OVERVIEW</span>
         <h1>Welcome, {firstName}</h1>
         <p>Here&apos;s what&apos;s happening across {session.tenant.name}.</p>
       </div>
+      {/* Settings → Dashboard clock turns this on/off and picks the design. */}
+      {tenant.showClock && <ShopClock timeZone={tenant.timezone} clockStyle={tenant.clockStyle} hour24={tenant.clock24Hour} />}
     </div>
   );
 }

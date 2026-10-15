@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { MoneyFormat } from "@/lib/format";
+import type { ClockStyle } from "@/lib/validations/settings.schema";
 
 export type ShopSession = {
   userId: string;
@@ -19,6 +20,9 @@ export type ShopSession = {
     showPaisa: boolean;
     pricesIncludeTax: boolean;
     allowInternationalPhones: boolean;
+    clockStyle: ClockStyle;
+    showClock: boolean;
+    clock24Hour: boolean;
     /** Pass to formatMoney(). */
     money: MoneyFormat;
   };
@@ -39,7 +43,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones)")
+    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour)")
     .eq("id", userId)
     .single();
 
@@ -65,6 +69,9 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       showPaisa: tenant.show_paisa,
       pricesIncludeTax: tenant.prices_include_tax,
       allowInternationalPhones: tenant.allow_international_phones,
+      clockStyle: tenant.clock_style === "analog" ? "analog" : "digital",
+      showClock: tenant.show_clock,
+      clock24Hour: tenant.clock_24_hour,
       money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     },
   };

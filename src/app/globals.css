@@ -534,6 +534,10 @@
   .settings-preview strong { color: var(--slate-900); font-size: 13px; }
   .settings-error { margin: -6px 0 10px; text-align: right; }
   .settings-actions { display: flex; justify-content: flex-end; }
+  .timezone-select { width: 260px; max-width: 100%; outline: 0; }
+  .timezone-select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px #dbeafe; }
+  .timezone-select[aria-invalid="true"] { border-color: var(--red); }
+  fieldset:disabled .timezone-select { cursor: not-allowed; opacity: .6; }
   .segmented { display: inline-flex; padding: 3px; gap: 3px; background: var(--slate-100); border-radius: 8px; }
   .segmented button { border: 0; border-radius: 6px; padding: 6px 16px; background: transparent; color: var(--slate-600); font-size: 12px; font-weight: 600; }
   .segmented button.active { background: var(--white); color: var(--slate-900); box-shadow: var(--shadow-sm); }
@@ -549,6 +553,33 @@
   .switch:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   fieldset:disabled .switch, fieldset:disabled .segmented button { cursor: not-allowed; opacity: .6; }
   .form-alert-info { background: var(--blue-soft); color: var(--blue-dark); border: 1px solid #bfdbfe; }
+
+  /* ---- Dashboard clock (right end of the overview heading) ---- */
+  .overview-heading { justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 18px 24px; }
+  /* Day/date/timezone sit under the clock face or digits in both designs. */
+  .shop-clock { display: flex; flex-direction: column; gap: 8px; margin-left: auto; }
+  .shop-clock-digital { align-items: flex-end; gap: 6px; text-align: right; }
+  .shop-clock-analog { align-items: center; text-align: center; }
+  .shop-clock-loading { width: 190px; height: 76px; }
+  .shop-clock-analog.shop-clock-loading { width: 150px; height: 134px; }
+  .shop-clock-time { display: flex; align-items: baseline; color: var(--slate-900); font-size: 38px; font-weight: 800; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .shop-clock-period { color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: .06em; margin-left: 7px; }
+  .shop-clock-meta { display: grid; gap: 3px; }
+  .shop-clock-meta strong { color: var(--slate-800); font-size: 12px; }
+  .shop-clock-meta span { color: var(--slate-500); font-size: 10px; }
+  .shop-clock-analog svg { width: 92px; height: 92px; flex: none; }
+  .clock-face { fill: var(--white); stroke: var(--slate-200); stroke-width: 4; }
+  .clock-tick { stroke: var(--slate-300); stroke-width: 2; stroke-linecap: round; }
+  .clock-tick-major { stroke: var(--slate-600); stroke-width: 4; stroke-linecap: round; }
+  .clock-number { fill: var(--slate-700); font-size: 22px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+  .clock-hand-hour { stroke: var(--slate-900); stroke-width: 8; stroke-linecap: round; }
+  .clock-hand-minute { stroke: var(--slate-700); stroke-width: 5.5; stroke-linecap: round; }
+  .clock-hand-second { stroke: var(--blue); stroke-width: 2.5; stroke-linecap: round; }
+  .clock-pin { fill: var(--blue); stroke: var(--white); stroke-width: 2.5; }
+  @media (max-width: 640px) {
+    .shop-clock { margin-left: 0; }
+    .shop-clock-digital, .shop-clock-analog { align-items: flex-start; text-align: left; }
+  }
 
   /* ---- Phase 4: customers ---- */
   .customer-card { overflow: hidden; }

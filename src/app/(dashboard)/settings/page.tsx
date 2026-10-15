@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getShopSession } from "@/lib/auth";
+import { timeZoneGroups } from "@/lib/timezones";
 import type { Currency } from "@/lib/validations/settings.schema";
 import { ShopSettingsForm } from "@/components/settings/shop-settings-form";
 
@@ -11,8 +12,12 @@ async function SettingsContent() {
   return (
     <ShopSettingsForm
       canEdit={role === "admin"}
-      timezone={tenant.timezone}
+      timeZoneGroups={timeZoneGroups()}
       initial={{
+        timezone: tenant.timezone,
+        showClock: tenant.showClock,
+        clockStyle: tenant.clockStyle,
+        clock24Hour: tenant.clock24Hour,
         currency: tenant.currency as Currency,
         showPaisa: tenant.showPaisa,
         taxRate: tenant.taxRate,
