@@ -2,14 +2,17 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { parseDashboardPrefs, type DashboardPrefs } from "@/lib/dashboard";
 import type { MoneyFormat } from "@/lib/format";
-import type { ClockStyle } from "@/lib/validations/settings.schema";
+import type { ClockStyle, WeekStart } from "@/lib/validations/settings.schema";
 
 export type ShopSession = {
   userId: string;
   fullName: string;
   email: string;
   role: "admin" | "staff";
+  /** This user's dashboard widgets and periods. */
+  dashboardPrefs: DashboardPrefs;
   tenant: {
     id: string;
     name: string;
@@ -23,8 +26,12 @@ export type ShopSession = {
     clockStyle: ClockStyle;
     showClock: boolean;
     clock24Hour: boolean;
+    /** First day of the week: 1 Monday, 6 Saturday, 7 Sunday. */
+    weekStart: WeekStart;
     /** Terms printed on quotes and invoices (tenants.quote_footer_notes). */
     quoteTerms: string | null;
+    /** How long a quotation's offer is valid (its stock stays reserved regardless). */
+    quoteValidityDays: number;
     /** Pass to formatMoney(). */
     money: MoneyFormat;
   };
@@ -45,7 +52,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, quote_footer_notes)")
+    .select("full_name, email, role, dashboard_prefs, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, quote_footer_notes, quote_validity_days)")
     .eq("id", userId)
     .single();
 
@@ -61,6 +68,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
     email: profile.email,
     // DB check constraint limits role to admin|staff; fail closed to staff.
     role: profile.role === "admin" ? "admin" : "staff",
+    dashboardPrefs: parseDashboardPrefs(profile.dashboard_prefs),
     tenant: {
       id: tenant.id,
       name: tenant.name,
@@ -74,7 +82,9 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       clockStyle: tenant.clock_style === "analog" ? "analog" : "digital",
       showClock: tenant.show_clock,
       clock24Hour: tenant.clock_24_hour,
+      weekStart: tenant.week_start === 6 || tenant.week_start === 7 ? tenant.week_start : 1,
       quoteTerms: tenant.quote_footer_notes,
+      quoteValidityDays: tenant.quote_validity_days,
       money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     },
   };

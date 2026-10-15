@@ -3,11 +3,11 @@ export function Brand() {
   return (
     <div className="brand">
       <div className="brand-mark">
-        <span>A</span>
+        <span>C</span>
       </div>
       <div>
-        <strong>APEX</strong>
-        <small>AUTO ACCESSORIES</small>
+        <strong>CarShop.Pk</strong>
+        <small>POS SYSTEM</small>
       </div>
     </div>
   );

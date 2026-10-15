@@ -1,34 +1,49 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Minus, Plus, Trash2, Wrench } from "lucide-react";
+import { ArrowDown, ArrowUp, Minus, Plus, Trash2 } from "lucide-react";
 import { formatMoney, type MoneyFormat } from "@/lib/format";
-import { lineTotal } from "@/lib/quote-math";
+import { lineAmounts, round2, unitDiscount, type DiscountType } from "@/lib/quote-math";
+import type { PickerItem } from "@/lib/types/quote";
+import { LineSearch } from "./line-search";
 
 /** One line in the builder. `key` is local only (React list key). */
 export type BuilderLine = {
   key: string;
+  /** Inventory part, or null for a custom item that isn't in inventory. */
   itemId: string | null;
   sku: string | null;
   description: string;
+  /** Older labour lines; treated like custom items. */
   isLabor: boolean;
   quantity: number;
+  /** Inventory parts: the catalogue price (read-only). Custom items: as entered. */
   unitPrice: number;
   priceIncludesTax: boolean;
-  /** Stock on hand for parts (null for labour / unknown). */
+  /** Per unit: % of the unit price or a flat amount. */
+  discountType: DiscountType;
+  discountValue: number;
+  /** Units this part line can use: available stock (+ what a saved line already holds). Null for custom items. */
   stock: number | null;
 };
 
 type Props = {
   lines: BuilderLine[];
   onChange: (lines: BuilderLine[]) => void;
-  onAddLabor: () => void;
+  onAdd: (item: PickerItem) => void;
+  onAddCustom: (description: string) => void;
   money: MoneyFormat;
   readOnly: boolean;
 };
 
 const numberValue = (n: number) => (Number.isFinite(n) ? n : "");
 
-export function LineItems({ lines, onChange, onAddLabor, money, readOnly }: Props) {
+/**
+ * Line items with the search box on top. Columns: qty, unit price (fixed for
+ * inventory parts), discount (% or Rs.), sale price, line total. Editing the
+ * discount updates the sale price; editing the sale price sets a flat
+ * (Rs.) discount. Line total = qty × sale price.
+ */
+export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly }: Props) {
   const update = (key: string, patch: Partial<BuilderLine>) =>
     onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const remove = (key: string) => onChange(lines.filter((l) => l.key !== key));
@@ -37,86 +52,90 @@ export function LineItems({ lines, onChange, onAddLabor, money, readOnly }: Prop
     [next[index], next[index + by]] = [next[index + by], next[index]];
     onChange(next);
   };
-
-  const parts = lines.filter((l) => !l.isLabor).length;
-  const labor = lines.length - parts;
+  const addedIds = new Set(lines.flatMap((l) => (l.itemId ? [l.itemId] : [])));
 
   return (
-    <section className="card line-items-card">
+    <section className="card doc-lines">
       <div className="card-header">
         <div>
           <h2>Line items</h2>
           <p>
             {lines.length === 0
-              ? "Add parts from the catalog, or a fitting / labour charge."
-              : `${parts} ${parts === 1 ? "part" : "parts"}${labor ? `, ${labor} labour / service ${labor === 1 ? "line" : "lines"}` : ""}`}
+              ? "Search for a part to add it, or add a custom item that isn't in your inventory."
+              : `${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
           </p>
         </div>
-        <span className="badge badge-blue">{lines.length} {lines.length === 1 ? "line" : "lines"}</span>
       </div>
+      {!readOnly && <LineSearch money={money} addedIds={addedIds} onAdd={onAdd} onAddCustom={onAddCustom} />}
 
       {lines.length > 0 && (
-        <div className="line-items">
-          <div className="line-head">
-            <span>ITEM</span>
-            <span>QTY</span>
-            <span>UNIT PRICE</span>
-            <span>TOTAL</span>
-            <span />
+        <div className="doc-table" role="table" aria-label="Line items">
+          <div className="doc-row doc-head" role="row">
+            <span role="columnheader">#</span>
+            <span role="columnheader">ITEM</span>
+            <span role="columnheader">QTY</span>
+            <span role="columnheader">UNIT PRICE</span>
+            <span role="columnheader">DISCOUNT</span>
+            <span role="columnheader">SALE PRICE</span>
+            <span role="columnheader">TOTAL</span>
+            <span role="columnheader"><span className="sr-only">Actions</span></span>
           </div>
           {lines.map((line, i) => {
-            const short = !line.isLabor && line.stock !== null && line.quantity > line.stock;
+            const custom = line.itemId === null;
+            const amounts = lineAmounts(line);
+            const sale = round2(line.unitPrice - unitDiscount(line));
+            const short = !custom && line.stock !== null && line.quantity > line.stock;
             return (
-              <div className="line-row" key={line.key}>
-                <div>
+              <div className="doc-row" role="row" key={line.key}>
+                <span className="doc-index">
+                  {i + 1}
                   {!readOnly && (
                     <span className="line-move">
                       <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
-                        <ArrowUp size={11} />
+                        <ArrowUp size={10} />
                       </button>
                       <button type="button" aria-label="Move down" disabled={i === lines.length - 1} onClick={() => move(i, 1)}>
-                        <ArrowDown size={11} />
+                        <ArrowDown size={10} />
                       </button>
                     </span>
                   )}
-                  <div className="line-desc">
-                    {line.isLabor ? (
-                      <>
-                        <input
-                          className="line-input"
-                          value={line.description}
-                          onChange={(e) => update(line.key, { description: e.target.value })}
-                          placeholder="e.g. Front window tint installation – 1.5 hours"
-                          aria-label="Labour / service description"
-                          maxLength={300}
-                          readOnly={readOnly}
-                        />
-                        <span className="line-tag"><Wrench size={10} /> Labour / service</span>
-                      </>
-                    ) : (
-                      <>
-                        <strong title={line.description}>{line.description}</strong>
-                        <span className="mono">{line.sku ?? "Removed from inventory"}</span>
-                        {short && (
-                          <span className="stock-low">
-                            {line.stock! <= 0 ? "Out of stock" : `Only ${line.stock} in stock`}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
+                </span>
+
+                <div className="line-desc">
+                  {custom ? (
+                    <>
+                      <input
+                        className="line-input"
+                        value={line.description}
+                        onChange={(e) => update(line.key, { description: e.target.value })}
+                        placeholder="Describe the item or service"
+                        aria-label="Custom item description"
+                        maxLength={300}
+                        readOnly={readOnly}
+                      />
+                      <span className="line-tag">Custom item · not in inventory</span>
+                    </>
+                  ) : (
+                    <>
+                      <strong className="product-title" title={line.description}>{line.description}</strong>
+                      <span className="mono">{line.sku ?? "Removed from inventory"}</span>
+                      {short && (
+                        <span className="stock-low">{line.stock! <= 0 ? "None available" : `Only ${line.stock} available`}</span>
+                      )}
+                    </>
+                  )}
                 </div>
 
-                {line.isLabor ? (
+                {custom ? (
                   <input
                     className="line-input number"
                     type="number"
                     inputMode="decimal"
                     min="0.01"
-                    step="0.25"
+                    step="any"
                     value={numberValue(line.quantity)}
                     onChange={(e) => update(line.key, { quantity: e.target.valueAsNumber })}
-                    aria-label="Hours / quantity"
+                    aria-label="Quantity"
                     readOnly={readOnly}
                   />
                 ) : (
@@ -150,21 +169,68 @@ export function LineItems({ lines, onChange, onAddLabor, money, readOnly }: Prop
                   </div>
                 )}
 
+                {custom ? (
+                  <input
+                    className="line-input number"
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    value={numberValue(line.unitPrice)}
+                    onChange={(e) => update(line.key, { unitPrice: e.target.valueAsNumber })}
+                    aria-label="Unit price"
+                    readOnly={readOnly}
+                  />
+                ) : (
+                  <span className="line-unit" title="Price from inventory">{formatMoney(line.unitPrice, money)}</span>
+                )}
+
+                <div className={`line-discount${amounts.invalid ? " invalid" : ""}`}>
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => update(line.key, { discountType: line.discountType === "percent" ? "amount" : "percent", discountValue: 0 })}
+                    aria-label={`Discount in ${line.discountType === "percent" ? "percent" : money.currency}; click to switch`}
+                    title="Switch between % and a flat amount per unit"
+                  >
+                    {line.discountType === "percent" ? "%" : money.currency}
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    max={line.discountType === "percent" ? 100 : line.unitPrice}
+                    step="0.01"
+                    value={numberValue(line.discountValue)}
+                    onChange={(e) => update(line.key, { discountValue: e.target.valueAsNumber })}
+                    aria-label="Discount per unit"
+                    aria-invalid={amounts.invalid || undefined}
+                    readOnly={readOnly}
+                  />
+                </div>
+
                 <input
-                  className="line-input number"
+                  className={`line-input number${amounts.invalid ? " invalid" : ""}`}
                   type="number"
                   inputMode="decimal"
                   min="0"
                   step="0.01"
-                  value={numberValue(line.unitPrice)}
-                  onChange={(e) => update(line.key, { unitPrice: e.target.valueAsNumber })}
-                  aria-label="Unit price"
-                  title={line.priceIncludesTax ? "Price includes tax" : "Tax is added on top"}
+                  value={Number.isFinite(sale) && Number.isFinite(line.discountValue) ? sale : ""}
+                  onChange={(e) => {
+                    const next = e.target.valueAsNumber;
+                    // A typed sale price always becomes a flat discount.
+                    update(line.key, {
+                      discountType: "amount",
+                      discountValue: Number.isFinite(next) ? round2((line.unitPrice || 0) - next) : Number.NaN,
+                    });
+                  }}
+                  aria-label="Sale price"
+                  aria-invalid={amounts.invalid || undefined}
                   readOnly={readOnly}
                 />
-                <strong className="amount">
-                  {formatMoney(lineTotal({ quantity: line.quantity || 0, unitPrice: line.unitPrice || 0 }), money)}
-                </strong>
+
+                <strong className="amount line-total">{formatMoney(amounts.net, money)}</strong>
+
                 {readOnly ? (
                   <span />
                 ) : (
@@ -176,17 +242,6 @@ export function LineItems({ lines, onChange, onAddLabor, money, readOnly }: Prop
             );
           })}
         </div>
-      )}
-
-      {!readOnly && (
-        <button type="button" className="labor-button" onClick={onAddLabor}>
-          <span><Wrench size={16} /></span>
-          <div>
-            <strong>Add optional fitting / labour service</strong>
-            <small>Installation, fitting fees or custom shop labour. Parts-only sellers can skip this.</small>
-          </div>
-          <Plus size={16} />
-        </button>
       )}
     </section>
   );

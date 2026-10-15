@@ -78,6 +78,7 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
     p_low_stock_threshold: item.lowStockThreshold,
     p_is_universal: item.isUniversal,
     p_price_includes_tax: item.priceIncludesTax,
+    p_vendor_name: item.vendorName || undefined,
     p_vehicle_ids: item.isUniversal ? [] : item.vehicleIds,
   });
 
@@ -85,6 +86,16 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
     switch (error.code) {
       case "23505":
         return { status: "error", field: "sku", message: `SKU ${item.sku} is already used by another item.` };
+      case "23514":
+        if (error.message.includes("inventory_reserved_within_stock")) {
+          return {
+            status: "error",
+            field: "quantityOnHand",
+            message: "Stock on hand can't go below what open quotations have reserved. Cancel or invoice those quotations first.",
+          };
+        }
+        console.error("saveInventoryItem failed:", error);
+        return { status: "error", message: "We couldn't save this item. Please try again." };
       case "23503":
         return { status: "error", field: "vehicleIds", message: "One of the selected vehicles no longer exists. Remove it and try again." };
       case "22023":

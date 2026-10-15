@@ -33,6 +33,8 @@ export async function updateShopSettings(input: ShopSettingsInput): Promise<Sett
       show_clock: s.showClock,
       clock_style: s.clockStyle,
       clock_24_hour: s.clock24Hour,
+      week_start: s.weekStart,
+      quote_validity_days: s.quoteValidityDays,
       updated_at: new Date().toISOString(),
     })
     .eq("id", session.tenant.id)

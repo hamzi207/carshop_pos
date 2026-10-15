@@ -17,6 +17,7 @@ import {
 import { formatMoney, formatVehicleGroups, marginPercent, type MoneyFormat } from "@/lib/format";
 import type { InventoryListItem } from "@/lib/types/inventory";
 import { DeleteItemDialog } from "./delete-item-dialog";
+import { InventoryItemDetails } from "./inventory-item-details";
 import { InventoryItemDialog } from "./inventory-item-dialog";
 
 const CATEGORY_ICON: Record<string, LucideIcon> = {
@@ -74,23 +75,37 @@ function MarginBadge({ cost, selling }: { cost: number; selling: number }) {
   return <span className={`badge ${tone}`}>{margin.toFixed(1)}% Margin</span>;
 }
 
-function StockBadge({ item }: { item: InventoryListItem }) {
-  const low = item.quantity_on_hand <= item.low_stock_threshold;
-  if (!low) return <span className="badge badge-green">{item.quantity_on_hand} in stock</span>;
+/** Available = on hand − reserved on open quotations; the low-stock alert uses available. */
+export const availableOf = (item: Pick<InventoryListItem, "quantity_on_hand" | "reserved_quantity">) =>
+  item.quantity_on_hand - item.reserved_quantity;
+
+function StockCell({ item }: { item: InventoryListItem }) {
+  const available = availableOf(item);
+  const low = available <= item.low_stock_threshold;
   return (
-    <span className="badge badge-red" title={`Alert level: ${item.low_stock_threshold}`}>
-      <AlertTriangle size={12} />
-      {item.quantity_on_hand === 0 ? "Out of stock" : `${item.quantity_on_hand} left`} · Min {item.low_stock_threshold}
-    </span>
+    <div className="stock-cell">
+      {low ? (
+        <span className="badge badge-red" title={`Alert level: ${item.low_stock_threshold}`}>
+          <AlertTriangle size={12} />
+          {available <= 0 ? "None available" : `${available} available`} · Min {item.low_stock_threshold}
+        </span>
+      ) : (
+        <span className="badge badge-green">{available} available</span>
+      )}
+      <span className="stock-split">
+        {item.quantity_on_hand} on hand{item.reserved_quantity > 0 ? ` · ${item.reserved_quantity} reserved` : ""}
+      </span>
+    </div>
   );
 }
 
 export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Props) {
   const [editing, setEditing] = useState<InventoryListItem | null>(null);
+  const [viewing, setViewing] = useState<InventoryListItem | null>(null);
   const [deleting, setDeleting] = useState<InventoryListItem | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const lowStock = items.filter((i) => i.quantity_on_hand <= i.low_stock_threshold).length;
+  const lowStock = items.filter((i) => availableOf(i) <= i.low_stock_threshold).length;
 
   return (
     <section className="card inventory-table-card">
@@ -137,7 +152,7 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
                 <th>COST</th>
                 <th>SELLING PRICE</th>
                 <th>MARGIN</th>
-                <th>ON HAND</th>
+                <th>STOCK</th>
                 <th><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -146,14 +161,16 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
                 const Icon = CATEGORY_ICON[item.category] ?? Box;
                 const cost = Number(item.cost_price);
                 const selling = Number(item.selling_price);
-                const low = item.quantity_on_hand <= item.low_stock_threshold;
+                const low = availableOf(item) <= item.low_stock_threshold;
                 return (
                   <tr key={item.id} className={low ? "low-stock-row" : undefined}>
                     <td>
                       <div className="inventory-product">
                         <div className="mini-product"><Icon size={16} /></div>
                         <div>
-                          <strong>{item.name}</strong>
+                          <button type="button" className="product-link" onClick={() => setViewing(item)}>
+                            {item.name}
+                          </button>
                           <span>
                             <span className="mono">{item.sku}</span>
                             <span className="badge">{item.category}</span>
@@ -169,7 +186,7 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
                       <span className="price-tax-note">{item.price_includes_tax ? "incl. tax" : "+ tax"}</span>
                     </td>
                     <td><MarginBadge cost={cost} selling={selling} /></td>
-                    <td><StockBadge item={item} /></td>
+                    <td><StockCell item={item} /></td>
                     <td>
                       <div className="row-actions">
                         <button type="button" className="icon-button" aria-label={`Edit ${item.name}`} onClick={() => setEditing(item)}>
@@ -201,6 +218,15 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
         item={editing ?? undefined}
       />
       <DeleteItemDialog item={deleting} onOpenChange={(open) => !open && setDeleting(null)} />
+      <InventoryItemDetails
+        item={viewing}
+        money={money}
+        onOpenChange={(open) => !open && setViewing(null)}
+        onEdit={(item) => {
+          setViewing(null);
+          setEditing(item);
+        }}
+      />
     </section>
   );
 }

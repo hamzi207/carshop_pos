@@ -207,3 +207,184 @@ The Supabase database is set up for Phase 1. I applied all three migrations thro
   Still waiting on a decision: rls_auto_enable() can be called without signing in, and leaked-password protection is off. Before Phase 6:
   signed-in users can still change a quote's payment fields directly through the database API, so Phase 6 should lock "paid" down to the payment
   procedure only.
+
+  Changes from docs/changes.md (after Phase 5):
+
+  Phase 5 was committed on its own first (cd9a9e4). These changes are built and tested but not committed. Type-checking, lint and the
+  production build pass. A browser test as a temporary test shop passed all 25 checks with no browser errors; the test shop was deleted.
+  The database logic was also tested directly against your shop inside a transaction that was rolled back, so your data is unchanged.
+
+  Your choices: keep tax-inclusive prices alongside the new tax order; leave the Purchases widget and Total Suppliers out (no purchase
+  records yet); apply a customer's default discount as the document discount.
+
+  1. Sidebar: Overview, Invoices, Quotations, Drafts, Customers, Inventory.
+
+  2. Customers and walk-in sales:
+  - Every shop has a "Walk-in / Cash Customer" (new shops get it on sign-up). A "Walk-in / Cash" button on every document picks it, with
+    optional buyer name and phone stored on the document only. It is hidden from the customer directory and can't be edited or deleted.
+  - "Save details to customer directory for future use" opens the full customer form with the name and phone filled in; the new profile then
+    replaces the walk-in on that document.
+  - Customers have a default discount %. Picking them on a document fills in the document discount with the reason
+    "Customer default discount (50%)". You can change it.
+
+  3. Pricing: each line has a discount in % or Rs. Order: line nets → subtotal → document discount (reason required) → taxable amount →
+     sales tax → grand total. Tax-inclusive prices still have tax worked out of them; with tax-exclusive prices the tax is exactly
+     (subtotal − discount) × rate.
+
+  4. Tax identity: "NTN / Tax ID" is now "CNIC / NTN", checked and stored as 12345-1234567-1 or 1234567-8. New fields: sales tax registration
+     (registered / not) and STRN. Dealerships and fleet accounts need a CNIC or NTN; registered customers also need an STRN. The database
+     enforces the same rules.
+
+  5. Stock reservations:
+  - Drafts hold nothing. Quotations reserve their parts. Invoices deduct stock (direct, or from a quotation, which releases its reservation).
+  - Cancelling, deleting or moving a quotation back to drafts releases the reservation. A quotation moved back to drafts gets its Q- number
+    back when re-issued.
+  - Nothing can sell or reserve more than is available (on hand − reserved), and on-hand stock can't be set below what is reserved.
+  - Quotations are valid for 2 days by default (Settings → Quotations). Expired ones are marked but keep their stock reserved until you act.
+  - Change from the original plan: stock is deducted when the invoice is issued, not when it is paid. Phase 6's "mark as paid" no longer
+    touches stock (spec updated).
+  - Inventory shows available, on hand and reserved for each part. The quote picker shows available stock.
+
+  6. Vendors: each part has an optional vendor / supplier name. It is not shown in the inventory table; click a product's name to see its
+     details, including the vendor.
+
+  7. Dashboard: a Business overview with Sales, Profit (sales excluding tax minus parts cost), Pending invoices and Pending quotations
+     (unexpired), each for today, this week, this month, this year and all time, in your shop's timezone. Plus counts of customers, products,
+     quotations and invoices. "Customize" shows or hides each widget and period, saved per user.
+
+  Your test steps:
+  1. Check the sidebar order and the Business overview on the dashboard. Use Customize to hide something, reload, and check it stays hidden.
+  2. Inventory: click a part's name and check the details (add a vendor via Edit first).
+  3. Customers: edit or register a dealership; try saving without a CNIC/NTN (refused), then with one. Set a default discount of 50%.
+  4. Quotations → New Quotation: pick that customer (50% fills in with a reason). Add a part with a 10% line discount and check the totals.
+     Save it, then check Inventory shows those units as reserved.
+  5. Invoices → New Invoice → Walk-in / Cash: try to sell the reserved units (refused), then sell something else.
+  6. Open the quotation: Move to Drafts (stock released), Convert to Quotation (same Q number), Convert to Invoice (stock deducted).
+  7. Commit: git add . && git commit -m "feat: walk-in sales, discounts, tax IDs, stock reservations, vendors and dashboard metrics"
+
+  Still open: rls_auto_enable() can be called without signing in, and leaked-password protection is off. Before Phase 6 ships, clients must
+  be stopped from setting an invoice to "paid" directly through the API.
+
+  Changes from docs/changes.md, round 2 (same phase, still not committed):
+
+  Type-checking, lint and the production build pass. Browser tests as a temporary test shop passed 28 checks (22 for this round,
+  6 re-checking last round's quotation flows on the new layout) with no browser errors; the test shop was deleted. One bug was found and
+  fixed during testing: saving failed because Supabase's API rejects an UPDATE without a WHERE clause inside save_quote.
+
+  Documents (drafts, quotations, invoices):
+  - New layout, like SOS Inventory: a header with the customer and bill-to address on the left and number, dates, due date and status on
+    the right; the line items in full width; notes and quote terms bottom-left; totals, payments and balance bottom-right.
+  - No more parts catalog, vehicle or trim. A search box in Line items finds parts by name or SKU; click one to add it (again to add 1).
+  - Columns: qty, unit price, discount, sale price, line total. The unit price of an inventory part comes from inventory and can't be
+    edited (the server enforces this). The discount is per unit, in % or Rs. Changing the discount changes the sale price; typing a sale
+    price turns the discount into a flat Rs. amount. Line total = qty × sale price.
+  - Items not in inventory: "Custom item" (or pick "Add ... as a custom item" in the search). You type the description and price; it
+    doesn't touch stock.
+  - Quote terms show on drafts and quotations only, not on invoices.
+
+  Invoices:
+  - Statuses: Pending / Unpaid, Partially Paid, Due (unpaid past the due date), Paid, Cancelled. The Invoices list has a filter for each,
+    plus Due date and Balance columns.
+  - Each invoice has a due date (default: invoice date + 7 days, change it in Settings → Quotations & invoices, or per invoice).
+  - Record Payment: amount (part payments are fine), cash / card / bank transfer / cheque, date, reference. Paid in full = Paid.
+  - Mark Unpaid removes the payments. Unpaid invoices can be cancelled (stock goes back) or deleted (stock goes back). Paid invoices must
+    be marked unpaid first.
+
+  Elsewhere: product names are bigger (13px) everywhere; the sidebar order is Overview, Inventory, Invoices, Quotations, Drafts, Customers.
+
+  Your test steps:
+  1. Invoices → New Invoice: pick a customer (their address shows under Bill to). Search a part and click it; try a 10% discount and watch
+     the sale price; then type a sale price and watch the discount switch to Rs. Add a custom item with a price.
+  2. Create Invoice. Record a part payment (Partially Paid), then the rest (Paid). Mark Unpaid, then Delete: the stock comes back.
+  3. Make another invoice and Cancel it: the stock comes back and it shows as Cancelled.
+  4. Change an unpaid invoice's due date to yesterday and save: it shows as Due, and the Due filter finds it.
+  5. Quotations → New Quotation: Quote terms show at the bottom; on invoices they don't.
+  6. Commit: git add . && git commit -m "feat: document layout, line pricing, custom items, payments and invoice statuses"
+
+  Still open: rls_auto_enable() can be called without signing in, and leaked-password protection is off.
+
+  Changes from docs/changes.md, round 3 (same phase, still not committed):
+
+  Type-checking and lint pass. Browser test on your dev server as a temporary test shop: 14 checks passed, no browser errors; the test
+  shop was deleted. (No production build was run, so the dev server keeps serving fresh styles.)
+
+  - Invoice number: a new invoice / quotation / draft shows the next number in line (e.g. INV-1002) as soon as it opens. Nothing is
+    reserved: if it's never saved, the number stays free for the next one. If someone else saves first, this one gets the next free
+    number and the save message says so.
+  - Due date: a new invoice starts due on the invoice date. Customers have a Credit period (days) on their profile; picking that customer
+    sets the due date to the invoice date + their credit period. You can still change it per invoice. The due date is saved on the
+    invoice. Converting a quotation to an invoice uses the customer's credit period too. The shop-wide "due after N days" setting from
+    round 2 was removed (the customer's credit period replaces it).
+  - Unsaved changes: leaving a draft / quotation / invoice with unsaved changes (the back arrow, the browser Back button, or any link such
+    as the sidebar) asks "Save your changes?" with Save, Discard changes or Keep editing. Reload / close tab uses the browser's own
+    prompt.
+  - Business / Private customer category: skipped, as you asked.
+  - Walk-in / cash sales without a name or number: answered below; no change needed.
+
+  Walk-in sales tracking: every walk-in invoice belongs to the shop's "Walk-in / Cash Customer" record, so it counts in Sales, Profit,
+  Pending invoices and stock exactly like any other invoice; the name and phone are optional extras on that one invoice. In the
+  Invoices list it shows as "Walk-in / Cash Customer" (or the buyer's name if typed).
+
+  Your test steps:
+  1. Customers: edit a customer and set Credit period to 30 days.
+  2. Invoices → New Invoice: the next invoice number shows at the top right. Due date = today. Pick that customer: due date jumps 30 days
+     ahead. Pick Walk-in / Cash: back to today.
+  3. Add a part, then click the back arrow (or a sidebar link): you're asked to save or discard. Try Keep editing, then Save Invoice.
+  4. Open the invoice, change a discount and press the browser's Back button: same prompt. Discard → the change isn't saved.
+  5. Commit: git add . && git commit -m "feat: invoice number preview, customer credit periods, unsaved-changes prompt"
+
+  Changes from docs/changes.md, round 4 (same phase, still not committed):
+
+  Type-checking and lint pass. Browser test on the dev server as a temporary test shop: 12 checks passed, no browser errors; the test
+  shop was deleted.
+
+  - Sidebar: more space around the header, shop card, menu items and help card; on short screens it scrolls instead of squashing and the
+    help card is hidden.
+  - Name: CarShop.Pk POS System everywhere (sidebar logo "C", sign-in/register pages, browser tab titles, help card, version line).
+  - Editing a draft / quotation / invoice: "Save Changes" now has a menu (▾) with Save & Close (saves, back to the list) and Save as Copy
+    (your edits become a new draft; the original stays as it was saved).
+  - Bigger titles: document numbers, customer names, bill-to and summary names are now 13px, the same as product names.
+  - Dashboard: Customize lets each card show Numbers, a Bar chart or a Pie chart (counts: numbers or bars).
+    Sales / Profit bars = last 6 months; pie = one period split into profit, cost of parts and tax (pick the period on the card).
+    Pending invoices bars = unpaid balance by age (not due, 1–30, 31–60, 60+ days overdue); pie = overdue vs not yet due.
+    Pending quotations bars / pie = sent vs accepted. Hover any bar or slice for details.
+  - Toasts for every save, create, discard and delete (invoices, quotations, drafts, customers, inventory, payments, settings,
+    dashboard), each with a line saying what happened, e.g. "Invoice INV-1003 saved — Precision Auto · Rs. 4,650.00. Stock updated to
+    match." Failures show a red toast with the reason.
+
+  Your test steps:
+  1. Check the sidebar and the CarShop.Pk name; make the window shorter to see it scroll.
+  2. Open an invoice, change something, use Save Changes ▾ → Save & Close, then try Save as Copy on another.
+  3. Dashboard → Customize: set some cards to Bar chart and Pie chart, Save. Hover the bars; change the period on the Sales pie.
+  4. Save a customer, a part and Settings: each shows a toast with details.
+  5. Commit: git add . && git commit -m "feat: CarShop.Pk branding, save options, dashboard charts, detailed toasts"
+
+  Round 4 follow-ups:
+  - More room at the top: sidebar logo area matches the top bar height (84px, borders line up); more space between logo, shop card and menu;
+    page headings sit 36–40px below the top bar. Sidebar menu items and the gaps between page cards are tighter.
+  - Customer and inventory pop-ups: closing with unsaved edits (Cancel, X, Escape, clicking outside) asks "Discard changes?"
+    (Keep editing / Discard changes); discarding shows a "Changes discarded" toast. Closing without edits is instant.
+    Browser test: 7 checks passed.
+
+  changes.md round 5:
+  - Dashboard: date range picker beside Customize (Today / This week / This month / This year / All time / Custom from-to),
+    kept in the URL (?range=&from=&to=); periods removed from Customize. Cards show the range's headline figure + breakdown;
+    bar charts follow the range (by day up to a month, by month up to 2 years, else by year). RPC dashboard_metrics(p_range, p_from, p_to)
+    (migration 20261015140000_dashboard_date_range).
+  - Count cards reordered: Customers, Products, Invoices, Quotations (Invoices above Pending invoices, etc.).
+  - Toasts: fixed light theme (OS dark mode had made them black) + rich colours: success green, error red, info blue, warning amber; white text.
+  - Customer profile: four all-time cards above the history (Total invoices, Pending invoices, Total due, Overdue; Overdue turns red);
+    WhatsApp / other phone are tel: links, email is a mailto: link.
+  - Record Payment: optionally apply a payment to invoice items: tick items (and units) to fill the amount, or type an amount and tick items
+    to spread it in order; each item's share editable; the rest is a general payment. Line share = its net total's share of the invoice total
+    (incl. tax and invoice discount). Table invoice_payment_items + RPC record_payment; a trigger re-links allocations when an invoice's lines
+    are saved again (migration 20261015143000_payment_item_allocations). The payments list shows what each payment was for.
+  - Search shortcut hint shows Ctrl K (or ⌘ K on Apple devices).
+    Browser test: 31 + 1 checks passed. Known: the invoice page itself is wider than a phone screen (pre-existing).
+  - Follow-up: the dashboard date dropdown became a date picker (Radix Popover, no new dependency): button shows the range name + dates;
+    panel has shortcuts (Today, Yesterday, This week, Last 7 days, This month, Last 30 days, Last month, This year, All time) and a
+    two-month calendar (Monday-first, future days disabled, click start then end, hover preview, Apply/Cancel); one month on phones.
+    Browser test: 10 checks passed.
+  - Follow-up: Settings → Timezone & week → First day of the week (Monday / Sunday / Saturday; tenants.week_start, ISO 1/7/6,
+    migration 20261015160000_tenant_week_start). Drives dashboard "This week" (RPC) and the calendar's first column.
+    Date picker made compact (~590×300 on a 1366×768 laptop); phones: one month, 3-column shortcuts, fits 360px. 10 checks passed.

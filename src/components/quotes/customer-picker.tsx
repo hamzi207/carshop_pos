@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Loader2, Search, UserPlus, Users, X } from "lucide-react";
+import { Banknote, Loader2, Search, UserPlus, Users, X } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
 import type { CustomerOption, CustomerOptionsResponse } from "@/lib/types/quote";
 import { CustomerAvatar, CustomerTypeBadge } from "@/components/customers/customer-badges";
@@ -11,6 +11,8 @@ type Props = {
   value: CustomerOption | null;
   onChange: (customer: CustomerOption | null) => void;
   allowInternationalPhones: boolean;
+  /** The shop's walk-in / cash customer, for the quick-select button. */
+  walkIn: CustomerOption | null;
   disabled?: boolean;
 };
 
@@ -21,7 +23,7 @@ async function fetchCustomers(params: string, signal?: AbortSignal) {
 }
 
 /** Searchable customer combobox, with "register new customer" in a modal. */
-export function CustomerPicker({ value, onChange, allowInternationalPhones, disabled }: Props) {
+export function CustomerPicker({ value, onChange, allowInternationalPhones, walkIn, disabled }: Props) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -75,7 +77,14 @@ export function CustomerPicker({ value, onChange, allowInternationalPhones, disa
         <div>
           <strong>{value.name}</strong>
           <span>
-            <CustomerTypeBadge type={value.customer_type} /> {formatPhone(value.whatsapp_number)}
+            {value.is_walk_in ? (
+              "Cash sale · add the buyer's details below if you like"
+            ) : (
+              <>
+                <CustomerTypeBadge type={value.customer_type} /> {formatPhone(value.whatsapp_number)}
+                {Number(value.default_discount_percentage) > 0 && ` · ${Number(value.default_discount_percentage)}% default discount`}
+              </>
+            )}
           </span>
         </div>
         {!disabled && (
@@ -114,6 +123,7 @@ export function CustomerPicker({ value, onChange, allowInternationalPhones, disa
 
   return (
     <div className="customer-combobox">
+      <div className="customer-combobox-row">
       <div className="field-control">
         {loading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
         <input
@@ -136,6 +146,18 @@ export function CustomerPicker({ value, onChange, allowInternationalPhones, disa
           onKeyDown={onKeyDown}
           maxLength={100}
         />
+      </div>
+      {walkIn && (
+        <button
+          type="button"
+          className="button walk-in-button"
+          disabled={disabled}
+          onClick={() => choose(walkIn)}
+          title="Bill a walk-in / cash customer without creating a profile"
+        >
+          <Banknote size={14} /> Walk-in / Cash
+        </button>
+      )}
       </div>
       {open && (
         <div className="combobox-menu">

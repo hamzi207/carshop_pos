@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
-import { AlarmClock, Clock, Coins, Loader2, Phone, Receipt, Save } from "lucide-react";
+import { AlarmClock, Clock, Coins, FileText, Loader2, Phone, Receipt, Save } from "lucide-react";
 import { updateShopSettings } from "@/lib/actions/settings";
 import { formatMoney } from "@/lib/format";
+import { notify } from "@/lib/notify";
 import { DEFAULT_TIMEZONE, type TimeZoneGroup } from "@/lib/timezones";
-import { CLOCK_STYLES, CURRENCIES, shopSettingsSchema, type ShopSettingsInput } from "@/lib/validations/settings.schema";
+import { CLOCK_STYLES, CURRENCIES, shopSettingsSchema, WEEK_START_LABEL, WEEK_STARTS, type ShopSettingsInput } from "@/lib/validations/settings.schema";
 
 type Props = {
   initial: ShopSettingsInput;
@@ -42,10 +42,14 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
     const result = await updateShopSettings(values);
     if (result.status === "error") {
       setServerError(result.message);
+      notify.error("Settings not saved", result.message);
       return;
     }
     reset(values);
-    toast.success("Settings saved");
+    notify.success(
+      "Settings saved",
+      `${values.currency} · tax ${values.taxRate}% · ${values.timezone} · quotations valid ${values.quoteValidityDays} day${values.quoteValidityDays === 1 ? "" : "s"}.`,
+    );
   });
 
   return (
@@ -134,6 +138,36 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
 
         <section className="card settings-card">
           <div className="settings-card-head">
+            <span className="header-icon blue"><FileText size={18} /></span>
+            <div>
+              <h2>Quotations &amp; invoices</h2>
+              <p>Parts on an open quotation are reserved until it is cancelled, deleted or invoiced.</p>
+            </div>
+          </div>
+          <label className="settings-row">
+            <span className="settings-label">
+              Quotation valid for
+              <small>Shown on each quotation. Expired quotations keep their stock reserved until you act on them.</small>
+            </span>
+            <span className="percent-input days-input">
+              <input
+                type="number"
+                inputMode="numeric"
+                step="1"
+                min="1"
+                max="365"
+                aria-invalid={errors.quoteValidityDays ? true : undefined}
+                {...register("quoteValidityDays", { valueAsNumber: true })}
+              />
+              <span>days</span>
+            </span>
+          </label>
+          {errors.quoteValidityDays && <span className="field-error settings-error">{errors.quoteValidityDays.message}</span>}
+
+        </section>
+
+        <section className="card settings-card">
+          <div className="settings-card-head">
             <span className="header-icon blue"><Phone size={18} /></span>
             <div>
               <h2>Phone numbers</h2>
@@ -153,7 +187,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
           <div className="settings-card-head">
             <span className="header-icon blue"><Clock size={18} /></span>
             <div>
-              <h2>Timezone</h2>
+              <h2>Timezone &amp; week</h2>
               <p>Dates and times on quotes, invoices and the dashboard use this timezone.</p>
             </div>
           </div>
@@ -177,6 +211,32 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             </select>
           </label>
           {errors.timezone && <span className="field-error settings-error">{errors.timezone.message}</span>}
+          <div className="settings-row">
+            <span className="settings-label">
+              First day of the week
+              <small>Used for &ldquo;This week&rdquo; on the dashboard and in the date picker&apos;s calendar.</small>
+            </span>
+            <Controller
+              control={control}
+              name="weekStart"
+              render={({ field }) => (
+                <div className="segmented" role="radiogroup" aria-label="First day of the week">
+                  {WEEK_STARTS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      role="radio"
+                      aria-checked={field.value === d}
+                      className={field.value === d ? "active" : ""}
+                      onClick={() => field.onChange(d)}
+                    >
+                      {WEEK_START_LABEL[d]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
+          </div>
         </section>
 
         <section className="card settings-card">

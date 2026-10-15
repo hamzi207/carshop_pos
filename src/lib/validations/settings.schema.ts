@@ -9,6 +9,11 @@ export type Currency = (typeof CURRENCIES)[number];
 export const CLOCK_STYLES = ["digital", "analog"] as const;
 export type ClockStyle = (typeof CLOCK_STYLES)[number];
 
+// First day of the week (ISO day numbers, tenants.week_start): dashboard "This week" and the calendar.
+export const WEEK_STARTS = [1, 7, 6] as const;
+export type WeekStart = (typeof WEEK_STARTS)[number];
+export const WEEK_START_LABEL: Record<WeekStart, string> = { 1: "Monday", 7: "Sunday", 6: "Saturday" };
+
 export const shopSettingsSchema = z.object({
   currency: z.enum(CURRENCIES, { error: "Choose Rs. or PKR." }),
   showPaisa: z.boolean(),
@@ -22,6 +27,12 @@ export const shopSettingsSchema = z.object({
   showClock: z.boolean(),
   clockStyle: z.enum(CLOCK_STYLES, { error: "Choose digital or analog." }),
   clock24Hour: z.boolean(),
+  weekStart: z.union([z.literal(1), z.literal(6), z.literal(7)], { error: "Choose the first day of the week." }),
+  quoteValidityDays: z
+    .number({ error: "Enter a number of days." })
+    .int("Use whole days.")
+    .min(1, "Quotations must be valid for at least 1 day.")
+    .max(365, "Use 365 days or fewer."),
 });
 
 export type ShopSettingsInput = z.infer<typeof shopSettingsSchema>;

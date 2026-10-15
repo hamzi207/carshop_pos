@@ -12,8 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Apex POS — Quoting & Inventory for Auto Accessory Shops",
-    template: "%s · Apex POS",
+    default: "CarShop.Pk POS System — Invoicing & Inventory for Auto Accessory Shops",
+    template: "%s · CarShop.Pk POS",
   },
   description:
     "Cloud POS, YMM-aware inventory and quoting engine for automotive accessory sellers: tint, wraps, PPF, audio and styling parts.",
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={`${inter.variable} antialiased`} suppressHydrationWarning>
       <body>
         {children}
-        <Toaster position="top-right" />
+        <Toaster position="top-right" richColors closeButton />
       </body>
     </html>
   );

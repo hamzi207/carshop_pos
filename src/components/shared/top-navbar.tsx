@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Bell, Search } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
+import { ShortcutHint } from "./shortcut-hint";
 import { UserMenu } from "./user-menu";
 
 function initials(name: string) {
@@ -31,7 +32,7 @@ export function TopNavbar() {
       <div className="global-search">
         <Search size={18} />
         <span>Search inventory, quotes, or customers...</span>
-        <kbd>⌘ K</kbd>
+        <ShortcutHint letter="K" />
       </div>
       <div className="top-actions">
         <button type="button" className="notification" aria-label="Notifications">

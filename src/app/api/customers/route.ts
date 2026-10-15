@@ -6,14 +6,15 @@ import type { CustomerOptionsResponse } from "@/lib/types/quote";
 /**
  * Customers for the quote builder's picker.
  *   GET /api/customers          → first 20 by name
- *   GET /api/customers?q=apex   → up to 20 matches (name, contact, phone, email, NTN)
+ *   GET /api/customers?q=khan   → up to 20 matches (name, contact, phone, email, CNIC/NTN, STRN)
  *   GET /api/customers?id=…     → that one customer (e.g. just registered from the builder)
- * Search uses search_customers. Runs with the caller's session, so RLS limits
- * it to their shop.
+ * Every answer also carries the shop's walk-in / cash customer separately; it
+ * never appears in the list itself. Search uses search_customers. Runs with
+ * the caller's session, so RLS limits it to their shop.
  */
 const querySchema = z.object({ q: z.string().trim().max(100).optional(), id: z.uuid().optional() });
 
-const COLUMNS = "id, name, customer_type, whatsapp_number";
+const COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days";
 
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
@@ -31,17 +32,21 @@ export async function GET(request: NextRequest) {
   let query = (
     q ? supabase.rpc("search_customers", { p_query: q }).select(COLUMNS) : supabase.from("customers").select(COLUMNS)
   )
+    .eq("is_walk_in", false)
     .order("name")
     .limit(20);
   if (id) query = query.eq("id", id);
 
-  const { data, error } = await query;
+  const [list, walkIn] = await Promise.all([
+    query,
+    supabase.from("customers").select(COLUMNS).eq("is_walk_in", true).maybeSingle(),
+  ]);
 
-  if (error) {
-    console.error("Customer lookup failed:", error.message);
+  if (list.error || walkIn.error) {
+    console.error("Customer lookup failed:", (list.error ?? walkIn.error)?.message);
     return Response.json({ error: "Couldn't load customers." }, { status: 500 });
   }
 
-  const body: CustomerOptionsResponse = { customers: data };
+  const body: CustomerOptionsResponse = { customers: list.data, walkIn: walkIn.data };
   return Response.json(body, { headers: { "Cache-Control": "no-store" } });
 }

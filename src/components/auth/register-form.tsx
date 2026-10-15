@@ -55,7 +55,7 @@ export function RegisterForm() {
         id="shopName"
         label="SHOP NAME"
         icon={<Store size={16} />}
-        placeholder="e.g. Apex Auto Accessories"
+        placeholder="e.g. Hamza Auto Accessories"
         autoComplete="organization"
         error={errors.shopName?.message}
         {...register("shopName")}

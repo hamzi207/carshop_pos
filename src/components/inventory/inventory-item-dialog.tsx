@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog } from "radix-ui";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
 import { Car, CheckCircle2, Loader2, Package, Plus, Save, Wand2, X } from "lucide-react";
 import { createInventoryItem, updateInventoryItem } from "@/lib/actions/inventory";
-import { marginPercent } from "@/lib/format";
+import { formatMoney, marginPercent } from "@/lib/format";
+import { notify } from "@/lib/notify";
+import { useDiscardGuard } from "@/components/shared/discard-changes";
 import type { FitmentVehicle, InventoryListItem } from "@/lib/types/inventory";
 import {
   INVENTORY_CATEGORIES,
@@ -43,25 +44,34 @@ type Props = {
 
 /** Add / edit inventory part modal (Figma "Add inventory part"). */
 export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, item }: Props) {
+  // Closing with unsaved edits asks first (Cancel, X, Escape, clicking outside).
+  const guard = useDiscardGuard({
+    onOpenChange,
+    discardedNote: item ? `${item.name} was left as it was saved.` : "The new part was not added to inventory.",
+  });
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="modal-backdrop">
-          <Dialog.Content className="modal">
-            {/* Remount per open so the form always starts from the item's current values. */}
-            {open && (
-              <ItemForm
-                key={item?.id ?? "new"}
-                item={item}
-                currency={currency}
-                pricesIncludeTax={pricesIncludeTax}
-                onDone={() => onOpenChange(false)}
-              />
-            )}
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <>
+      <Dialog.Root open={open} onOpenChange={guard.requestOpenChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="modal-backdrop">
+            <Dialog.Content className="modal">
+              {/* Remount per open so the form always starts from the item's current values. */}
+              {open && (
+                <ItemForm
+                  key={item?.id ?? "new"}
+                  item={item}
+                  currency={currency}
+                  pricesIncludeTax={pricesIncludeTax}
+                  onDirtyChange={guard.setDirty}
+                  onDone={guard.close}
+                />
+              )}
+            </Dialog.Content>
+          </Dialog.Overlay>
+        </Dialog.Portal>
+      </Dialog.Root>
+      {guard.prompt}
+    </>
   );
 }
 
@@ -69,11 +79,13 @@ function ItemForm({
   item,
   currency,
   pricesIncludeTax,
+  onDirtyChange,
   onDone,
 }: {
   item?: InventoryListItem;
   currency: string;
   pricesIncludeTax: boolean;
+  onDirtyChange: (dirty: boolean) => void;
   onDone: () => void;
 }) {
   const isEdit = Boolean(item);
@@ -87,7 +99,7 @@ function ItemForm({
     setValue,
     setError,
     getValues,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<InventoryItemInput>({
     resolver: zodResolver(inventoryItemSchema),
     defaultValues: item
@@ -95,6 +107,7 @@ function ItemForm({
           sku: item.sku,
           name: item.name,
           description: item.description ?? "",
+          vendorName: item.vendor_name ?? "",
           category: item.category as InventoryCategory,
           costPrice: Number(item.cost_price),
           sellingPrice: Number(item.selling_price),
@@ -108,6 +121,7 @@ function ItemForm({
           sku: "",
           name: "",
           description: "",
+          vendorName: "",
           category: "Window Film",
           quantityOnHand: 0,
           lowStockThreshold: 5,
@@ -116,6 +130,8 @@ function ItemForm({
           vehicleIds: [],
         },
   });
+
+  useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
   const [cost, selling, isUniversal] = useWatch({
     control,
@@ -126,7 +142,7 @@ function ItemForm({
 
   const setVehicleList = (next: FitmentVehicle[]) => {
     setVehicles(next);
-    setValue("vehicleIds", next.map((v) => v.id), { shouldValidate: next.length > 0 });
+    setValue("vehicleIds", next.map((v) => v.id), { shouldValidate: next.length > 0, shouldDirty: true });
   };
 
   const onSubmit = handleSubmit(async (values) => {
@@ -138,9 +154,13 @@ function ItemForm({
     if (result.status === "error") {
       if (result.field) setError(result.field, { message: result.message });
       else setServerError(result.message);
+      notify.error(isEdit ? "Part not saved" : "Part not added", result.message);
       return;
     }
-    toast.success(isEdit ? `${values.name} updated` : `${values.name} added to inventory`);
+    notify.success(
+      isEdit ? `${values.name} updated` : `${values.name} added to inventory`,
+      `${values.sku} · ${values.quantityOnHand} on hand · ${formatMoney(values.sellingPrice, { currency, showPaisa: true })}${values.isUniversal ? " · Universal Fit" : ` · fits ${values.vehicleIds.length} vehicle${values.vehicleIds.length === 1 ? "" : "s"}`}`,
+    );
     onDone();
   });
 
@@ -220,6 +240,11 @@ function ItemForm({
             <textarea rows={2} placeholder="Notes for your team: brand, spec, roll size…" {...invalid("description")} {...register("description")} />
             {fieldError("description")}
           </label>
+          <label className="span-two">
+            <span>VENDOR / SUPPLIER (OPTIONAL)</span>
+            <input placeholder="e.g. Lahore Auto Traders" {...invalid("vendorName")} {...register("vendorName")} />
+            {fieldError("vendorName")}
+          </label>
           <label>
             <span>COST PRICE</span>
             <div className="money-input">
@@ -244,7 +269,10 @@ function ItemForm({
           <label>
             <span>{isEdit ? "STOCK ON HAND" : "STARTING STOCK"}</span>
             <input type="number" inputMode="numeric" step="1" min="0" {...invalid("quantityOnHand")} {...register("quantityOnHand", { valueAsNumber: true })} />
-            {fieldError("quantityOnHand")}
+            {fieldError("quantityOnHand") ??
+              (item && item.reserved_quantity > 0 && (
+                <span className="field-note">{item.reserved_quantity} reserved on open quotations.</span>
+              ))}
           </label>
           <label>
             <span>LOW STOCK ALERT AT</span>

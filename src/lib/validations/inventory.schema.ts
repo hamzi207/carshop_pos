@@ -45,6 +45,8 @@ export const inventoryItemSchema = z
       .min(2, "Enter a product name.")
       .max(120, "Name must be 120 characters or fewer."),
     description: z.string().trim().max(500, "Description must be 500 characters or fewer."),
+    /** Who the shop buys it from (free text; no supplier records yet). */
+    vendorName: z.string().trim().max(255, "Vendor name must be 255 characters or fewer."),
     category: z.enum(INVENTORY_CATEGORIES, { error: "Choose a category." }),
     costPrice: price("cost price"),
     sellingPrice: price("selling price"),

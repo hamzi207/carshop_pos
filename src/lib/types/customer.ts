@@ -14,8 +14,10 @@ export type CustomerQuote = {
   status: string;
   total_amount: number;
   created_at: string;
-  custom_vehicle_notes: string | null;
-  vehicle: { year: number; make: string; model: string; trim: string | null } | null;
+  amount_paid: number;
+  due_date: string | null;
+  /** Walk-in sales: who the cash customer was. */
+  walk_in_name: string | null;
 };
 
 export type CustomerDetail = Tables<"customers"> & {

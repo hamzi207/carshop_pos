@@ -17,48 +17,63 @@ export type Database = {
       customers: {
         Row: {
           billing_address: string | null
+          cnic_or_ntn: string | null
           contact_person: string | null
+          credit_days: number
           created_at: string
           customer_type: string
+          default_discount_percentage: number
           email: string | null
           id: string
+          is_walk_in: boolean
           name: string
           notes: string | null
           phone: string | null
-          tax_id: string | null
+          strn: string | null
+          tax_registration_status: string
           tenant_id: string
           updated_at: string
-          whatsapp_number: string
+          whatsapp_number: string | null
         }
         Insert: {
           billing_address?: string | null
+          cnic_or_ntn?: string | null
           contact_person?: string | null
+          credit_days?: number
           created_at?: string
           customer_type?: string
+          default_discount_percentage?: number
           email?: string | null
           id?: string
+          is_walk_in?: boolean
           name: string
           notes?: string | null
           phone?: string | null
-          tax_id?: string | null
+          strn?: string | null
+          tax_registration_status?: string
           tenant_id: string
           updated_at?: string
-          whatsapp_number: string
+          whatsapp_number?: string | null
         }
         Update: {
           billing_address?: string | null
+          cnic_or_ntn?: string | null
           contact_person?: string | null
+          credit_days?: number
           created_at?: string
           customer_type?: string
+          default_discount_percentage?: number
           email?: string | null
           id?: string
+          is_walk_in?: boolean
           name?: string
           notes?: string | null
           phone?: string | null
-          tax_id?: string | null
+          strn?: string | null
+          tax_registration_status?: string
           tenant_id?: string
           updated_at?: string
-          whatsapp_number?: string
+          whatsapp_number?: string | null
         }
         Relationships: [
           {
@@ -82,10 +97,12 @@ export type Database = {
           name: string
           price_includes_tax: boolean
           quantity_on_hand: number
+          reserved_quantity: number
           selling_price: number
           sku: string
           tenant_id: string
           updated_at: string
+          vendor_name: string | null
         }
         Insert: {
           category: string
@@ -98,10 +115,12 @@ export type Database = {
           name: string
           price_includes_tax?: boolean
           quantity_on_hand?: number
+          reserved_quantity?: number
           selling_price: number
           sku: string
           tenant_id: string
           updated_at?: string
+          vendor_name?: string | null
         }
         Update: {
           category?: string
@@ -114,14 +133,149 @@ export type Database = {
           name?: string
           price_includes_tax?: boolean
           quantity_on_hand?: number
+          reserved_quantity?: number
           selling_price?: number
           sku?: string
           tenant_id?: string
           updated_at?: string
+          vendor_name?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "inventory_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payment_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          item_id: string | null
+          payment_id: string
+          quantity: number | null
+          quote_id: string
+          quote_item_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          item_id?: string | null
+          payment_id: string
+          quantity?: number | null
+          quote_id: string
+          quote_item_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          item_id?: string | null
+          payment_id?: string
+          quantity?: number | null
+          quote_id?: string
+          quote_item_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_items_quote_item_id_fkey"
+            columns: ["quote_item_id"]
+            isOneToOne: false
+            referencedRelation: "quote_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          paid_on: string
+          payment_method: string
+          quote_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          paid_on?: string
+          payment_method: string
+          quote_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          paid_on?: string
+          payment_method?: string
+          quote_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payments_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -181,6 +335,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          dashboard_prefs: Json
           email: string
           full_name: string
           id: string
@@ -190,6 +345,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dashboard_prefs?: Json
           email: string
           full_name: string
           id: string
@@ -199,6 +355,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dashboard_prefs?: Json
           email?: string
           full_name?: string
           id?: string
@@ -219,13 +376,19 @@ export type Database = {
       quote_items: {
         Row: {
           created_at: string
+          deducted_qty: number
           description: string
+          discount_amount: number
+          discount_type: string
+          discount_value: number
           id: string
           is_labor: boolean
           item_id: string | null
           price_includes_tax: boolean
           quantity: number
           quote_id: string
+          reserved_qty: number
+          sale_price: number
           sort_order: number
           tenant_id: string
           total_price: number
@@ -234,13 +397,19 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deducted_qty?: number
           description: string
+          discount_amount?: number
+          discount_type?: string
+          discount_value?: number
           id?: string
           is_labor?: boolean
           item_id?: string | null
           price_includes_tax?: boolean
           quantity?: number
           quote_id: string
+          reserved_qty?: number
+          sale_price?: number
           sort_order?: number
           tenant_id: string
           total_price?: number
@@ -249,13 +418,19 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deducted_qty?: number
           description?: string
+          discount_amount?: number
+          discount_type?: string
+          discount_value?: number
           id?: string
           is_labor?: boolean
           item_id?: string | null
           price_includes_tax?: boolean
           quantity?: number
           quote_id?: string
+          reserved_qty?: number
+          sale_price?: number
           sort_order?: number
           tenant_id?: string
           total_price?: number
@@ -288,14 +463,17 @@ export type Database = {
       }
       quotes: {
         Row: {
+          amount_paid: number
           created_at: string
           created_by: string | null
           custom_vehicle_notes: string | null
           customer_id: string
           discount_amount: number
+          discount_reason: string | null
           discount_type: string
           discount_value: number
           draft_number: string | null
+          due_date: string | null
           id: string
           inventory_deducted: boolean
           invoice_number: string | null
@@ -314,17 +492,23 @@ export type Database = {
           tenant_id: string
           total_amount: number
           updated_at: string
+          valid_until: string | null
           vehicle_id: number | null
+          walk_in_name: string | null
+          walk_in_phone: string | null
         }
         Insert: {
+          amount_paid?: number
           created_at?: string
           created_by?: string | null
           custom_vehicle_notes?: string | null
           customer_id: string
           discount_amount?: number
+          discount_reason?: string | null
           discount_type?: string
           discount_value?: number
           draft_number?: string | null
+          due_date?: string | null
           id?: string
           inventory_deducted?: boolean
           invoice_number?: string | null
@@ -343,17 +527,23 @@ export type Database = {
           tenant_id: string
           total_amount?: number
           updated_at?: string
+          valid_until?: string | null
           vehicle_id?: number | null
+          walk_in_name?: string | null
+          walk_in_phone?: string | null
         }
         Update: {
+          amount_paid?: number
           created_at?: string
           created_by?: string | null
           custom_vehicle_notes?: string | null
           customer_id?: string
           discount_amount?: number
+          discount_reason?: string | null
           discount_type?: string
           discount_value?: number
           draft_number?: string | null
+          due_date?: string | null
           id?: string
           inventory_deducted?: boolean
           invoice_number?: string | null
@@ -372,7 +562,10 @@ export type Database = {
           tenant_id?: string
           total_amount?: number
           updated_at?: string
+          valid_until?: string | null
           vehicle_id?: number | null
+          walk_in_name?: string | null
+          walk_in_phone?: string | null
         }
         Relationships: [
           {
@@ -420,11 +613,13 @@ export type Database = {
           phone: string | null
           prices_include_tax: boolean
           quote_footer_notes: string | null
+          quote_validity_days: number
           show_clock: boolean
           show_paisa: boolean
           slug: string
           tax_rate: number
           timezone: string
+          week_start: number
           updated_at: string
         }
         Insert: {
@@ -441,11 +636,13 @@ export type Database = {
           phone?: string | null
           prices_include_tax?: boolean
           quote_footer_notes?: string | null
+          quote_validity_days?: number
           show_clock?: boolean
           show_paisa?: boolean
           slug: string
           tax_rate?: number
           timezone?: string
+          week_start?: number
           updated_at?: string
         }
         Update: {
@@ -462,11 +659,13 @@ export type Database = {
           phone?: string | null
           prices_include_tax?: boolean
           quote_footer_notes?: string | null
+          quote_validity_days?: number
           show_clock?: boolean
           show_paisa?: boolean
           slug?: string
           tax_rate?: number
           timezone?: string
+          week_start?: number
           updated_at?: string
         }
         Relationships: []
@@ -506,14 +705,17 @@ export type Database = {
       convert_quote: {
         Args: { p_quote_id: string; p_target: string }
         Returns: {
+          amount_paid: number
           created_at: string
           created_by: string | null
           custom_vehicle_notes: string | null
           customer_id: string
           discount_amount: number
+          discount_reason: string | null
           discount_type: string
           discount_value: number
           draft_number: string | null
+          due_date: string | null
           id: string
           inventory_deducted: boolean
           invoice_number: string | null
@@ -532,7 +734,10 @@ export type Database = {
           tenant_id: string
           total_amount: number
           updated_at: string
+          valid_until: string | null
           vehicle_id: number | null
+          walk_in_name: string | null
+          walk_in_phone: string | null
         }
         SetofOptions: {
           from: "*"
@@ -542,15 +747,22 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      dashboard_metrics: {
+        Args: { p_from?: string; p_range?: string; p_to?: string }
+        Returns: Json
+      }
       is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
-      process_quote_payment: {
+      record_payment: {
         Args: {
-          p_payment_method: string
-          p_payment_notes?: string
+          p_amount: number
+          p_items?: Json
+          p_method: string
+          p_notes?: string
+          p_paid_on: string
           p_quote_id: string
         }
-        Returns: undefined
+        Returns: string
       }
       save_inventory_item: {
         Args: {
@@ -566,6 +778,7 @@ export type Database = {
           p_selling_price: number
           p_sku: string
           p_vehicle_ids?: number[]
+          p_vendor_name?: string
         }
         Returns: string
       }
@@ -573,23 +786,30 @@ export type Database = {
         Args: {
           p_custom_vehicle_notes?: string
           p_customer_id: string
+          p_discount_reason?: string
           p_discount_type?: string
           p_discount_value?: number
+          p_due_date?: string
           p_items: Json
           p_notes?: string
           p_quote_id?: string
           p_stage?: string
           p_vehicle_id?: number
+          p_walk_in_name?: string
+          p_walk_in_phone?: string
         }
         Returns: {
+          amount_paid: number
           created_at: string
           created_by: string | null
           custom_vehicle_notes: string | null
           customer_id: string
           discount_amount: number
+          discount_reason: string | null
           discount_type: string
           discount_value: number
           draft_number: string | null
+          due_date: string | null
           id: string
           inventory_deducted: boolean
           invoice_number: string | null
@@ -608,7 +828,10 @@ export type Database = {
           tenant_id: string
           total_amount: number
           updated_at: string
+          valid_until: string | null
           vehicle_id: number | null
+          walk_in_name: string | null
+          walk_in_phone: string | null
         }
         SetofOptions: {
           from: "*"
@@ -621,18 +844,23 @@ export type Database = {
         Args: { p_query: string }
         Returns: {
           billing_address: string | null
+          cnic_or_ntn: string | null
           contact_person: string | null
+          credit_days: number
           created_at: string
           customer_type: string
+          default_discount_percentage: number
           email: string | null
           id: string
+          is_walk_in: boolean
           name: string
           notes: string | null
           phone: string | null
-          tax_id: string | null
+          strn: string | null
+          tax_registration_status: string
           tenant_id: string
           updated_at: string
-          whatsapp_number: string
+          whatsapp_number: string | null
         }[]
         SetofOptions: {
           from: "*"
@@ -654,10 +882,12 @@ export type Database = {
           name: string
           price_includes_tax: boolean
           quantity_on_hand: number
+          reserved_quantity: number
           selling_price: number
           sku: string
           tenant_id: string
           updated_at: string
+          vendor_name: string | null
         }[]
         SetofOptions: {
           from: "*"

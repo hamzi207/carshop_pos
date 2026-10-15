@@ -28,10 +28,10 @@ type NavItem = {
 
 const workspaceNav: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutGrid },
-  { href: "/drafts", label: "Drafts", icon: FilePen },
-  { href: "/quotations", label: "Quotations", icon: FileText },
-  { href: "/invoices", label: "Invoices", icon: ReceiptText },
   { href: "/inventory", label: "Inventory", icon: Package },
+  { href: "/invoices", label: "Invoices", icon: ReceiptText },
+  { href: "/quotations", label: "Quotations", icon: FileText },
+  { href: "/drafts", label: "Drafts", icon: FilePen },
   { href: "/customers", label: "Customers", icon: Users },
 ];
 
@@ -100,12 +100,12 @@ export function AppSidebar({ storeCard }: { storeCard: ReactNode }) {
             <Sparkles size={16} />
           </div>
           <strong>Need a hand?</strong>
-          <span>Visit the Apex support center.</span>
+          <span>Visit the CarShop.Pk support center.</span>
           <button type="button">
             Get support <ChevronRight size={13} />
           </button>
         </div>
-        <div className="version">ApexOS v2.4.0</div>
+        <div className="version">CarShop.Pk POS System</div>
       </div>
     </aside>
   );

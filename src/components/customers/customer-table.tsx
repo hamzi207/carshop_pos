@@ -89,17 +89,19 @@ export function CustomerTable({ customers, money, allowInternationalPhones, filt
                     </div>
                   </td>
                   <td>
-                    <a
-                      className="whatsapp-link"
-                      href={whatsappLink(c.whatsapp_number)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`WhatsApp ${c.name} on ${formatPhone(c.whatsapp_number)}`}
-                    >
-                      <MessageCircle size={15} />
-                      {formatPhone(c.whatsapp_number)}
-                    </a>
+                    {c.whatsapp_number && (
+                      <a
+                        className="whatsapp-link"
+                        href={whatsappLink(c.whatsapp_number)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`WhatsApp ${c.name} on ${formatPhone(c.whatsapp_number)}`}
+                      >
+                        <MessageCircle size={15} />
+                        {formatPhone(c.whatsapp_number)}
+                      </a>
+                    )}
                   </td>
                   <td>
                     <strong>{c.quoteCount}</strong> {c.quoteCount === 1 ? "quote / invoice" : "quotes / invoices"}

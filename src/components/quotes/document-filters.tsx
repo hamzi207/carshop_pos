@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, X } from "lucide-react";
-import { SECTION, STATUS_LABEL, type DocumentSection } from "@/lib/documents";
+import { INVOICE_FILTERS, QUOTATION_FILTERS, SECTION, statusDisplay, type DocumentSection, type StatusKey } from "@/lib/documents";
 
 /** Search + status filter for a document list, kept in the URL (?q=&status=). */
 export function DocumentFilters({ section }: { section: DocumentSection }) {
@@ -15,7 +15,8 @@ export function DocumentFilters({ section }: { section: DocumentSection }) {
   const status = params.get("status") ?? "";
   const urlSearch = params.get("q") ?? "";
   const [search, setSearch] = useState(urlSearch);
-  const statuses = SECTION[section].statuses;
+  const statuses: readonly StatusKey[] =
+    section === "invoices" ? INVOICE_FILTERS : section === "quotations" ? QUOTATION_FILTERS : [];
 
   const update = (changes: Record<string, string>) => {
     const next = new URLSearchParams(params);
@@ -42,7 +43,7 @@ export function DocumentFilters({ section }: { section: DocumentSection }) {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search number, customer or vehicle..."
+          placeholder="Search number or customer..."
           aria-label={`Search ${SECTION[section].title.toLowerCase()}`}
           maxLength={100}
         />
@@ -62,7 +63,7 @@ export function DocumentFilters({ section }: { section: DocumentSection }) {
               aria-pressed={status === s}
               onClick={() => update({ status: s })}
             >
-              {s ? STATUS_LABEL[s] : "All"}
+              {s ? statusDisplay(s as StatusKey).label : "All"}
             </button>
           ))}
         </div>

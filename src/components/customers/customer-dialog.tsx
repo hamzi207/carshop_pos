@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog } from "radix-ui";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "sonner";
 import { Loader2, Plus, Save, UserPlus, X } from "lucide-react";
 import { createCustomer, updateCustomer } from "@/lib/actions/customers";
 import { formatPhone, PHONE_EXAMPLE } from "@/lib/phone";
+import { notify } from "@/lib/notify";
+import { useDiscardGuard } from "@/components/shared/discard-changes";
+import { formatStrn } from "@/lib/tax-id";
 import type { Tables } from "@/lib/types/database.types";
 import {
   CUSTOMER_TYPES,
@@ -15,6 +17,7 @@ import {
   type CustomerFormValues,
   type CustomerInput,
   type CustomerType,
+  type TaxRegistrationStatus,
 } from "@/lib/validations/customer.schema";
 
 type Props = {
@@ -25,37 +28,53 @@ type Props = {
   customer?: Tables<"customers">;
   /** Called with the saved customer's id. */
   onSaved?: (id: string) => void;
+  /** Starting values for a new customer (e.g. a walk-in's name and phone). */
+  prefill?: { name?: string; whatsappNumber?: string };
 };
 
-export function CustomerDialog({ open, onOpenChange, allowInternationalPhones, customer, onSaved }: Props) {
+export function CustomerDialog({ open, onOpenChange, allowInternationalPhones, customer, onSaved, prefill }: Props) {
+  // Closing with unsaved edits asks first (Cancel, X, Escape, clicking outside).
+  const guard = useDiscardGuard({
+    onOpenChange,
+    discardedNote: customer ? `${customer.name} was left as it was saved.` : "The new customer was not registered.",
+  });
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="modal-backdrop">
-          <Dialog.Content className="modal">
-            <CustomerForm
-              key={customer?.id ?? "new"}
-              customer={customer}
-              allowInternationalPhones={allowInternationalPhones}
-              onDone={(id) => {
-                onOpenChange(false);
-                onSaved?.(id);
-              }}
-            />
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <>
+      <Dialog.Root open={open} onOpenChange={guard.requestOpenChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="modal-backdrop">
+            <Dialog.Content className="modal">
+              <CustomerForm
+                key={customer?.id ?? "new"}
+                customer={customer}
+                prefill={prefill}
+                allowInternationalPhones={allowInternationalPhones}
+                onDirtyChange={guard.setDirty}
+                onDone={(id) => {
+                  guard.close();
+                  onSaved?.(id);
+                }}
+              />
+            </Dialog.Content>
+          </Dialog.Overlay>
+        </Dialog.Portal>
+      </Dialog.Root>
+      {guard.prompt}
+    </>
   );
 }
 
 function CustomerForm({
   customer,
+  prefill,
   allowInternationalPhones,
+  onDirtyChange,
   onDone,
 }: {
   customer?: Tables<"customers">;
+  prefill?: Props["prefill"];
   allowInternationalPhones: boolean;
+  onDirtyChange: (dirty: boolean) => void;
   onDone: (id: string) => void;
 }) {
   const isEdit = Boolean(customer);
@@ -63,24 +82,34 @@ function CustomerForm({
 
   const {
     register,
+    control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<CustomerFormValues, unknown, CustomerInput>({
     resolver: zodResolver(customerSchema(allowInternationalPhones)),
     defaultValues: {
-      name: customer?.name ?? "",
+      name: customer?.name ?? prefill?.name ?? "",
       customerType: (customer?.customer_type as CustomerType) ?? "Retail Customer",
       contactPerson: customer?.contact_person ?? "",
       // Shown the way people type them (0300-1234567), stored as E.164.
-      whatsappNumber: formatPhone(customer?.whatsapp_number),
+      whatsappNumber: customer ? formatPhone(customer.whatsapp_number) : (prefill?.whatsappNumber ?? ""),
       phone: formatPhone(customer?.phone),
       email: customer?.email ?? "",
       billingAddress: customer?.billing_address ?? "",
-      taxId: customer?.tax_id ?? "",
+      cnicOrNtn: customer?.cnic_or_ntn ?? "",
+      taxRegistrationStatus: (customer?.tax_registration_status as TaxRegistrationStatus) ?? "unregistered",
+      strn: formatStrn(customer?.strn ?? null),
+      defaultDiscountPercentage: customer ? Number(customer.default_discount_percentage) : 0,
+      creditDays: customer?.credit_days ?? 0,
       notes: customer?.notes ?? "",
     },
   });
+
+  useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
+
+  const [customerType, registration] = useWatch({ control, name: ["customerType", "taxRegistrationStatus"] });
+  const needsTaxId = customerType !== "Retail Customer" || registration === "registered";
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
@@ -88,9 +117,17 @@ function CustomerForm({
     if (result.status === "error") {
       if (result.field) setError(result.field, { message: result.message });
       else setServerError(result.message);
+      notify.error(isEdit ? "Customer not saved" : "Customer not registered", result.message);
       return;
     }
-    toast.success(isEdit ? `${values.name} updated` : `${values.name} registered`);
+    const terms = [
+      values.creditDays > 0 ? `${values.creditDays}-day credit period` : "due on the invoice date",
+      values.defaultDiscountPercentage > 0 ? `${values.defaultDiscountPercentage}% default discount` : null,
+    ].filter(Boolean).join(" · ");
+    notify.success(
+      isEdit ? `${values.name} updated` : `${values.name} registered`,
+      isEdit ? `Customer details saved (${terms}).` : `Added to your customer directory (${terms}).`,
+    );
     onDone(result.id);
   });
 
@@ -161,9 +198,54 @@ function CustomerForm({
             {fieldError("email")}
           </label>
           <label>
-            <span>NTN / TAX ID (OPTIONAL)</span>
-            <input placeholder="e.g. 1234567-8" {...invalid("taxId")} {...register("taxId")} />
-            {fieldError("taxId")}
+            <span>SALES TAX REGISTRATION</span>
+            <select {...invalid("taxRegistrationStatus")} {...register("taxRegistrationStatus")}>
+              <option value="unregistered">Not registered</option>
+              <option value="registered">Registered (has STRN)</option>
+            </select>
+            {fieldError("taxRegistrationStatus")}
+          </label>
+          <label>
+            <span>CNIC / NTN{needsTaxId ? "" : " (OPTIONAL)"}</span>
+            <input placeholder="12345-1234567-1 or 1234567-8" {...invalid("cnicOrNtn")} {...register("cnicOrNtn")} />
+            {fieldError("cnicOrNtn")}
+          </label>
+          {registration === "registered" && (
+            <label>
+              <span>STRN (SALES TAX REG. NO.)</span>
+              <input placeholder="e.g. 32-77-8761-234-56" {...invalid("strn")} {...register("strn")} />
+              {fieldError("strn")}
+            </label>
+          )}
+          <label>
+            <span>CREDIT PERIOD (DAYS)</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="365"
+              step="1"
+              {...invalid("creditDays")}
+              {...register("creditDays", { valueAsNumber: true })}
+            />
+            {errors.creditDays?.message ? fieldError("creditDays") : (
+              <span className="field-note">Their invoices fall due this many days after the invoice date (0 = same day).</span>
+            )}
+          </label>
+          <label>
+            <span>DEFAULT DISCOUNT %</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max="100"
+              step="0.01"
+              {...invalid("defaultDiscountPercentage")}
+              {...register("defaultDiscountPercentage", { valueAsNumber: true })}
+            />
+            {errors.defaultDiscountPercentage?.message ? fieldError("defaultDiscountPercentage") : (
+              <span className="field-note">Applied automatically to their quotes and invoices.</span>
+            )}
           </label>
           <label className="span-two">
             <span>BILLING ADDRESS (OPTIONAL)</span>

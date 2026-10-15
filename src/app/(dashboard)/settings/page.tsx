@@ -18,6 +18,8 @@ async function SettingsContent() {
         showClock: tenant.showClock,
         clockStyle: tenant.clockStyle,
         clock24Hour: tenant.clock24Hour,
+        weekStart: tenant.weekStart,
+        quoteValidityDays: tenant.quoteValidityDays,
         currency: tenant.currency as Currency,
         showPaisa: tenant.showPaisa,
         taxRate: tenant.taxRate,

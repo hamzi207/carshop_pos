@@ -5,15 +5,19 @@ import { ChevronRight, FilePen, FileText, Plus, ReceiptText } from "lucide-react
 import { getDocuments, getQuote } from "@/lib/actions/quotes";
 import { getShopSession } from "@/lib/auth";
 import {
+  customerLabel,
   documentHref,
   earlierNumbers,
+  isExpired,
+  localDate,
+  NUMBER_PREFIX,
   SECTION,
   sectionForStatus,
-  STATUS_LABEL,
-  STATUS_TONE,
+  statusDisplay,
+  statusKey,
   type DocumentSection,
 } from "@/lib/documents";
-import { formatDate, formatMoney, formatVehicle } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { CustomerOption, DocumentListItem } from "@/lib/types/quote";
 import { documentFiltersSchema } from "@/lib/validations/quote.schema";
@@ -33,6 +37,8 @@ const SECTION_ICON = { drafts: FilePen, quotations: FileText, invoices: ReceiptT
 const sectionDate = (section: DocumentSection, d: DocumentListItem) =>
   section === "invoices" ? d.invoiced_at ?? d.created_at : section === "quotations" ? d.quoted_at ?? d.created_at : d.updated_at;
 
+const CUSTOMER_COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days";
+
 // ---- List -------------------------------------------------------------------
 
 async function DocumentTable({ section, searchParams }: { section: DocumentSection; searchParams: SearchParams }) {
@@ -41,6 +47,8 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
   const [docs, { tenant }] = await Promise.all([getDocuments(section, filters), getShopSession()]);
   const config = SECTION[section];
   const Icon = SECTION_ICON[section];
+  const today = localDate(tenant.timezone);
+  const invoices = section === "invoices";
 
   if (docs.length === 0) {
     const filtered = Boolean(filters.search || filters.status);
@@ -55,7 +63,7 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
         ) : (
           <>
             <strong>No {config.title.toLowerCase()} yet</strong>
-            {section === "invoices"
+            {invoices
               ? "Bill a walk-in customer directly, or convert a quotation into an invoice."
               : section === "quotations"
                 ? "Create a quotation, or convert a draft when it's ready."
@@ -71,8 +79,10 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
     );
   }
 
-  const total = docs.reduce((sum, d) => sum + (d.status === "cancelled" ? 0 : d.total_amount), 0);
-  const dateLabel = section === "drafts" ? "LAST EDITED" : section === "quotations" ? "QUOTED" : "INVOICED";
+  const counted = docs.filter((d) => d.status !== "cancelled" && d.status !== "void");
+  const total = counted.reduce((sum, d) => sum + d.total_amount, 0);
+  const owed = invoices ? counted.reduce((sum, d) => sum + d.total_amount - Number(d.amount_paid), 0) : 0;
+  const dateLabel = section === "drafts" ? "LAST EDITED" : section === "quotations" ? "QUOTED" : "INVOICE DATE";
 
   return (
     <>
@@ -82,10 +92,11 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
             <tr>
               <th>NUMBER</th>
               <th>CUSTOMER</th>
-              <th>VEHICLE</th>
               <th>{dateLabel}</th>
+              {invoices && <th>DUE DATE</th>}
               <th>STATUS</th>
               <th>TOTAL</th>
+              {invoices && <th>BALANCE</th>}
               <th><span className="sr-only">Open</span></th>
             </tr>
           </thead>
@@ -93,6 +104,8 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
             {docs.map((d) => {
               const href = documentHref(d);
               const earlier = earlierNumbers(d);
+              const status = statusDisplay(statusKey(d, today));
+              const balance = d.total_amount - Number(d.amount_paid);
               return (
                 <tr key={d.id}>
                   <td>
@@ -104,20 +117,31 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
                   <td>
                     {d.customer ? (
                       <div className="customer-name">
-                        <CustomerAvatar name={d.customer.name} />
+                        <CustomerAvatar name={d.customer.is_walk_in ? d.walk_in_name || "Walk in" : d.customer.name} />
                         <div>
-                          <strong>{d.customer.name}</strong>
-                          <span className="doc-sub">{d.customer.customer_type}</span>
+                          <strong>{customerLabel(d, d.customer)}</strong>
+                          <span className="doc-sub">{d.customer.is_walk_in ? "Cash sale" : d.customer.customer_type}</span>
                         </div>
                       </div>
                     ) : (
                       "—"
                     )}
                   </td>
-                  <td>{d.vehicle ? formatVehicle(d.vehicle) : d.custom_vehicle_notes || <span className="doc-sub">No vehicle</span>}</td>
                   <td>{formatDate(sectionDate(section, d), tenant.timezone)}</td>
-                  <td><span className={`badge ${STATUS_TONE[d.status] ?? ""}`}>{STATUS_LABEL[d.status] ?? d.status}</span></td>
+                  {invoices && <td>{d.due_date ? formatDate(`${d.due_date}T12:00:00Z`, "UTC") : "—"}</td>}
+                  <td>
+                    <span className={`badge ${status.tone}`}>{status.label}</span>
+                    {isExpired(d) && <span className="badge badge-amber doc-expired" title="Past its validity date; stock is still reserved">Expired</span>}
+                    {d.valid_until && !isExpired(d) && (d.status === "sent" || d.status === "accepted") && (
+                      <span className="doc-sub">Valid until {formatDate(d.valid_until, tenant.timezone)}</span>
+                    )}
+                  </td>
                   <td className="amount">{formatMoney(d.total_amount, tenant.money)}</td>
+                  {invoices && (
+                    <td className={balance > 0 && d.status === "invoiced" ? "amount balance" : "amount settled"}>
+                      {d.status === "void" ? "—" : formatMoney(balance, tenant.money)}
+                    </td>
+                  )}
                   <td>
                     <Link href={href} className="icon-button" aria-label={`Open ${d.quote_number}`}>
                       <ChevronRight size={16} />
@@ -134,7 +158,8 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
           Showing {docs.length} {docs.length === 1 ? config.singular.toLowerCase() : config.title.toLowerCase()}
         </span>
         <span>
-          Total{section === "quotations" ? " (excluding cancelled)" : ""}: <strong>{formatMoney(total, tenant.money)}</strong>
+          Total{section === "drafts" ? "" : " (excluding cancelled)"}: <strong>{formatMoney(total, tenant.money)}</strong>
+          {invoices && <> · Balance due: <strong>{formatMoney(owed, tenant.money)}</strong></>}
         </span>
       </div>
     </>
@@ -171,6 +196,12 @@ export function DocumentListPage({ section, searchParams }: { section: DocumentS
 
 // ---- Builder (new / edit) ---------------------------------------------------
 
+async function getWalkIn(): Promise<CustomerOption | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("customers").select(CUSTOMER_COLUMNS).eq("is_walk_in", true).maybeSingle();
+  return data;
+}
+
 function BuilderSkeleton() {
   return (
     <div className="page quote-page">
@@ -182,32 +213,44 @@ function BuilderSkeleton() {
 async function NewDocument({ section, searchParams }: { section: DocumentSection; searchParams: SearchParams }) {
   const raw = await searchParams;
   const customerId = first(raw.customer);
-  const { tenant } = await getShopSession();
+  const [{ tenant }, walkIn] = await Promise.all([getShopSession(), getWalkIn()]);
 
   // ?customer=<id> pre-selects a customer (from their profile page).
   let initialCustomer: CustomerOption | null = null;
   if (customerId && /^[0-9a-f-]{36}$/i.test(customerId)) {
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("customers")
-      .select("id, name, customer_type, whatsapp_number")
-      .eq("id", customerId)
-      .maybeSingle();
+    const { data } = await supabase.from("customers").select(CUSTOMER_COLUMNS).eq("id", customerId).maybeSingle();
     initialCustomer = data;
   }
 
+  // The next number in line. Nothing is reserved: if this document is never
+  // saved the number stays free, and if someone else saves first this one
+  // simply gets the next free number when it is saved.
+  const supabase = await createClient();
+  const { data: nextNumber } = await supabase.rpc("next_document_number", { p_prefix: NUMBER_PREFIX[section] });
+
+  const today = localDate(tenant.timezone);
   return (
     <QuoteBuilder
       doc={null}
       section={section}
       title={SECTION[section].newLabel}
-      subtitle="Not saved yet"
+      numberPreview={nextNumber ?? null}
+      meta={[
+        { label: "Number", value: nextNumber ?? "Assigned when saved" },
+        { label: "Date", value: formatDate(new Date(), tenant.timezone) },
+        ...(section === "quotations" ? [{ label: "Valid for", value: `${tenant.quoteValidityDays} days` }] : []),
+      ]}
+      status={null}
+      today={today}
+      invoiceDate={today}
       money={tenant.money}
       taxRate={tenant.taxRate}
-      laborIncludesTax={tenant.pricesIncludeTax}
+      customIncludesTax={tenant.pricesIncludeTax}
       allowInternationalPhones={tenant.allowInternationalPhones}
       terms={tenant.quoteTerms}
       initialCustomer={initialCustomer}
+      walkIn={walkIn}
     />
   );
 }
@@ -222,7 +265,7 @@ export function NewDocumentPage({ section, searchParams }: { section: DocumentSe
 
 async function EditDocument({ section, params }: { section: DocumentSection; params: Params }) {
   const { id } = await params;
-  const [doc, { tenant }] = await Promise.all([getQuote(id), getShopSession()]);
+  const [doc, { tenant }, walkIn] = await Promise.all([getQuote(id), getShopSession(), getWalkIn()]);
   if (!doc) notFound();
 
   // A converted document lives in its new section: /drafts/x → /invoices/x.
@@ -230,11 +273,18 @@ async function EditDocument({ section, params }: { section: DocumentSection; par
   if (actual !== section) redirect(`${SECTION[actual].path}/${doc.id}`);
 
   const tz = tenant.timezone;
-  const parts = [`Created ${formatDate(doc.created_at, tz)}`];
-  if (doc.invoiced_at) parts.push(`invoiced ${formatDate(doc.invoiced_at, tz)}`);
-  else if (doc.quoted_at) parts.push(`quoted ${formatDate(doc.quoted_at, tz)}`);
+  const today = localDate(tz);
   const earlier = earlierNumbers(doc);
-  if (earlier.length) parts.push(`from ${earlier.join(" · ")}`);
+  const meta = [
+    { label: "Number", value: doc.quote_number },
+    ...(earlier.length ? [{ label: doc.status === "draft" ? "Was" : "From", value: earlier.join(" · ") }] : []),
+    { label: "Created", value: formatDate(doc.created_at, tz) },
+    ...(doc.quoted_at && actual === "quotations" ? [{ label: "Quoted", value: formatDate(doc.quoted_at, tz) }] : []),
+    ...(doc.invoiced_at ? [{ label: "Invoice date", value: formatDate(doc.invoiced_at, tz) }] : []),
+    ...((doc.status === "sent" || doc.status === "accepted") && doc.valid_until
+      ? [{ label: isExpired(doc) ? "Expired" : "Valid until", value: formatDate(doc.valid_until, tz) }]
+      : []),
+  ];
 
   return (
     <QuoteBuilder
@@ -243,13 +293,18 @@ async function EditDocument({ section, params }: { section: DocumentSection; par
       doc={doc}
       section={section}
       title={`${SECTION[actual].singular} ${doc.quote_number}`}
-      subtitle={parts.join(" · ")}
+      meta={meta}
+      status={statusKey(doc, today)}
+      today={today}
+      numberPreview={null}
+      invoiceDate={doc.invoiced_at ? localDate(tz, doc.invoiced_at) : today}
       money={tenant.money}
       taxRate={doc.status === "draft" ? tenant.taxRate : Number(doc.tax_rate)}
-      laborIncludesTax={tenant.pricesIncludeTax}
+      customIncludesTax={tenant.pricesIncludeTax}
       allowInternationalPhones={tenant.allowInternationalPhones}
       terms={tenant.quoteTerms}
       initialCustomer={null}
+      walkIn={walkIn}
     />
   );
 }

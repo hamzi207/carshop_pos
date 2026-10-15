@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Dialog } from "radix-ui";
-import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
 import { deleteInventoryItem } from "@/lib/actions/inventory";
+import { notify } from "@/lib/notify";
 import type { InventoryListItem } from "@/lib/types/inventory";
 
 type Props = {
@@ -24,9 +24,10 @@ export function DeleteItemDialog({ item, onOpenChange }: Props) {
     setPending(false);
     if (result.status === "error") {
       setError(result.message);
+      notify.error(`${item.name} not deleted`, result.message);
       return;
     }
-    toast.success(`${item.name} deleted`);
+    notify.success(`${item.name} deleted`, `${item.sku} removed from inventory. Existing documents keep their lines and prices.`);
     onOpenChange(false);
   };
 

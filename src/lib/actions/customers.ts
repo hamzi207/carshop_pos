@@ -22,9 +22,12 @@ export type CustomerActionResult =
 
 const idSchema = z.uuid();
 
-const LIST_SELECT = "*, quotes(status, total_amount)";
+const LIST_SELECT = "*, quotes(status, total_amount, amount_paid)";
 
+// Unpaid (or part-paid) invoices; what is owed is the total minus payments.
 const isOutstanding = (status: string) => status === "invoiced";
+const owed = (q: { total_amount: number | string; amount_paid: number | string }) => Number(q.total_amount) - Number(q.amount_paid);
+const isCancelled = (status: string) => status === "cancelled" || status === "void";
 
 export async function getCustomers(filters: CustomerFilters = {}): Promise<CustomerListItem[]> {
   const { search, type } = customerFiltersSchema.parse(filters);
@@ -36,7 +39,10 @@ export async function getCustomers(filters: CustomerFilters = {}): Promise<Custo
     search
       ? supabase.rpc("search_customers", { p_query: search }).select(LIST_SELECT)
       : supabase.from("customers").select(LIST_SELECT)
-  ).order("name");
+  )
+    // The shop's walk-in / cash record isn't a directory entry.
+    .eq("is_walk_in", false)
+    .order("name");
   if (type) query = query.eq("customer_type", type);
 
   const { data, error } = await query;
@@ -47,10 +53,8 @@ export async function getCustomers(filters: CustomerFilters = {}): Promise<Custo
 
   return data.map(({ quotes, ...customer }) => ({
     ...customer,
-    quoteCount: quotes.filter((q) => q.status !== "cancelled").length,
-    outstanding: quotes
-      .filter((q) => isOutstanding(q.status))
-      .reduce((sum, q) => sum + Number(q.total_amount), 0),
+    quoteCount: quotes.filter((q) => !isCancelled(q.status)).length,
+    outstanding: quotes.filter((q) => isOutstanding(q.status)).reduce((sum, q) => sum + owed(q), 0),
   }));
 }
 
@@ -61,7 +65,7 @@ export async function getCustomer(id: string): Promise<CustomerDetail | null> {
   const { data, error } = await supabase
     .from("customers")
     .select(
-      "*, quotes(id, quote_number, status, total_amount, created_at, custom_vehicle_notes, vehicles(year, make, model, trim))",
+      "*, quotes(id, quote_number, status, total_amount, amount_paid, due_date, created_at, walk_in_name)",
     )
     .eq("id", id)
     .order("created_at", { referencedTable: "quotes", ascending: false })
@@ -76,10 +80,8 @@ export async function getCustomer(id: string): Promise<CustomerDetail | null> {
   const { quotes, ...customer } = data;
   return {
     ...customer,
-    quotes: quotes.map(({ vehicles, ...q }) => ({ ...q, total_amount: Number(q.total_amount), vehicle: vehicles })),
-    outstanding: quotes
-      .filter((q) => isOutstanding(q.status))
-      .reduce((sum, q) => sum + Number(q.total_amount), 0),
+    quotes: quotes.map((q) => ({ ...q, total_amount: Number(q.total_amount), amount_paid: Number(q.amount_paid) })),
+    outstanding: quotes.filter((q) => isOutstanding(q.status)).reduce((sum, q) => sum + owed(q), 0),
   };
 }
 
@@ -109,13 +111,27 @@ const toRow = (c: CustomerInput) => ({
   phone: c.phone || null,
   email: c.email || null,
   billing_address: c.billingAddress || null,
-  tax_id: c.taxId || null,
+  cnic_or_ntn: c.cnicOrNtn || null,
+  tax_registration_status: c.taxRegistrationStatus,
+  strn: c.taxRegistrationStatus === "registered" ? c.strn || null : null,
+  default_discount_percentage: Math.round(c.defaultDiscountPercentage * 100) / 100,
+  credit_days: c.creditDays,
   notes: c.notes || null,
 });
+
+// Check constraints the form also validates, in case the two ever drift.
+const CONSTRAINT_ERRORS: Record<string, { field: keyof CustomerInput; message: string }> = {
+  customers_tax_identity_check: { field: "cnicOrNtn", message: "This customer needs a CNIC or NTN for tax invoices." },
+  customers_strn_required_check: { field: "strn", message: "Tax-registered customers need an STRN." },
+  customers_cnic_or_ntn_format_check: { field: "cnicOrNtn", message: "Enter a valid CNIC or NTN." },
+  customers_strn_format_check: { field: "strn", message: "An STRN has 13 digits." },
+};
 
 function dbError(error: { code?: string; message: string }, action: string): CustomerActionResult {
   console.error(`${action} failed:`, error);
   if (error.code === "23514") {
+    const known = Object.entries(CONSTRAINT_ERRORS).find(([name]) => error.message.includes(name));
+    if (known) return { status: "error", ...known[1] };
     return { status: "error", message: "A phone number isn't in a valid format.", field: "whatsappNumber" };
   }
   return { status: "error", message: "We couldn't save this customer. Please try again." };

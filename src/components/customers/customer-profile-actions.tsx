@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "radix-ui";
-import { toast } from "sonner";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { deleteCustomer } from "@/lib/actions/customers";
+import { notify } from "@/lib/notify";
 import type { Tables } from "@/lib/types/database.types";
 import { CustomerDialog } from "./customer-dialog";
 
@@ -30,9 +30,10 @@ export function CustomerProfileActions({ customer, allowInternationalPhones, has
     setPending(false);
     if (result.status === "error") {
       setError(result.message);
+      notify.error(`${customer.name} not deleted`, result.message);
       return;
     }
-    toast.success(`${customer.name} deleted`);
+    notify.success(`${customer.name} deleted`, "Removed from your customer directory.");
     router.push("/customers");
   };
 

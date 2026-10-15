@@ -168,14 +168,12 @@ AI agents implementing this project must adhere strictly to the boundaries defin
    - A single-click button: `"Share via WhatsApp"`.
    - Generates a `https://wa.me/{phone}?text={encoded_message}` deep link.
    - Pre-fills a professional message containing: Shop Name, Quote Number, Vehicle Details, Total Amount, and a secure public view link for the PDF.
-5. **Manual Payment & Atomic Inventory Deduction**:
-   - When marking an invoice as `paid`:
-     - User selects `payment_method` (`Cash`, `Card Terminal`, `Bank Transfer`, `Check`) and enters optional reference notes.
-     - System executes an atomic database transaction:
-       1. Sets `quotes.status = 'paid'` and `quotes.paid_at = now()`.
-       2. Loops through all `quote_items` that have a non-null `item_id`.
-       3. Decrements `inventory_items.quantity_on_hand` by `quote_items.quantity`.
-       4. Sets `quotes.inventory_deducted = true` (idempotency flag preventing double deductions).
+5. **Manual Payment** (changed by `docs/changes.md` §5: stock now moves with the document stage, not with payment):
+   - Stock: quotations reserve their parts (`inventory_items.reserved_quantity`); issuing an invoice (directly or from a quotation) releases any reservation and deducts `quantity_on_hand`. Drafts hold nothing. Cancelling, deleting or moving a quotation back to drafts releases its reservation. Nothing can take more than is available (on hand − reserved). This is enforced by the `quote_items_sync_stock` trigger, so `quotes.inventory_deducted` simply mirrors "invoiced or paid".
+   - Payments (built with `docs/changes.md` round 2): each payment is a row in `invoice_payments` (amount, method `Cash` / `Card Terminal` / `Bank Transfer` / `Check`, date, notes). A trigger keeps `quotes.amount_paid`, and the invoice becomes `paid` automatically once payments cover the total (`process_quote_payment` was removed). Payments never touch stock.
+   - Invoice statuses shown: **Pending / Unpaid**, **Partially Paid** (some payments), **Due** (unpaid after `due_date`: the invoice date + the customer's `credit_days`, editable per invoice), **Paid**, **Cancelled** (stored as `void`; its stock is given back).
+   - "Mark Unpaid" removes an invoice's payments. Anything without payments (drafts, quotations, unpaid or cancelled invoices) can be deleted, which gives back any stock it held.
+   - Lines: inventory parts are sold at their inventory price (fixed); the discount is per unit (% or Rs.); sale price = unit price − discount; line total = qty × sale price. Custom items not in inventory can be added with their own price and don't affect stock. Vehicles are no longer chosen on documents.
 
 ### 2.3 Localization: Pakistan (Default Market)
 The product targets Pakistani shops and sellers first. These defaults apply to every shop; the per-shop options are set on the shop Settings page.
@@ -1050,15 +1048,12 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 3. Implement the WhatsApp sharing link generator in `src/lib/utils/whatsapp.ts`:
    - Format: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
    - Message includes: Quote Number, Vehicle, Total Price, and a link to view the quote.
-4. Implement the manual payment modal and execute the atomic stock deduction stored procedure `process_quote_payment` created in Section 3.3.
-5. Verify that when an invoice status changes to `paid`:
-   - `quotes.inventory_deducted` becomes `true`.
-   - `inventory_items.quantity_on_hand` decreases by the exact line-item quantities.
-   - Marking as paid a second time is strictly blocked.
+4. ~~Payment modal~~ Built early (see Feature D step 5): payments, partial payments, Mark Unpaid and invoice statuses already exist.
+5. Show the payment status and balance on the PDF.
 
 🛑 **PAUSE & FINAL PROJECT SIGNOFF**:  
 *Prompt the human developer*:
-> "Phase 6 complete! The full MVP Quoting and Inventory Engine is now operational. Please test: 1) Generating and viewing a PDF quote, 2) Clicking 'Share to WhatsApp' to verify the pre-filled message, and 3) Marking an invoice as 'Paid' and checking your `/inventory` screen to verify that stock counts deducted automatically. Run `git add . && git commit -m 'feat: phase 6 - pdf generation, whatsapp dispatch & inventory deduction'`."
+> "Phase 6 complete! The full MVP Quoting and Inventory Engine is now operational. Please test: 1) Generating and viewing a PDF quote, 2) Clicking 'Share to WhatsApp' to verify the pre-filled message, and 3) Checking the PDF shows the invoice's payments and balance due. Run `git add . && git commit -m 'feat: phase 6 - pdf generation, whatsapp dispatch & inventory deduction'`."
 
 ---
 

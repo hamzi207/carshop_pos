@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <h2>Quote the right part for the right vehicle, every time.</h2>
           <p>
             Built for tint, wrap, PPF, audio and styling shops. Match inventory to Year / Make /
-            Model, send quotes over WhatsApp, and keep stock in sync when invoices are paid.
+            Model, send quotes over WhatsApp, and keep stock in sync as you invoice.
           </p>
           <ul className="auth-points">
             <li>
@@ -29,7 +29,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             </li>
           </ul>
         </div>
-        <div className="version">ApexOS v2.4.0</div>
+        <div className="version">CarShop.Pk POS System</div>
       </aside>
       <main className="auth-main">{children}</main>
     </div>

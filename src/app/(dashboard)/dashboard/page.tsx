@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { CheckCircle2, FileDown, MessageCircle, Store, Wallet } from "lucide-react";
+import { BarChart3, CheckCircle2, FileDown, MessageCircle, Store } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
+import { DashboardMetrics, DashboardMetricsSkeleton } from "@/components/dashboard/dashboard-metrics";
 import { ShopClock } from "@/components/dashboard/shop-clock";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -65,14 +66,19 @@ async function ShopReadyCard() {
 const nextSteps = [
   { icon: FileDown, title: "PDF quotes & invoices", detail: "Branded PDFs with your shop details and terms." },
   { icon: MessageCircle, title: "Share via WhatsApp", detail: "Send a quote or invoice link in one click." },
-  { icon: Wallet, title: "Payments & stock", detail: "Mark invoices paid; stock is deducted automatically." },
+  { icon: BarChart3, title: "Reports", detail: "Sales, profit and stock reports for any period." },
 ];
 
-export default function DashboardPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="page">
       <Suspense fallback={<div className="page-heading"><div><span className="eyebrow">STORE OVERVIEW</span><h1>Welcome</h1></div></div>}>
         <Greeting />
+      </Suspense>
+      <Suspense fallback={<DashboardMetricsSkeleton />}>
+        <DashboardMetrics searchParams={searchParams} />
       </Suspense>
       <div className="dashboard-grid">
         <Suspense fallback={<section className="card"><div className="empty-state">Loading your shop…</div></section>}>
