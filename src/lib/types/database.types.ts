@@ -485,6 +485,7 @@ export type Database = {
           quotation_number: string | null
           quote_number: string
           quoted_at: string | null
+          share_token: string
           status: string
           subtotal: number
           tax_amount: number
@@ -520,6 +521,7 @@ export type Database = {
           quotation_number?: string | null
           quote_number?: string
           quoted_at?: string | null
+          share_token?: string
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -555,6 +557,7 @@ export type Database = {
           quotation_number?: string | null
           quote_number?: string
           quoted_at?: string | null
+          share_token?: string
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -610,6 +613,7 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          ntn: string | null
           phone: string | null
           prices_include_tax: boolean
           quote_footer_notes: string | null
@@ -617,6 +621,7 @@ export type Database = {
           show_clock: boolean
           show_paisa: boolean
           slug: string
+          strn: string | null
           tax_rate: number
           timezone: string
           week_start: number
@@ -633,6 +638,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          ntn: string | null
           phone?: string | null
           prices_include_tax?: boolean
           quote_footer_notes?: string | null
@@ -640,6 +646,7 @@ export type Database = {
           show_clock?: boolean
           show_paisa?: boolean
           slug: string
+          strn: string | null
           tax_rate?: number
           timezone?: string
           week_start?: number
@@ -656,6 +663,7 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          ntn?: string | null
           phone?: string | null
           prices_include_tax?: boolean
           quote_footer_notes?: string | null
@@ -663,6 +671,7 @@ export type Database = {
           show_clock?: boolean
           show_paisa?: boolean
           slug?: string
+          strn?: string | null
           tax_rate?: number
           timezone?: string
           week_start?: number
@@ -727,6 +736,7 @@ export type Database = {
           quotation_number: string | null
           quote_number: string
           quoted_at: string | null
+          share_token: string
           status: string
           subtotal: number
           tax_amount: number
@@ -753,6 +763,7 @@ export type Database = {
       }
       is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
+      shop_alerts: { Args: never; Returns: Json }
       record_payment: {
         Args: {
           p_amount: number
@@ -763,6 +774,10 @@ export type Database = {
           p_quote_id: string
         }
         Returns: string
+      }
+      report_data: {
+        Args: { p_from?: string; p_range?: string; p_to?: string }
+        Returns: Json
       }
       save_inventory_item: {
         Args: {
@@ -821,6 +836,7 @@ export type Database = {
           quotation_number: string | null
           quote_number: string
           quoted_at: string | null
+          share_token: string
           status: string
           subtotal: number
           tax_amount: number

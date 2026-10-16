@@ -30,6 +30,14 @@ export type ShopSession = {
     weekStart: WeekStart;
     /** Terms printed on quotes and invoices (tenants.quote_footer_notes). */
     quoteTerms: string | null;
+    /** Printed on quotations and invoices (Settings → Your shop). */
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+    ntn: string | null;
+    strn: string | null;
+    /** Public URL in the shop-assets bucket. */
+    logoUrl: string | null;
     /** How long a quotation's offer is valid (its stock stays reserved regardless). */
     quoteValidityDays: number;
     /** Pass to formatMoney(). */
@@ -52,7 +60,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, dashboard_prefs, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, quote_footer_notes, quote_validity_days)")
+    .select("full_name, email, role, dashboard_prefs, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, quote_footer_notes, quote_validity_days, phone, email, address, ntn, strn, logo_url)")
     .eq("id", userId)
     .single();
 
@@ -85,6 +93,12 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       weekStart: tenant.week_start === 6 || tenant.week_start === 7 ? tenant.week_start : 1,
       quoteTerms: tenant.quote_footer_notes,
       quoteValidityDays: tenant.quote_validity_days,
+      phone: tenant.phone,
+      email: tenant.email,
+      address: tenant.address,
+      ntn: tenant.ntn,
+      strn: tenant.strn,
+      logoUrl: tenant.logo_url,
       money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     },
   };

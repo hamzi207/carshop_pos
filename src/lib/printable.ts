@@ -1,0 +1,183 @@
+import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/types/database.types";
+import { localDate, sectionForStatus, statusDisplay, statusKey, type DocumentSection } from "@/lib/documents";
+import { formatDate, type MoneyFormat } from "@/lib/format";
+import { formatPhone } from "@/lib/phone";
+import { formatStrn } from "@/lib/tax-id";
+
+// Everything a quotation / invoice needs to be printed or shown to the customer.
+// Loaded the same way for the signed-in PDF route (RLS client) and the public
+// share link (server-only admin client, looked up by the document's share token).
+
+export type PrintableLine = {
+  description: string;
+  sku: string | null;
+  quantity: number;
+  unitPrice: number;
+  /** Per-unit discount (money). */
+  discount: number;
+  salePrice: number;
+  total: number;
+};
+
+export type PrintablePayment = { paidOn: string; method: string; amount: number; notes: string | null; forItems: string | null };
+
+export type PrintableDocument = {
+  id: string;
+  shareToken: string;
+  section: DocumentSection;
+  /** "Quotation", "Invoice" or "Estimate" (drafts). */
+  title: string;
+  number: string;
+  statusLabel: string;
+  statusKey: string;
+  money: MoneyFormat;
+  /** Labelled dates in print order, already formatted in the shop's timezone. */
+  dates: { label: string; value: string }[];
+  shop: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    ntn: string | null;
+    strn: string | null;
+    logoUrl: string | null;
+    terms: string | null;
+  };
+  customer: {
+    name: string;
+    contact: string | null;
+    phone: string | null;
+    /** E.164, for the WhatsApp button. */
+    whatsapp: string | null;
+    email: string | null;
+    address: string | null;
+    taxIds: string[];
+  };
+  lines: PrintableLine[];
+  totals: {
+    subtotal: number;
+    discount: number;
+    discountReason: string | null;
+    taxRate: number;
+    tax: number;
+    /** Some prices already include tax. */
+    taxIncluded: boolean;
+    total: number;
+  };
+  /** Invoices only. */
+  payments: PrintablePayment[];
+  paid: number;
+  balance: number;
+};
+
+const SELECT =
+  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(name, address, phone, email, ntn, strn, logo_url, quote_footer_notes, currency, show_paisa, timezone)";
+
+const TITLE: Record<DocumentSection, string> = { drafts: "Estimate", quotations: "Quotation", invoices: "Invoice" };
+
+/** Loads one document by id (signed-in, RLS) or by share token (admin client). Null when not found. */
+export async function loadPrintable(
+  supabase: SupabaseClient<Database>,
+  by: { id: string } | { token: string },
+): Promise<PrintableDocument | null> {
+  let query = supabase.from("quotes").select(SELECT);
+  query = "id" in by ? query.eq("id", by.id) : query.eq("share_token", by.token);
+  const { data: q, error } = await query
+    .order("sort_order", { referencedTable: "quote_items" })
+    .order("paid_on", { referencedTable: "invoice_payments" })
+    .maybeSingle();
+  if (error) {
+    console.error("loadPrintable failed:", error.message);
+    throw new Error("Could not load this document.");
+  }
+  if (!q || !q.tenants) return null;
+
+  const t = q.tenants;
+  const c = q.customers;
+  const tz = t.timezone;
+  const day = (v: string | null) => (v ? formatDate(v.length === 10 ? `${v}T12:00:00Z` : v, tz) : null);
+  const section = sectionForStatus(q.status);
+  const key = statusKey(q, localDate(tz));
+  const walkIn = Boolean(c?.is_walk_in);
+
+  const dates = [
+    { label: "Date", value: day(section === "invoices" ? q.invoiced_at : section === "quotations" ? q.quoted_at : q.created_at) },
+    { label: "Valid until", value: section === "quotations" ? day(q.valid_until) : null },
+    { label: "Due date", value: section === "invoices" ? day(q.due_date) : null },
+  ].filter((d): d is { label: string; value: string } => Boolean(d.value));
+
+  const lines = q.quote_items.map((l) => ({
+    description: l.description,
+    sku: l.inventory_items?.sku ?? null,
+    quantity: Number(l.quantity),
+    unitPrice: Number(l.unit_price),
+    discount: Number(l.discount_amount) / Math.max(Number(l.quantity), 1),
+    salePrice: Number(l.sale_price),
+    total: Number(l.total_price),
+  }));
+
+  const payments = section === "invoices"
+    ? q.invoice_payments.map((p) => ({
+        paidOn: day(p.paid_on) ?? p.paid_on,
+        method: p.payment_method === "Check" ? "Cheque" : p.payment_method,
+        amount: Number(p.amount),
+        notes: p.notes,
+        forItems: p.invoice_payment_items.length
+          ? p.invoice_payment_items.map((a) => (a.quantity ? `${a.description} ×${Number(a.quantity)}` : a.description)).join(", ")
+          : null,
+      }))
+    : [];
+  const total = Number(q.total_amount);
+  const paid = Number(q.amount_paid);
+
+  return {
+    id: q.id,
+    shareToken: q.share_token,
+    section,
+    title: TITLE[section],
+    number: q.quote_number,
+    statusLabel: statusDisplay(key).label,
+    statusKey: key,
+    money: { currency: t.currency, showPaisa: t.show_paisa },
+    dates,
+    shop: {
+      name: t.name,
+      address: t.address,
+      phone: t.phone ? formatPhone(t.phone) : null,
+      email: t.email,
+      ntn: t.ntn,
+      strn: t.strn ? formatStrn(t.strn) : null,
+      logoUrl: t.logo_url,
+      terms: t.quote_footer_notes,
+    },
+    customer: {
+      name: walkIn ? (q.walk_in_name || "Walk-in customer") : (c?.name ?? "Customer"),
+      contact: walkIn ? null : (c?.contact_person ?? null),
+      phone: walkIn ? (q.walk_in_phone ? formatPhone(q.walk_in_phone) : null) : formatPhone(c?.whatsapp_number ?? c?.phone ?? null) || null,
+      whatsapp: walkIn ? q.walk_in_phone : (c?.whatsapp_number ?? null),
+      email: walkIn ? null : (c?.email ?? null),
+      address: walkIn ? null : (c?.billing_address ?? null),
+      taxIds: walkIn
+        ? []
+        : [
+            c?.cnic_or_ntn ? `${c.cnic_or_ntn.length === 15 ? "CNIC" : "NTN"} ${c.cnic_or_ntn}` : null,
+            c?.strn ? `STRN ${formatStrn(c.strn)}` : null,
+          ].filter((v): v is string => Boolean(v)),
+    },
+    lines,
+    totals: {
+      subtotal: Number(q.subtotal),
+      discount: Number(q.discount_amount),
+      discountReason: q.discount_reason,
+      taxRate: Number(q.tax_rate),
+      tax: Number(q.tax_amount),
+      taxIncluded: q.quote_items.some((l) => l.price_includes_tax),
+      total,
+    },
+    payments,
+    paid,
+    balance: Math.max(Math.round((total - paid) * 100) / 100, 0),
+  };
+}

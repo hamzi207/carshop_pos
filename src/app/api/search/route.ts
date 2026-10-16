@@ -1,0 +1,80 @@
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { documentHref, localDate, sectionForStatus, SECTION, statusDisplay, statusKey } from "@/lib/documents";
+import { formatMoney } from "@/lib/format";
+import { getShopSession } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+
+/** One row in the Ctrl K search: where it goes and what it shows. */
+export type SearchHit = { href: string; title: string; detail: string; badge?: string };
+export type SearchResponse = { customers: SearchHit[]; items: SearchHit[]; documents: SearchHit[] };
+
+const querySchema = z.object({ q: z.string().trim().min(1).max(100) });
+
+/**
+ * A quoted PostgREST filter value for "contains q": LIKE wildcards escaped (so "50%" means a literal
+ * percent sign) and the whole value in double quotes, so commas / brackets in the search text are safe.
+ */
+const contains = (q: string) => {
+  const escaped = q.replace(/[\\%_]/g, (c) => "\\" + c).replace(/"/g, '\\"');
+  return `"%${escaped}%"`;
+};
+
+/**
+ * Global search (top bar, Ctrl/⌘ K): up to 5 customers, parts and documents.
+ * Runs with the caller's session, so RLS limits it to their shop.
+ */
+export async function GET(request: NextRequest) {
+  const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
+  if (!parsed.success) return Response.json({ customers: [], items: [], documents: [] } satisfies SearchResponse);
+  const { q } = parsed.data;
+
+  const [session, supabase] = await Promise.all([getShopSession(), createClient()]);
+  const money = (n: number) => formatMoney(Number(n), session.tenant.money);
+
+  const [customers, items] = await Promise.all([
+    supabase.rpc("search_customers", { p_query: q }).select("id, name, customer_type, whatsapp_number").eq("is_walk_in", false).order("name").limit(5),
+    supabase.rpc("search_inventory_items", { p_query: q }).select("id, name, sku, quantity_on_hand, reserved_quantity, selling_price").order("name").limit(5),
+  ]);
+
+  // Documents: by number (draft / quotation / invoice), walk-in name, or a matching customer.
+  const customerIds = (customers.data ?? []).map((c) => c.id);
+  const pattern = contains(q);
+  const filters = [
+    `quote_number.ilike.${pattern}`,
+    `draft_number.ilike.${pattern}`,
+    `quotation_number.ilike.${pattern}`,
+    `invoice_number.ilike.${pattern}`,
+    `walk_in_name.ilike.${pattern}`,
+    ...(customerIds.length ? [`customer_id.in.(${customerIds.join(",")})`] : []),
+  ];
+  const docs = await supabase
+    .from("quotes")
+    .select("id, quote_number, status, total_amount, amount_paid, due_date, walk_in_name, customers(name, is_walk_in)")
+    .or(filters.join(","))
+    .order("created_at", { ascending: false })
+    .limit(5);
+
+  if (customers.error || items.error || docs.error) {
+    console.error("search failed:", (customers.error ?? items.error ?? docs.error)?.message);
+    return Response.json({ error: "Search failed." }, { status: 500 });
+  }
+
+  const today = localDate(session.tenant.timezone);
+  const body: SearchResponse = {
+    customers: customers.data.map((c) => ({ href: `/customers/${c.id}`, title: c.name, detail: c.customer_type })),
+    items: items.data.map((i) => ({
+      href: `/inventory?q=${encodeURIComponent(i.sku)}`,
+      title: i.name,
+      detail: `${i.sku} · ${money(i.selling_price)}`,
+      badge: `${i.quantity_on_hand - i.reserved_quantity} free`,
+    })),
+    documents: docs.data.map((d) => ({
+      href: documentHref(d),
+      title: d.quote_number,
+      detail: `${SECTION[sectionForStatus(d.status)].singular} · ${d.customers?.is_walk_in ? (d.walk_in_name || "Walk-in") : (d.customers?.name ?? "")} · ${money(d.total_amount)}`,
+      badge: statusDisplay(statusKey(d, today)).label,
+    })),
+  };
+  return Response.json(body);
+}

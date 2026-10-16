@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { BarChart3, CheckCircle2, FileDown, MessageCircle, Store } from "lucide-react";
+import Link from "next/link";
+import { BarChart3, CheckCircle2, FilePlus2, ReceiptText, Settings, Store } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
 import { DashboardMetrics, DashboardMetricsSkeleton } from "@/components/dashboard/dashboard-metrics";
 import { ShopClock } from "@/components/dashboard/shop-clock";
@@ -64,10 +65,11 @@ async function ShopReadyCard() {
   );
 }
 
-const nextSteps = [
-  { icon: FileDown, title: "PDF quotes & invoices", detail: "Branded PDFs with your shop details and terms." },
-  { icon: MessageCircle, title: "Share via WhatsApp", detail: "Send a quote or invoice link in one click." },
-  { icon: BarChart3, title: "Reports", detail: "Sales, profit and stock reports for any period." },
+const quickActions = [
+  { href: "/invoices/new", icon: ReceiptText, title: "New invoice", detail: "Bill a customer; stock is deducted when you save." },
+  { href: "/quotations/new", icon: FilePlus2, title: "New quotation", detail: "Price a job; share it as a PDF or on WhatsApp." },
+  { href: "/reports", icon: BarChart3, title: "Reports", detail: "Sales, profit, payments, money owed and stock." },
+  { href: "/settings", icon: Settings, title: "Shop details & logo", detail: "What your quotations and invoices show." },
 ];
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -88,13 +90,13 @@ export default function DashboardPage({ searchParams }: { searchParams: SearchPa
         <section className="card">
           <div className="card-header">
             <div>
-              <h2>Coming next</h2>
-              <p>These unlock as the build progresses.</p>
+              <h2>Quick actions</h2>
+              <p>Jump straight to common tasks.</p>
             </div>
           </div>
           <div className="restock-list">
-            {nextSteps.map(({ icon: Icon, title, detail }) => (
-              <div className="restock-item" key={title}>
+            {quickActions.map(({ href, icon: Icon, title, detail }) => (
+              <Link className="restock-item quick-action" href={href} key={title}>
                 <div className="header-with-icon">
                   <span className="header-icon blue"><Icon size={16} /></span>
                   <div className="primary-cell">
@@ -102,7 +104,7 @@ export default function DashboardPage({ searchParams }: { searchParams: SearchPa
                     <span>{detail}</span>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </section>

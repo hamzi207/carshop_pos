@@ -1,7 +1,8 @@
 import { Suspense } from "react";
-import { Bell, Search } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
-import { ShortcutHint } from "./shortcut-hint";
+import { GlobalSearch } from "./global-search";
+import { MobileNavButton } from "./mobile-nav";
+import { NotificationBell } from "./notification-bell";
 import { UserMenu } from "./user-menu";
 
 function initials(name: string) {
@@ -25,19 +26,14 @@ async function ProfileSection() {
   );
 }
 
-/** Top bar ported from design/figma-ui/src/App.tsx (search wired up in a later phase). */
+/** Top bar ported from design/figma-ui/src/App.tsx: global search (Ctrl/⌘ K), notifications, profile. */
 export function TopNavbar() {
   return (
     <header className="topbar">
-      <div className="global-search">
-        <Search size={18} />
-        <span>Search inventory, quotes, or customers...</span>
-        <ShortcutHint letter="K" />
-      </div>
+      <MobileNavButton />
+      <GlobalSearch />
       <div className="top-actions">
-        <button type="button" className="notification" aria-label="Notifications">
-          <Bell size={18} />
-        </button>
+        <NotificationBell />
         <Suspense fallback={<div className="profile"><div className="avatar" /></div>}>
           <ProfileSection />
         </Suspense>

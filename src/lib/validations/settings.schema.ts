@@ -36,3 +36,39 @@ export const shopSettingsSchema = z.object({
 });
 
 export type ShopSettingsInput = z.infer<typeof shopSettingsSchema>;
+
+// ---- Shop details printed on quotations and invoices (Settings → Your shop) ----
+
+const optionalText = (max: number, label: string) =>
+  z.string().trim().max(max, `${label} must be ${max} characters or fewer.`);
+
+/** Shop NTN: 7 digits plus an optional check digit (1234567-8). Mirrors tenants_ntn_format_check. */
+const shopNtn = z.string().transform((value, ctx) => {
+  const d = value.replace(/[\s-]/g, "");
+  if (!d) return "";
+  if (/^\d{7}$/.test(d)) return d;
+  if (/^\d{8}$/.test(d)) return `${d.slice(0, 7)}-${d.slice(7)}`;
+  ctx.addIssue({ code: "custom", message: "An NTN has 7 digits plus a check digit, e.g. 1234567-8." });
+  return z.NEVER;
+});
+
+/** Shop STRN: 13 digits. Mirrors tenants_strn_format_check. */
+const shopStrn = z.string().transform((value, ctx) => {
+  const d = value.replace(/[\s-]/g, "");
+  if (!d) return "";
+  if (/^\d{13}$/.test(d)) return d;
+  ctx.addIssue({ code: "custom", message: "An STRN has 13 digits, e.g. 32-77-8761-234-56." });
+  return z.NEVER;
+});
+
+/** Phone is checked server-side with the shop's international-numbers setting (see updateShopProfile). */
+export const shopProfileSchema = z.object({
+  name: z.string().trim().min(2, "Enter the shop name.").max(120, "Shop name must be 120 characters or fewer."),
+  phone: optionalText(30, "Phone"),
+  email: z.union([z.literal(""), z.email("Enter a valid email address.").max(200)]),
+  address: optionalText(300, "Address"),
+  ntn: shopNtn,
+  strn: shopStrn,
+  terms: optionalText(2000, "Terms"),
+});
+export type ShopProfileValues = z.input<typeof shopProfileSchema>;

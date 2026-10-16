@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Brand } from "./brand";
+import { MobileNavScrim } from "./mobile-nav";
 import { SidebarToggle } from "./sidebar-toggle";
 
 type NavItem = {
@@ -37,7 +38,7 @@ const workspaceNav: NavItem[] = [
 ];
 
 const insightsNav: NavItem[] = [
-  { href: "/reports", label: "Reports", icon: LineChart, comingSoon: true },
+  { href: "/reports", label: "Reports", icon: LineChart },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -109,6 +110,9 @@ export function AppSidebar() {
         </div>
       </aside>
       <SidebarToggle />
+      <Suspense fallback={null}>
+        <MobileNavScrim />
+      </Suspense>
     </>
   );
 }

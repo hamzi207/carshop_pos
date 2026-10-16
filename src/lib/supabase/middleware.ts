@@ -4,7 +4,8 @@ import type { Database } from "@/lib/types/database.types";
 import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from "./env";
 
 const AUTH_PAGES = ["/login", "/register"];
-const PUBLIC_PATHS = ["/", "/auth"];
+// /share/<token>: the customer's view-only link to a quotation or invoice.
+const PUBLIC_PATHS = ["/", "/auth", "/share/"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => (p === "/" ? pathname === "/" : pathname.startsWith(p)));

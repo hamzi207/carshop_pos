@@ -37,8 +37,7 @@ import {
   statusDisplay,
   type DocumentSection,
   type DocumentStage,
-  type StatusKey,
-} from "@/lib/documents";
+  type StatusKey, customerLabel } from "@/lib/documents";
 import { formatDate, formatMoney, type MoneyFormat } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { formatPhone } from "@/lib/phone";
@@ -53,6 +52,7 @@ import { ConfirmDialog, type ConfirmRequest } from "./confirm-dialog";
 import { CustomerPicker } from "./customer-picker";
 import { LineItems, type BuilderLine } from "./line-items";
 import { PaymentDialog } from "./payment-dialog";
+import { ShareMenu } from "./share-menu";
 import { allocationSummary, lineBalances } from "@/lib/payments";
 
 type Props = {
@@ -79,6 +79,8 @@ type Props = {
   customIncludesTax: boolean;
   allowInternationalPhones: boolean;
   terms: string | null;
+  /** For the PDF / WhatsApp message. */
+  shopName: string;
   /** Pre-selected customer (?customer= from a customer profile). */
   initialCustomer: CustomerOption | null;
   /** The shop's walk-in / cash customer. */
@@ -159,6 +161,7 @@ function BuilderForm({
   customIncludesTax,
   allowInternationalPhones,
   terms,
+  shopName,
   initialCustomer,
   walkIn,
   onCreated,
@@ -635,6 +638,23 @@ function BuilderForm({
           </div>
         </div>
         <div className="heading-actions">
+          {doc && (
+            <ShareMenu
+              id={doc.id}
+              shareToken={doc.share_token}
+              kind={SECTION[current].singular}
+              number={doc.quote_number}
+              shareable={status !== "draft" && status !== "cancelled" && status !== "void"}
+              shopName={shopName}
+              customerName={customerLabel(doc, customer)}
+              whatsapp={isWalkIn ? doc.walk_in_phone : (customer?.whatsapp_number ?? null)}
+              total={Number(doc.total_amount)}
+              balance={isInvoice ? balance : null}
+              validUntil={current === "quotations" ? (meta.find((m) => m.label === "Valid until")?.value ?? null) : null}
+              money={money}
+              disabled={pending || dirty}
+            />
+          )}
           {actions.map((a) =>
             a.menu ? (
               <div key={a.key} className="split-button">

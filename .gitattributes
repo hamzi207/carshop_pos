@@ -1,0 +1,30 @@
+# Set default behavior to automatically normalize line endings to LF
+* text=auto eol=lf
+
+# Explicitly ensure source files, config, and scripts always use LF
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.mts text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.css text eol=lf
+*.sql text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.env* text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Binary files - prevent any line ending transformation
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.zip binary

@@ -418,3 +418,73 @@ The Supabase database is set up for Phase 1. I applied all three migrations thro
   - Information keeps its own blue (--info*): Sent / Dealership / vehicle badges, info notices, info toasts.
   - Status colours (green success, amber warning, red error) and the validated chart palette unchanged. Checkboxes use the brand red.
     Browser test on a fresh dev server: 13 checks passed (palette, sidebar collapse persistence, item payment → Paid, toast colours).
+
+PHASE 6 — PDF, WhatsApp sharing, security, search, notifications, reports, phones (2026-10-15)
+  - Security: rls_auto_enable() no longer callable via the API; current_tenant_id() moved to a private schema
+    (RLS policies follow it by OID) with a SECURITY INVOKER wrapper in public. Only advisor warning left: leaked-password
+    protection (Supabase dashboard toggle). Migrations 20261015180000/180100.
+  - Shop details (Settings → Your shop): name, phone, email, address, NTN, STRN, terms; logo upload through
+    POST /api/shop/logo (PNG/JPG checked by bytes, ≤1 MB, stored in shop-assets/<tenant>/). tenants.ntn/strn added.
+  - PDF (@react-pdf/renderer): src/components/pdf/document-pdf.tsx, data via src/lib/printable.ts. Signed-in route
+    /api/documents/<id>/pdf (?download=1); A4, logo, shop + customer details and tax numbers, lines with discounts,
+    totals, payments + balance due and a status stamp on invoices, terms, page numbers.
+  - Share links: quotes.share_token (random UUID). Public page /share/<token> + /share/<token>/pdf, read by a
+    server-only service-role client (src/lib/supabase/admin.ts) by token only; drafts never shared; noindex.
+    Document pages get a Share menu: View PDF, Download PDF, Share on WhatsApp (pre-filled message to the customer's
+    number), Copy customer link. Links use NEXT_PUBLIC_APP_URL.
+  - Global search (Ctrl/⌘ K): /api/search → documents (by any number, customer, walk-in name), customers, parts.
+  - Notifications bell: RPC shop_alerts() → overdue invoices, invoices due within 3 days, low/out-of-stock parts,
+    quotations expiring within 3 days, expired quotations still reserving stock. Unread count per browser.
+  - Reports (/reports): date range picker; sales, profit/margin, payments collected, still owed; sales chart;
+    top products / customers, payments by method, receivables aging, stock value + low stock; CSV export per table.
+    RPC report_data(range, from, to).
+  - Phones (≤768px): sidebar becomes a ☰ slide-out menu, top bar compacts, grids stack, tables / line items scroll
+    inside their cards; no page scrolls sideways (fixed min-width and sr-only labels escaping table scroll boxes).
+  - Dashboard "Coming next" card replaced by Quick actions.
+    Browser tests: share/PDF/WhatsApp 8, search/bell/reports/phones 24 checks passed; logo upload route tested with
+    curl (file uploads fail inside the sandboxed test browser only).
+
+Manual by me:
+
+Phase 6 is built and tested, with every open item folded in. Typecheck and lint pass, and the browser tests passed: 8 checks for PDFs and sharing, and  24 for search, notifications, Reports and phones.
+
+  1. Security warnings
+  - Two of the three Supabase warnings are fixed: one function is no longer callable through the API, and the other moved somewhere the API can't reach.    Your data and dashboard still read correctly afterwards.
+  - The third, leaked-password protection, is a switch only you can turn on: Supabase dashboard → Authentication → password security.
+
+  2. PDF quotations and invoices
+  - A4 PDFs with your logo and shop details (address, phone, NTN, STRN), the customer, items with discounts, and totals.
+  - Invoices also show payments, balance due and a status stamp; your terms print at the bottom.
+  - Settings → Your shop is now editable, including a logo upload.
+
+  3. Share and WhatsApp
+  - Every saved document has a Share menu: View PDF, Download PDF, Share on WhatsApp, and Copy customer link.
+  - WhatsApp opens to the customer's number with a filled-in message and a private link. The link opens a branded page with a PDF download and no login.
+    Drafts can't be shared.
+
+  4. Search (Ctrl K): finds documents by number or customer, customers, and parts by name or SKU. It works from the keyboard too.
+
+  5. Notifications: the bell shows overdue invoices, invoices due within 3 days, low stock, quotations expiring soon, and expired quotations still      
+  holding stock, with an unread count.
+
+  6. Reports:
+  - Pick any dates for sales, profit, payments collected and what's still owed, plus a sales chart.
+  - Also top products and customers, payments by method, money owed by age, and stock value with the low-stock list.
+  - Every table exports to CSV.
+
+  7. Phones: a ☰  slide-out menu, a compact top bar, and stacked layouts. Every main page fits a phone with no sideways scrolling; wide tables scroll   
+  inside their cards.
+
+  I also replaced the dashboard's outdated Coming next card with Quick actions links.
+
+  Before you rely on it:
+  - Share links point to http://localhost:3000. NEXT_PUBLIC_APP_URL in .env.local is set to that, so customers can't open links until the app is online 
+    and that setting is changed to the real address.
+  - Fill in Settings → Your shop and upload your logo. Your real shop has no details or logo yet, so its PDFs will be plain. You can use
+    public/brand/logo-black.png.
+  - I couldn't click the logo upload in my test browser, because its sandbox blocks file uploads. I tested the upload route directly: real images are   
+    accepted, fake ones rejected, and logged-out requests refused. Please try it once yourself.
+  - Invalid share links show a "not found" page, though technically with a success status; nothing leaks.
+
+  Not committed. The phase log and my notes are updated, and the test shop and its files are deleted. When you're happy, say "commit" and I'll use a    
+  "Phase 6 - …" message.

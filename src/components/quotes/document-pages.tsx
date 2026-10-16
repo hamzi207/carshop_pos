@@ -249,6 +249,7 @@ async function NewDocument({ section, searchParams }: { section: DocumentSection
       customIncludesTax={tenant.pricesIncludeTax}
       allowInternationalPhones={tenant.allowInternationalPhones}
       terms={tenant.quoteTerms}
+      shopName={tenant.name}
       initialCustomer={initialCustomer}
       walkIn={walkIn}
     />
@@ -303,6 +304,7 @@ async function EditDocument({ section, params }: { section: DocumentSection; par
       customIncludesTax={tenant.pricesIncludeTax}
       allowInternationalPhones={tenant.allowInternationalPhones}
       terms={tenant.quoteTerms}
+      shopName={tenant.name}
       initialCustomer={null}
       walkIn={walkIn}
     />

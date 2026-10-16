@@ -1,17 +1,18 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Store } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
 import { timeZoneGroups } from "@/lib/timezones";
 import type { Currency } from "@/lib/validations/settings.schema";
+import { formatPhone } from "@/lib/phone";
+import { formatStrn } from "@/lib/tax-id";
+import { ShopProfileForm } from "@/components/settings/shop-profile-form";
 import { ShopSettingsForm } from "@/components/settings/shop-settings-form";
 
 export const metadata: Metadata = { title: "Settings" };
 
 async function SettingsContent() {
   const { tenant, role, fullName, email } = await getShopSession();
-  const details = [
-    { label: "Shop name", value: tenant.name },
+  const facts = [
     { label: "Shop handle", value: tenant.slug, mono: true },
     { label: "Shop ID", value: tenant.id, mono: true },
     { label: "Signed in as", value: `${fullName} · ${email}` },
@@ -19,21 +20,20 @@ async function SettingsContent() {
   ];
   return (
     <div className="settings-form">
-      <section className="card settings-card">
-        <div className="settings-card-head">
-          <span className="header-icon blue"><Store size={18} /></span>
-          <div>
-            <h2>Your shop</h2>
-            <p>The shop you&apos;re signed in to.</p>
-          </div>
-        </div>
-        {details.map((d) => (
-          <div key={d.label} className="settings-row">
-            <span className="settings-label">{d.label}</span>
-            <span className={d.mono ? "settings-value mono" : "settings-value"}>{d.value}</span>
-          </div>
-        ))}
-      </section>
+      <ShopProfileForm
+        canEdit={role === "admin"}
+        logoUrl={tenant.logoUrl}
+        facts={facts}
+        initial={{
+          name: tenant.name,
+          phone: formatPhone(tenant.phone),
+          email: tenant.email ?? "",
+          address: tenant.address ?? "",
+          ntn: tenant.ntn ?? "",
+          strn: formatStrn(tenant.strn),
+          terms: tenant.quoteTerms ?? "",
+        }}
+      />
       <ShopSettingsForm
         canEdit={role === "admin"}
         timeZoneGroups={timeZoneGroups()}
