@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { getInventoryItems } from "@/lib/actions/inventory";
 import { getShopSession } from "@/lib/auth";
 import { getCategories, getCategoryCounts } from "@/lib/category-data";
+import { parsePagination, pastEndRedirect } from "@/lib/pagination";
 import { inventoryFiltersSchema } from "@/lib/validations/inventory.schema";
 import { AddItemButton } from "@/components/inventory/add-item-button";
 import { InventoryFilters } from "@/components/inventory/inventory-filters";
@@ -34,11 +36,18 @@ async function InventoryResults({ searchParams }: { searchParams: SearchParams }
     stock: first(raw.stock),
     sort: first(raw.sort),
   });
-  const [items, { tenant }, categories] = await Promise.all([getInventoryItems(filters), getShopSession(), getCategories()]);
+  const pagination = parsePagination({ page: first(raw.page), limit: first(raw.limit) });
+  const [result, { tenant }, categories] = await Promise.all([
+    getInventoryItems(filters, pagination),
+    getShopSession(),
+    getCategories(),
+  ]);
+  const pastEnd = pastEndRedirect("/inventory", raw, result);
+  if (pastEnd) redirect(pastEnd);
   const filtered = Boolean(filters.category || filters.search || filters.fitment || filters.stock);
   return (
     <InventoryTable
-      items={items}
+      result={result}
       money={tenant.money}
       pricesIncludeTax={tenant.pricesIncludeTax}
       categories={categories}

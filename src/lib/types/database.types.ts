@@ -129,11 +129,13 @@ export type Database = {
       }
       inventory_items: {
         Row: {
+          available_quantity: number
           category_id: string
           cost_price: number
           created_at: string
           description: string | null
           id: string
+          is_low_stock: boolean
           is_universal: boolean
           low_stock_threshold: number
           name: string
@@ -147,11 +149,13 @@ export type Database = {
           vendor_name: string | null
         }
         Insert: {
+          available_quantity?: never
           category_id: string
           cost_price: number
           created_at?: string
           description?: string | null
           id?: string
+          is_low_stock?: never
           is_universal?: boolean
           low_stock_threshold?: number
           name: string
@@ -165,11 +169,13 @@ export type Database = {
           vendor_name?: string | null
         }
         Update: {
+          available_quantity?: never
           category_id?: string
           cost_price?: number
           created_at?: string
           description?: string | null
           id?: string
+          is_low_stock?: never
           is_universal?: boolean
           low_stock_threshold?: number
           name?: string
@@ -827,6 +833,41 @@ export type Database = {
         }
       }
       current_tenant_id: { Args: never; Returns: string }
+      customer_directory_stats: {
+        Args: never
+        Returns: {
+          b2b: number
+          outstanding: number
+          total: number
+        }[]
+      }
+      document_list_totals: {
+        Args: {
+          p_search: string
+          p_status_key: string
+          p_statuses: string[]
+          p_today: string
+        }
+        Returns: {
+          owed: number
+          total: number
+        }[]
+      }
+      filter_documents: {
+        Args: {
+          p_search: string
+          p_status_key: string
+          p_statuses: string[]
+          p_today: string
+        }
+        Returns: Database["public"]["Tables"]["quotes"]["Row"][]
+        SetofOptions: {
+          from: "*"
+          to: "quotes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       dashboard_metrics: {
         Args: { p_from?: string; p_range?: string; p_to?: string }
         Returns: Json
@@ -958,11 +999,13 @@ export type Database = {
       search_inventory_items: {
         Args: { p_query: string }
         Returns: {
+          available_quantity: number
           category_id: string
           cost_price: number
           created_at: string
           description: string | null
           id: string
+          is_low_stock: boolean
           is_universal: boolean
           low_stock_threshold: number
           name: string

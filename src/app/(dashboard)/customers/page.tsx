@@ -1,10 +1,11 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { BarChart3, Plus, Receipt, Users } from "lucide-react";
-import { getCustomers } from "@/lib/actions/customers";
+import { getCustomers, getCustomerStats, type CustomerStats as Stats } from "@/lib/actions/customers";
 import { getShopSession } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
-import type { CustomerListItem } from "@/lib/types/customer";
+import { parsePagination, pastEndRedirect } from "@/lib/pagination";
 import { customerFiltersSchema } from "@/lib/validations/customer.schema";
 import { CustomerFilters } from "@/components/customers/customer-filters";
 import { AddCustomerButton, CustomerTable } from "@/components/customers/customer-table";
@@ -20,14 +21,13 @@ async function AddCustomerAction() {
   return <AddCustomerButton allowInternationalPhones={tenant.allowInternationalPhones} />;
 }
 
-function CustomerStats({ all, money }: { all: CustomerListItem[]; money: Parameters<typeof formatMoney>[1] }) {
-  const b2b = all.filter((c) => c.customer_type !== "Retail Customer").length;
-  const outstanding = all.reduce((sum, c) => sum + c.outstanding, 0);
+function CustomerStats({ stats, money }: { stats: Stats; money: Parameters<typeof formatMoney>[1] }) {
+  const { total, b2b, outstanding } = stats;
   return (
     <div className="customer-stats">
       <div>
         <span className="customer-stat-icon blue"><Users size={18} /></span>
-        <div><strong>{all.length}</strong><span>Total customers</span></div>
+        <div><strong>{total}</strong><span>Total customers</span></div>
       </div>
       <div>
         <span className="customer-stat-icon green"><BarChart3 size={18} /></span>
@@ -48,22 +48,25 @@ async function CustomerDirectory({ searchParams }: { searchParams: SearchParams 
     type: first(raw.type),
   });
   const filtered = Boolean(filters.search || filters.type);
-  const [{ tenant }, customers, all] = await Promise.all([
+  const pagination = parsePagination({ page: first(raw.page), limit: first(raw.limit) });
+  const [{ tenant }, result, stats] = await Promise.all([
     getShopSession(),
-    getCustomers(filters),
-    // Stats always describe the whole directory, not the filtered view.
-    filtered ? getCustomers() : null,
+    getCustomers(filters, pagination),
+    // Stats always describe the whole directory, not the filtered view or page.
+    getCustomerStats(),
   ]);
+  const pastEnd = pastEndRedirect("/customers", raw, result);
+  if (pastEnd) redirect(pastEnd);
 
   return (
     <>
-      <CustomerStats all={all ?? customers} money={tenant.money} />
+      <CustomerStats stats={stats} money={tenant.money} />
       <section className="card customer-card">
         <Suspense>
           <CustomerFilters />
         </Suspense>
         <CustomerTable
-          customers={customers}
+          result={result}
           money={tenant.money}
           allowInternationalPhones={tenant.allowInternationalPhones}
           filtered={filtered}

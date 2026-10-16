@@ -1504,4 +1504,48 @@
     .cat-trigger { max-width: none; }
     .cat-manage-row .cat-sub-count { display: none; }
   }
+
+  /* ---- Pagination bar (Phase 9, src/components/ui/pagination-bar.tsx) ---- */
+  .pagination-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px 16px; flex-wrap: wrap; padding: 12px 18px; border-top: 1px solid var(--slate-100); color: var(--slate-500); font-size: 11px; }
+  .pagination-summary { display: inline-flex; align-items: center; gap: 6px; }
+  .pagination-summary strong { color: var(--slate-800); font-variant-numeric: tabular-nums; }
+  .pagination-pages { display: flex; align-items: center; gap: 4px; }
+  .page-step, .page-number { min-width: 32px; height: 32px; padding: 0 8px; display: inline-grid; place-items: center; border: 1px solid var(--slate-200); border-radius: 7px; background: var(--white); color: var(--slate-600); font-size: 11px; font-weight: 600; text-decoration: none; font-variant-numeric: tabular-nums; }
+  a.page-step:hover, a.page-number:hover { border-color: var(--slate-300); color: var(--slate-900); }
+  .page-number.current { background: var(--slate-950); border-color: var(--slate-950); color: var(--white); }
+  .page-step.disabled { color: var(--slate-300); background: var(--slate-50); }
+  .page-gap { min-width: 20px; text-align: center; color: var(--slate-400); }
+  .pagination-size select { height: 32px; border: 1px solid var(--slate-200); border-radius: 7px; padding: 0 8px; background: var(--white); color: var(--slate-700); font-size: 11px; font-weight: 600; }
+  .table-footer + .pagination-bar { border-top: 0; padding-top: 0; }
+
+  /* ---- Phone cards instead of wide tables (Phase 9) ---- */
+  .mobile-cards { display: none; list-style: none; margin: 0; padding: 0; }
+  .mobile-card { display: flex; align-items: stretch; gap: 4px; border-bottom: 1px solid var(--slate-100); }
+  .mobile-card.low { box-shadow: inset 3px 0 0 var(--red); }
+  .mobile-card-main { flex: 1; min-width: 0; display: grid; gap: 6px; padding: 12px 4px 12px 14px; border: 0; background: transparent; text-align: left; color: inherit; text-decoration: none; font: inherit; cursor: pointer; }
+  .mobile-card-main:active { background: var(--slate-50); }
+  .mobile-card-top, .mobile-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+  .mobile-card-meta { flex-wrap: wrap; justify-content: flex-start; }
+  .mobile-card-top .mono { font-size: 12px; color: var(--slate-500); }
+  .mobile-card-top .mono.strong { color: var(--slate-900); }
+  .mobile-card-title { font-size: 14px; font-weight: 600; color: var(--slate-900); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .mobile-card .badge { font-size: 11px; min-height: 22px; }
+  .mobile-card .amount { font-size: 14px; color: var(--slate-900); }
+  .mobile-card-muted { color: var(--slate-500); font-size: 12px; }
+  .mobile-card-balance { color: var(--red); font-size: 12px; font-weight: 600; }
+  .mobile-card-amounts { margin-left: auto; display: grid; justify-items: end; gap: 2px; }
+  .mobile-card-actions { display: flex; align-items: center; gap: 2px; padding-right: 8px; }
+  .mobile-card-actions .icon-button { width: 44px; height: 44px; }
+  .whatsapp-button { color: #16a34a; }
+
+  @media (max-width: 768px) {
+    .desktop-table { display: none; }
+    .mobile-cards { display: block; }
+    .pagination-bar { justify-content: center; padding: 12px; }
+    .pagination-summary { width: 100%; justify-content: center; }
+    .pagination-pages .page-edge { display: none; }
+    .page-step, .page-number { min-width: 40px; height: 40px; }
+    .pagination-size select { height: 40px; }
+    .table-footer { height: auto; padding: 12px 14px 0; flex-wrap: wrap; font-size: 12px; }
+  }
 }

@@ -47,6 +47,7 @@ export function InventoryFilters({ categories, counts }: Props) {
       if (value) next.set(key, value);
       else next.delete(key);
     }
+    next.delete("page"); // a new filter or sort starts again at page 1
     const qs = next.toString();
     startTransition(() => router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false }));
   };

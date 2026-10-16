@@ -552,3 +552,22 @@ Test steps (Chrome DevTools → device toolbar → iPhone 14 Pro):
   2. Tap ☰, then swipe the menu left: it follows your finger and closes; a short swipe snaps back. Tap the dark area to close too.
   3. Open each page: no sideways scrolling. Then try a 1100px-wide window: no sideways scrollbar.
   4. Commit: git add . && git commit -m "Phase 8 - responsive breakpoint tokens, drawer polish and ios zoom fix"
+
+Phase 9 (pagination + phone cards), 2026-10-17:
+  - Inventory, Customers, Invoices, Quotations and Drafts load one page at a time (25 / 50 / 100 per page) instead of
+    everything (the old limit was 1,000 rows). "Showing 1–25 of 60", First / Previous / page numbers / Next / Last.
+  - Page and rows-per-page live in the URL with the filters; changing a filter goes back to page 1; an old link to a page
+    that no longer exists jumps to the last page.
+  - All filters and sorts now run in the database (the Stock filter and Sort used to run after loading everything).
+  - Counts and totals cover everything that matches, not just the page: "N products", "N low stock", the customer tiles,
+    and the invoice footer totals.
+  - Phones (768px and narrower): tables become cards — parts (tap for details, edit/delete), customers (one-tap WhatsApp,
+    balance), documents (status, total, balance).
+Typecheck and lint pass; browser test with a seeded test shop (60 parts, 30 customers, 40 invoices) passed 27 checks:
+paging, rows per page, filters + paging, every invoice status, search, footer totals, directory tiles, phone cards.
+
+Test steps:
+  1. Inventory: if you have more than 25 parts, use the page buttons and the "25 / page" menu; pick a Stock filter (page resets).
+  2. Invoices: try each status filter and the search; check the footer totals.
+  3. Phone size (DevTools): Inventory, Customers and Invoices show cards; tap a part for details, a customer's WhatsApp icon.
+  4. Commit: git add . && git commit -m "Phase 9 - server-side pagination and mobile table cards"

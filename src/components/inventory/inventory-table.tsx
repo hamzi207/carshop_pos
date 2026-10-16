@@ -4,13 +4,16 @@ import { useMemo, useState } from "react";
 import { AlertTriangle, Car, CheckCircle2, Package, Pencil, Plus, Trash2 } from "lucide-react";
 import { buildCategoryIndex, categoryIcon, fullPath, shortPath, type Category } from "@/lib/categories";
 import { formatMoney, formatVehicleGroups, marginPercent, type MoneyFormat } from "@/lib/format";
+import type { InventoryPage } from "@/lib/actions/inventory";
 import type { InventoryListItem } from "@/lib/types/inventory";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { DeleteItemDialog } from "./delete-item-dialog";
 import { InventoryItemDetails } from "./inventory-item-details";
 import { InventoryItemDialog } from "./inventory-item-dialog";
 
 type Props = {
-  items: InventoryListItem[];
+  /** One page of parts + totals for everything matching the filters. */
+  result: InventoryPage;
   money: MoneyFormat;
   /** Shop default for new items (tenants.prices_include_tax). */
   pricesIncludeTax: boolean;
@@ -83,21 +86,22 @@ function StockCell({ item }: { item: InventoryListItem }) {
   );
 }
 
-export function InventoryTable({ items, money, pricesIncludeTax, categories, filtered }: Props) {
+export function InventoryTable({ result, money, pricesIncludeTax, categories, filtered }: Props) {
+  const items = result.rows;
   const index = useMemo(() => buildCategoryIndex(categories), [categories]);
   const [editing, setEditing] = useState<InventoryListItem | null>(null);
   const [viewing, setViewing] = useState<InventoryListItem | null>(null);
   const [deleting, setDeleting] = useState<InventoryListItem | null>(null);
   const [adding, setAdding] = useState(false);
 
-  const lowStock = items.filter((i) => availableOf(i) <= i.low_stock_threshold).length;
+  const lowStock = result.lowStock;
 
   return (
     <section className="card inventory-table-card">
       <div className="inventory-summary">
         <div>
           <h2>{filtered ? "Matching inventory" : "All inventory"}</h2>
-          <span className="badge">{items.length} {items.length === 1 ? "product" : "products"}</span>
+          <span className="badge">{result.total} {result.total === 1 ? "product" : "products"}</span>
           {lowStock > 0 && (
             <span className="badge badge-red">
               <AlertTriangle size={12} /> {lowStock} low stock
@@ -106,7 +110,7 @@ export function InventoryTable({ items, money, pricesIncludeTax, categories, fil
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {result.total === 0 ? (
         <div className="empty-state">
           <span className="header-icon blue"><Package size={18} /></span>
           {filtered ? (
@@ -127,7 +131,7 @@ export function InventoryTable({ items, money, pricesIncludeTax, categories, fil
           )}
         </div>
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap desktop-table">
           <table className="inventory-table">
             <thead>
               <tr>
@@ -189,6 +193,47 @@ export function InventoryTable({ items, money, pricesIncludeTax, categories, fil
             </tbody>
           </table>
         </div>
+      )}
+
+      {result.total > 0 && (
+        <>
+          {/* Phones: one card per part instead of the wide table (CSS swaps them at 768px). */}
+          <ul className="mobile-cards" aria-label="Parts">
+            {items.map((item) => {
+              const category = index.byId.get(item.category_id);
+              const available = availableOf(item);
+              const low = available <= item.low_stock_threshold;
+              return (
+                <li key={item.id} className={`mobile-card${low ? " low" : ""}`}>
+                  <button type="button" className="mobile-card-main" onClick={() => setViewing(item)} aria-label={`Details for ${item.name}`}>
+                    <span className="mobile-card-top">
+                      <span className="mono">{item.sku}</span>
+                      <strong className="amount">{formatMoney(Number(item.selling_price), money)}</strong>
+                    </span>
+                    <span className="mobile-card-title">{item.name}</span>
+                    <span className="mobile-card-meta">
+                      {category && <span className="badge" title={fullPath(category)}>{shortPath(category)}</span>}
+                      <span className={`badge ${low ? "badge-red" : "badge-green"}`}>
+                        {low && <AlertTriangle size={11} />}
+                        {available <= 0 ? "None available" : `${available} available`}
+                        {item.reserved_quantity > 0 ? ` · ${item.reserved_quantity} reserved` : ""}
+                      </span>
+                    </span>
+                  </button>
+                  <span className="mobile-card-actions">
+                    <button type="button" className="icon-button" aria-label={`Edit ${item.name}`} onClick={() => setEditing(item)}>
+                      <Pencil size={16} />
+                    </button>
+                    <button type="button" className="icon-button danger" aria-label={`Delete ${item.name}`} onClick={() => setDeleting(item)}>
+                      <Trash2 size={16} />
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <PaginationBar total={result.total} page={result.page} limit={result.limit} noun={["product", "products"]} />
+        </>
       )}
 
       <InventoryItemDialog

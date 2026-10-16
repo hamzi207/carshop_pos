@@ -20,8 +20,10 @@ import {
 import { formatDate, formatMoney } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { CustomerOption, DocumentListItem } from "@/lib/types/quote";
+import { parsePagination, pastEndRedirect } from "@/lib/pagination";
 import { documentFiltersSchema } from "@/lib/validations/quote.schema";
 import { CustomerAvatar } from "@/components/customers/customer-badges";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { DocumentFilters } from "./document-filters";
 import { QuoteBuilder } from "./quote-builder";
 
@@ -44,13 +46,17 @@ const CUSTOMER_COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, 
 async function DocumentTable({ section, searchParams }: { section: DocumentSection; searchParams: SearchParams }) {
   const raw = await searchParams;
   const filters = documentFiltersSchema.parse({ search: first(raw.q) || undefined, status: first(raw.status) || undefined });
-  const [docs, { tenant }] = await Promise.all([getDocuments(section, filters), getShopSession()]);
+  const pagination = parsePagination({ page: first(raw.page), limit: first(raw.limit) });
   const config = SECTION[section];
+  const [result, { tenant }] = await Promise.all([getDocuments(section, filters, pagination), getShopSession()]);
+  const pastEnd = pastEndRedirect(config.path, raw, result);
+  if (pastEnd) redirect(pastEnd);
+  const docs = result.rows;
   const Icon = SECTION_ICON[section];
   const today = localDate(tenant.timezone);
   const invoices = section === "invoices";
 
-  if (docs.length === 0) {
+  if (result.total === 0) {
     const filtered = Boolean(filters.search || filters.status);
     return (
       <div className="empty-state">
@@ -79,14 +85,12 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
     );
   }
 
-  const counted = docs.filter((d) => d.status !== "cancelled" && d.status !== "void");
-  const total = counted.reduce((sum, d) => sum + d.total_amount, 0);
-  const owed = invoices ? counted.reduce((sum, d) => sum + d.total_amount - Number(d.amount_paid), 0) : 0;
+  const { total, owed } = result.sum;
   const dateLabel = section === "drafts" ? "LAST EDITED" : section === "quotations" ? "QUOTED" : "INVOICE DATE";
 
   return (
     <>
-      <div className="table-wrap">
+      <div className="table-wrap desktop-table">
         <table className="document-table">
           <thead>
             <tr>
@@ -153,15 +157,49 @@ async function DocumentTable({ section, searchParams }: { section: DocumentSecti
           </tbody>
         </table>
       </div>
+      {/* Phones: one card per document instead of the wide table (CSS swaps them at 768px). */}
+      <ul className="mobile-cards" aria-label={config.title}>
+        {docs.map((d) => {
+          const status = statusDisplay(statusKey(d, today));
+          const balance = d.total_amount - Number(d.amount_paid);
+          return (
+            <li key={d.id} className="mobile-card">
+              <Link href={documentHref(d)} className="mobile-card-main">
+                <span className="mobile-card-top">
+                  <span className="mono strong">{d.quote_number}</span>
+                  <span className={`badge ${status.tone}`}>{status.label}</span>
+                </span>
+                <span className="mobile-card-title">{d.customer ? customerLabel(d, d.customer) : "—"}</span>
+                <span className="mobile-card-meta">
+                  <span className="mobile-card-muted">
+                    {formatDate(sectionDate(section, d), tenant.timezone)}
+                    {invoices && d.due_date && ` · due ${formatDate(`${d.due_date}T12:00:00Z`, "UTC")}`}
+                    {isExpired(d) && " · expired"}
+                  </span>
+                  <span className="mobile-card-amounts">
+                    <strong className="amount">{formatMoney(d.total_amount, tenant.money)}</strong>
+                    {invoices && d.status === "invoiced" && balance > 0 && (
+                      <span className="mobile-card-balance">Balance {formatMoney(balance, tenant.money)}</span>
+                    )}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
       <div className="table-footer">
-        <span>
-          Showing {docs.length} {docs.length === 1 ? config.singular.toLowerCase() : config.title.toLowerCase()}
-        </span>
         <span>
           Total{section === "drafts" ? "" : " (excluding cancelled)"}: <strong>{formatMoney(total, tenant.money)}</strong>
           {invoices && <> · Balance due: <strong>{formatMoney(owed, tenant.money)}</strong></>}
         </span>
       </div>
+      <PaginationBar
+        total={result.total}
+        page={result.page}
+        limit={result.limit}
+        noun={[config.singular.toLowerCase(), config.title.toLowerCase()]}
+      />
     </>
   );
 }

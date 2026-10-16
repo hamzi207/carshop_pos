@@ -4,12 +4,12 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { getShopSession } from "@/lib/auth";
 import { parsePhone } from "@/lib/phone";
+import { isRangePastEnd, pageRange, type Paged, type Pagination } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import {
   localDate,
   SECTION,
   sectionForStatus,
-  statusKey,
   type DocumentSection,
   type DocumentStage,
 } from "@/lib/documents";
@@ -48,46 +48,64 @@ const SECTION_DATE = {
   invoices: "invoiced_at",
 } as const satisfies Record<DocumentSection, keyof DocumentListItem>;
 
+export type DocumentPage = Paged<DocumentListItem> & {
+  /** Footer totals for everything matching the filters (cancelled excluded). */
+  sum: { total: number; owed: number };
+};
+
 /**
- * One section's documents, newest first. `status` filters by the displayed
- * status (e.g. "due", "partial"); search matches number or customer.
+ * One page of a section's documents, newest first. `status` filters by the displayed
+ * status (e.g. "due", "partial"); search matches a number or customer. Both run in SQL
+ * (filter_documents), with today's date in the shop's timezone for "due".
  */
-export async function getDocuments(section: DocumentSection, filters: DocumentFilters = {}): Promise<DocumentListItem[]> {
+export async function getDocuments(
+  section: DocumentSection,
+  filters: DocumentFilters = {},
+  pagination: Pagination = { page: 1, limit: 25 },
+): Promise<DocumentPage> {
   const { search, status } = documentFiltersSchema.parse(filters);
   const [{ tenant }, supabase] = await Promise.all([getShopSession(), createClient()]);
+  const args = {
+    p_statuses: [...SECTION[section].statuses],
+    p_status_key: status ?? "",
+    p_search: search ?? "",
+    p_today: localDate(tenant.timezone),
+  };
 
-  const { data, error } = await supabase
-    .from("quotes")
-    .select(LIST_SELECT)
-    .in("status", [...SECTION[section].statuses])
-    .order(SECTION_DATE[section], { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1000);
+  // A builder is single-use, hence a function (the page and the past-the-end retry).
+  const build = () =>
+    supabase
+      .rpc("filter_documents", args, { count: "exact" })
+      .select(LIST_SELECT)
+      .order(SECTION_DATE[section], { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id");
 
-  if (error) {
-    console.error("getDocuments failed:", error.message);
+  const { from, to } = pageRange(pagination);
+  const [pageResult, sumResult] = await Promise.all([build().range(from, to), supabase.rpc("document_list_totals", args).single()]);
+  let { data, count, error } = pageResult;
+  if (isRangePastEnd(error)) {
+    // Asked for a page past the end: report the total so the page can redirect.
+    ({ count, error } = await build().range(0, 0));
+    data = [];
+  }
+  if (error || sumResult.error) {
+    console.error("getDocuments failed:", (error ?? sumResult.error)?.message);
     throw new Error("Could not load documents.");
   }
 
-  const today = localDate(tenant.timezone);
-  let rows: DocumentListItem[] = data.map(({ customers, ...doc }) => ({
+  const rows: DocumentListItem[] = (data ?? []).map(({ customers, ...doc }) => ({
     ...doc,
     total_amount: Number(doc.total_amount),
     amount_paid: Number(doc.amount_paid),
     customer: customers,
   }));
-  if (status) rows = rows.filter((d) => statusKey(d, today) === status);
-  if (!search) return rows;
-
-  // Every word must match somewhere: "inv-1004", "khan".
-  const words = search.toLowerCase().split(/\s+/).filter(Boolean);
-  return rows.filter((d) => {
-    const text = [d.quote_number, d.draft_number, d.quotation_number, d.customer?.name, d.walk_in_name]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return words.every((w) => text.includes(w));
-  });
+  return {
+    rows,
+    total: count ?? 0,
+    sum: { total: Number(sumResult.data.total), owed: Number(sumResult.data.owed) },
+    ...pagination,
+  };
 }
 
 /** One document with its lines (in order) and payments, or null when it doesn't exist. */

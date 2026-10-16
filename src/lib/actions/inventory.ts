@@ -4,7 +4,9 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { buildCategoryIndex, descendantIds } from "@/lib/categories";
 import { getCategories } from "@/lib/category-data";
+import { isRangePastEnd, pageRange, type Paged, type Pagination } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/types/database.types";
 import type { InventoryListItem } from "@/lib/types/inventory";
 import {
   inventoryFiltersSchema,
@@ -24,60 +26,87 @@ const itemIdSchema = z.uuid();
 
 const ITEM_WITH_FITMENT = "*, item_vehicle_compatibility(vehicles(id, year, make, model, trim))";
 
-export async function getInventoryItems(filters: InventoryFilters = {}): Promise<InventoryListItem[]> {
+type InventoryRow = Tables<"inventory_items"> & {
+  item_vehicle_compatibility: { vehicles: InventoryListItem["vehicles"][number] | null }[];
+};
+
+export type InventoryPage = Paged<InventoryListItem> & {
+  /** Low-stock parts among everything matching the filters (not just this page). */
+  lowStock: number;
+};
+
+/**
+ * One page of the shop's parts. Every filter and sort runs in SQL, so the page and
+ * the counts agree; available / low stock are generated columns (Phase 9 migration).
+ */
+export async function getInventoryItems(filters: InventoryFilters = {}, pagination: Pagination = { page: 1, limit: 25 }): Promise<InventoryPage> {
   const { category, search, fitment, stock, sort } = inventoryFiltersSchema.parse(filters);
   const supabase = await createClient();
 
-  // Search runs in SQL (search_inventory_items) because it has to match SKU,
-  // name AND linked vehicles (make / model / year) together. It returns
-  // inventory_items rows, so the fitment embed, filters and ordering still apply.
-  let query = (
-    search
-      ? supabase.rpc("search_inventory_items", { p_query: search }).select(ITEM_WITH_FITMENT)
-      : supabase.from("inventory_items").select(ITEM_WITH_FITMENT)
-  ).order("name");
-
+  // The category and everything below it; an unknown id matches nothing.
+  let categoryIds: string[] | null = null;
   if (category) {
-    // The category and everything below it; an unknown id matches nothing.
     const node = buildCategoryIndex(await getCategories()).byId.get(category);
-    query = query.in("category_id", node ? descendantIds(node) : [category]);
+    categoryIds = node ? descendantIds(node) : [category];
   }
-  if (fitment) query = query.eq("is_universal", fitment === "universal");
 
-  const { data, error } = await query;
-  if (error) {
-    console.error("getInventoryItems failed:", error.message);
+  // Search runs in SQL (search_inventory_items) because it has to match SKU, name,
+  // category and linked vehicles together. It returns inventory_items rows, so the
+  // fitment embed, filters and ordering still apply. A builder is single-use, hence
+  // a function: the page, the low-stock count and the past-the-end retry each build one.
+  const build = (columns: string, head = false, stockFilter = stock) => {
+    let query = search
+      ? supabase.rpc("search_inventory_items", { p_query: search }, { count: "exact", head }).select(columns)
+      : supabase.from("inventory_items").select(columns, { count: "exact", head });
+    if (categoryIds) query = query.in("category_id", categoryIds);
+    if (fitment) query = query.eq("is_universal", fitment === "universal");
+    if (stockFilter === "in") query = query.gt("available_quantity", 0);
+    else if (stockFilter === "out") query = query.lte("available_quantity", 0);
+    else if (stockFilter === "low") query = query.eq("is_low_stock", true);
+    return query;
+  };
+
+  const ordered = () => {
+    const query = build(ITEM_WITH_FITMENT);
+    switch (sort) {
+      case "newest":
+        return query.order("created_at", { ascending: false }).order("id");
+      case "stock":
+        return query.order("available_quantity").order("name").order("id");
+      case "price-high":
+        return query.order("selling_price", { ascending: false }).order("name").order("id");
+      case "price-low":
+        return query.order("selling_price").order("name").order("id");
+      default:
+        return query.order("name").order("id");
+    }
+  };
+
+  const { from, to } = pageRange(pagination);
+  const [pageResult, lowResult] = await Promise.all([
+    ordered().range(from, to).overrideTypes<InventoryRow[], { merge: false }>(),
+    build("id", true, "low"),
+  ]);
+
+  let { data, count, error } = pageResult;
+  if (isRangePastEnd(error)) {
+    // Asked for a page past the end: report the total so the page can redirect.
+    ({ data, count, error } = await ordered().range(0, 0).overrideTypes<InventoryRow[], { merge: false }>());
+    data = [];
+  }
+  if (error || lowResult.error) {
+    console.error("getInventoryItems failed:", (error ?? lowResult.error)?.message);
     throw new Error("Could not load inventory.");
   }
 
-  const items: InventoryListItem[] = data.map(({ item_vehicle_compatibility, ...item }) => ({
+  const rows: InventoryListItem[] = (data ?? []).map(({ item_vehicle_compatibility, ...item }) => ({
     ...item,
     vehicles: item_vehicle_compatibility
       .flatMap((link) => (link.vehicles ? [link.vehicles] : []))
       .sort((a, b) => b.year - a.year || a.make.localeCompare(b.make) || a.model.localeCompare(b.model)),
   }));
 
-  // Stock compares columns (available = on hand − reserved vs the alert level), so it
-  // filters here rather than in the query; the list is one shop's parts.
-  const available = (i: InventoryListItem) => i.quantity_on_hand - i.reserved_quantity;
-  const shown = stock
-    ? items.filter((i) =>
-        stock === "in" ? available(i) > 0 : stock === "out" ? available(i) <= 0 : available(i) <= i.low_stock_threshold,
-      )
-    : items;
-
-  switch (sort) {
-    case "newest":
-      return shown.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    case "stock":
-      return shown.sort((a, b) => available(a) - available(b) || a.name.localeCompare(b.name));
-    case "price-high":
-      return shown.sort((a, b) => Number(b.selling_price) - Number(a.selling_price));
-    case "price-low":
-      return shown.sort((a, b) => Number(a.selling_price) - Number(b.selling_price));
-    default:
-      return shown;
-  }
+  return { rows, total: count ?? 0, lowStock: lowResult.count ?? 0, ...pagination };
 }
 
 /** Creates (no id) or updates an item and its vehicle fitment in one transaction. */

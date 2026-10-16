@@ -5,7 +5,7 @@
 > **Target Audience**: AI Coding Agents (Claude Code, Antigravity) & Lead Engineers  
 > **Application Type**: Multi-Tenant B2B SaaS (Cloud POS & Quoting Engine)  
 > **Release Target**: Phase 1 MVP (Inventory, Quoting, Customer Directory, YMM Engine)
-> **Current Standing (2026-10-17)**: Phases 1–7 are built and committed (latest: `acc8dc9` "Phase 7"); Phase 8 is built, awaiting commit; Phases 9–15 (§8) are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
+> **Current Standing (2026-10-17)**: Phases 1–8 are built and committed (latest: `60e619a` "Phase 8"); Phase 9 is built, awaiting commit; Phases 10–15 (§8) are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
 
 ---
 
@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–8): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–9): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-17)**: Phases 1–7 are built and committed; Phase 8 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-17)**: Phases 1–8 are built and committed; Phase 9 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1002,7 +1002,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 8: Responsive Foundations, Breakpoint Tokens & iOS Zoom Fix [COMPLETED]
-**Commit**: pending (`Phase 8 - …`).
+**Commit**: `60e619a` "Phase 8 - responsive breakpoint tokens, drawer polish and ios zoom fix".
 
 **What was built**:
 1. **Viewport** (`src/app/layout.tsx`): `viewport` export with `width: device-width`, `initialScale: 1`, `maximumScale: 5`, `viewportFit: "cover"`, `interactiveWidget: "resizes-content"`, `themeColor: "#111113"`.
@@ -1015,7 +1015,23 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 8. ROADMAP (PHASES 9–15): STILL TO BUILD
+### PHASE 9: Server-Side Pagination & Mobile Table Cards [COMPLETED]
+**Commit**: pending (`Phase 9 - …`).
+
+**What was built**:
+1. **Migration** `20261017100000_phase9_pagination.sql`:
+   - `inventory_items.available_quantity` (= on hand − reserved) and `is_low_stock` (available ≤ `low_stock_threshold`) as stored generated columns, so the Stock filter and "lowest stock" sort run in SQL; index `(tenant_id, name)`.
+   - RPC `customer_directory_stats()`: total customers, B2B accounts, outstanding balance for the whole directory (walk-in excluded).
+   - RPC `filter_documents(p_statuses, p_status_key, p_search, p_today)` (setof `quotes`, SECURITY INVOKER): section statuses, displayed status (pending / due / partial worked out from payments and the due date against the shop's local date; anything else = stored status) and word search over all numbers, customer name and walk-in name. RPC `document_list_totals(...)` sums total (excluding cancelled) and balance for the same filters.
+2. **Shared helpers** `src/lib/pagination.ts`: `parsePagination` (`?page=`, `?limit=` 25/50/100, invalid → page 1 / 25), `pageRange`, `Paged<T>`, `isRangePastEnd` (PostgREST PGRST103), `pastEndRedirect` (a page past the end redirects to the last page).
+3. **Paged actions** (exact counts, stable `id` tiebreak): `getInventoryItems(filters, pagination)` → rows + total + `lowStock` (low-stock count across all matches); `getCustomers(filters, pagination)` + `getCustomerStats()`; `getDocuments(section, filters, pagination)` → rows + total + footer sums. All filtering and sorting moved from JavaScript into SQL.
+4. **Pagination bar** `src/components/ui/pagination-bar.tsx`: "Showing 1–25 of 60 products", First / Previous / page numbers with gaps / Next / Last, rows per page (keeps the first visible row in view when the size changes); URL-synced, filters kept. Every filter bar (inventory, customers, documents) drops `page` on change.
+5. **Phone cards ≤ 768px** (`.mobile-cards`; the table gets `.desktop-table` and is hidden): inventory (SKU, price, name, category pill, available/reserved pill; tap → details, 44px edit/delete), customers (name, type badge, document count, balance or Settled, one-tap WhatsApp), documents (number, status badge, customer, date/due date, total, balance). Footer totals and the pagination bar sit under the cards.
+6. Summary figures now describe everything matching the filters, not just the loaded page: inventory "N products" / "N low stock", customer tiles (whole directory), document footer totals.
+
+---
+
+## 8. ROADMAP (PHASES 10–15): STILL TO BUILD
 
 > **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
 > Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
@@ -1024,20 +1040,6 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 > Build **strictly one phase at a time**. **DO NOT** combine phases, skip steps, or build future phases early.  
 > After each phase: **STOP AND PAUSE**, describe what you built, ask the developer to test in the browser and commit, then move the phase into §7 as "What was built" and update the phases after it.  
 > Commit messages always start with `Phase <N> - `.
-
----
-
-### PHASE 9: Server-Side Pagination & Mobile Table Cards
-**Agent Directive**:
-1. **Pagination bar** `src/components/ui/pagination-bar.tsx`: "Showing **1–25** of **1,480**", `« First`, `‹ Previous`, page numbers with `…`, `Next ›`, `Last »`, rows per page (25/50/100); synced to `?page=&limit=` keeping the existing URL filters; a filter change resets to page 1.
-2. **Range queries with exact counts**: `getInventoryItems(filters, pagination)`, `getCustomers(filters, pagination)`, `getDocuments(section, filters, pagination)`. Move the Phase 7 Stock filter and Sort from JavaScript into SQL so pages and counts are right.
-3. **Cards below 768px** (replacing the Phase 6 in-card table scroll; tables unchanged on larger screens):
-   - Inventory: SKU, name, category pill, available/reserved pill, price, tap for details.
-   - Customers: name, type badge, one-tap WhatsApp, balance due, document count.
-   - Documents: number, status badge, customer, date/due date, total, balance.
-
-🛑 **PAUSE & CHECKPOINT**:  
-> "Phase 9 complete! Please test: 1) on desktop, `/inventory`, `/customers` and `/invoices` page correctly, rows per page works, the URL updates and filters are kept, 2) at 390px the tables become cards with no sideways scroll. Then run `git add . && git commit -m 'Phase 9 - server-side pagination and mobile table cards'` and tell me to begin Phase 10."
 
 ---
 
@@ -1111,7 +1113,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ### PHASE 15: Inventory CSV Import/Export, Chart Labels, 4K Containment & Final Build
 **Agent Directive**:
-1. **Inventory CSV** `src/components/inventory/csv-import-dialog.tsx` + `src/lib/actions/inventory-csv.ts`: sample template (SKU, Name, Category path e.g. `Exterior › Wrapping › PPF`, Cost, Sale Price, Stock, Universal, Vendor), client-side parsing, validation preview with errors highlighted, batch insert following `save_inventory_item` rules; "Export Inventory (CSV)" (reuse the Phase 6 CSV helper).
+1. **Inventory CSV** `src/components/inventory/csv-import-dialog.tsx` + `src/lib/actions/inventory-csv.ts`: sample template (SKU, Name, Category path e.g. `Exterior › Wrapping › PPF`, Cost, Sale Price, Stock, Universal, Vendor), client-side parsing, validation preview with errors highlighted, batch insert following `save_inventory_item` rules; "Export Inventory (CSV)" (reuse the Phase 6 CSV helper; the inventory list is paged since Phase 9, so the export must fetch every page / all rows).
 2. **Chart labels below 480px** in `src/components/dashboard/charts.tsx` (already `viewBox`-scaled): show every other bar label so dates don't collide.
 3. **Large screens**: `max-width: 1720px; margin: 0 auto;` on page content for 1440p/4K.
 4. **Final verification**: `npm run lint && npm run build` and a pass over phone, tablet, laptop, desktop and ultrawide.

@@ -6,23 +6,27 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, MessageCircle, Plus, Users } from "lucide-react";
 import { formatMoney, type MoneyFormat } from "@/lib/format";
 import { formatPhone, whatsappLink } from "@/lib/phone";
+import type { Paged } from "@/lib/pagination";
 import type { CustomerListItem } from "@/lib/types/customer";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { CustomerAvatar, CustomerTypeBadge } from "./customer-badges";
 import { CustomerDialog } from "./customer-dialog";
 
 type Props = {
-  customers: CustomerListItem[];
+  /** One page of the directory + the total matching the filters. */
+  result: Paged<CustomerListItem>;
   money: MoneyFormat;
   allowInternationalPhones: boolean;
   /** True when a search or type filter is active (changes the empty state). */
   filtered: boolean;
 };
 
-export function CustomerTable({ customers, money, allowInternationalPhones, filtered }: Props) {
+export function CustomerTable({ result, money, allowInternationalPhones, filtered }: Props) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const customers = result.rows;
 
-  if (customers.length === 0) {
+  if (result.total === 0) {
     return (
       <div className="empty-state">
         <span className="header-icon blue"><Users size={18} /></span>
@@ -54,7 +58,7 @@ export function CustomerTable({ customers, money, allowInternationalPhones, filt
 
   return (
     <>
-      <div className="table-wrap">
+      <div className="table-wrap desktop-table">
         <table className="customer-table">
           <thead>
             <tr>
@@ -116,9 +120,43 @@ export function CustomerTable({ customers, money, allowInternationalPhones, filt
           </tbody>
         </table>
       </div>
-      <div className="table-footer">
-        <span>Showing {customers.length} {customers.length === 1 ? "customer" : "customers"}</span>
-      </div>
+      {/* Phones: one card per customer instead of the wide table (CSS swaps them at 768px). */}
+      <ul className="mobile-cards" aria-label="Customers">
+        {customers.map((c) => (
+          <li key={c.id} className="mobile-card">
+            <Link href={`/customers/${c.id}`} className="mobile-card-main">
+              <span className="mobile-card-top">
+                <span className="mobile-card-title">{c.name}</span>
+                <CustomerTypeBadge type={c.customer_type} />
+              </span>
+              <span className="mobile-card-meta">
+                <span className="mobile-card-muted">
+                  {c.quoteCount} {c.quoteCount === 1 ? "document" : "documents"}
+                </span>
+                {c.outstanding > 0 ? (
+                  <span className="mobile-card-balance">Owes {formatMoney(c.outstanding, money)}</span>
+                ) : (
+                  <span className="badge badge-green">Settled</span>
+                )}
+              </span>
+            </Link>
+            {c.whatsapp_number && (
+              <span className="mobile-card-actions">
+                <a
+                  className="icon-button whatsapp-button"
+                  href={whatsappLink(c.whatsapp_number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`WhatsApp ${c.name} on ${formatPhone(c.whatsapp_number)}`}
+                >
+                  <MessageCircle size={18} />
+                </a>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <PaginationBar total={result.total} page={result.page} limit={result.limit} noun={["customer", "customers"]} />
     </>
   );
 }

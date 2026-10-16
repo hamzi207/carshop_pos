@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { getShopSession } from "@/lib/auth";
+import { isRangePastEnd, pageRange, type Paged, type Pagination } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import type { CustomerDetail, CustomerListItem } from "@/lib/types/customer";
 import {
@@ -29,33 +30,56 @@ const isOutstanding = (status: string) => status === "invoiced";
 const owed = (q: { total_amount: number | string; amount_paid: number | string }) => Number(q.total_amount) - Number(q.amount_paid);
 const isCancelled = (status: string) => status === "cancelled" || status === "void";
 
-export async function getCustomers(filters: CustomerFilters = {}): Promise<CustomerListItem[]> {
+/** One page of the directory (A–Z). Each row's activity comes from its own documents. */
+export async function getCustomers(filters: CustomerFilters = {}, pagination: Pagination = { page: 1, limit: 25 }): Promise<Paged<CustomerListItem>> {
   const { search, type } = customerFiltersSchema.parse(filters);
   const supabase = await createClient();
 
   // Search runs in SQL (search_customers) so phone numbers match whether typed
-  // as 0300-1234567 or +92 300 1234567.
-  let query = (
-    search
-      ? supabase.rpc("search_customers", { p_query: search }).select(LIST_SELECT)
-      : supabase.from("customers").select(LIST_SELECT)
-  )
-    // The shop's walk-in / cash record isn't a directory entry.
-    .eq("is_walk_in", false)
-    .order("name");
-  if (type) query = query.eq("customer_type", type);
+  // as 0300-1234567 or +92 300 1234567. A builder is single-use, hence a function.
+  const build = () => {
+    let query = (
+      search
+        ? supabase.rpc("search_customers", { p_query: search }, { count: "exact" }).select(LIST_SELECT)
+        : supabase.from("customers").select(LIST_SELECT, { count: "exact" })
+    )
+      // The shop's walk-in / cash record isn't a directory entry.
+      .eq("is_walk_in", false);
+    if (type) query = query.eq("customer_type", type);
+    return query.order("name").order("id");
+  };
 
-  const { data, error } = await query;
+  const { from, to } = pageRange(pagination);
+  let { data, count, error } = await build().range(from, to);
+  if (isRangePastEnd(error)) {
+    // Asked for a page past the end: report the total so the page can redirect.
+    ({ count, error } = await build().range(0, 0));
+    data = [];
+  }
   if (error) {
     console.error("getCustomers failed:", error.message);
     throw new Error("Could not load customers.");
   }
 
-  return data.map(({ quotes, ...customer }) => ({
+  const rows = (data ?? []).map(({ quotes, ...customer }) => ({
     ...customer,
     quoteCount: quotes.filter((q) => !isCancelled(q.status)).length,
     outstanding: quotes.filter((q) => isOutstanding(q.status)).reduce((sum, q) => sum + owed(q), 0),
   }));
+  return { rows, total: count ?? 0, ...pagination };
+}
+
+export type CustomerStats = { total: number; b2b: number; outstanding: number };
+
+/** Totals for the whole directory (the summary tiles), whatever the filters or page. */
+export async function getCustomerStats(): Promise<CustomerStats> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("customer_directory_stats").single();
+  if (error) {
+    console.error("getCustomerStats failed:", error.message);
+    throw new Error("Could not load customers.");
+  }
+  return { total: Number(data.total), b2b: Number(data.b2b), outstanding: Number(data.outstanding) };
 }
 
 /** One customer with their full quote / invoice history (newest first), or null. */
