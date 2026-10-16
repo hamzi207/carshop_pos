@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "@/components/ui/sonner";
@@ -18,6 +18,18 @@ export const metadata: Metadata = {
   },
   description:
     "Cloud POS, YMM-aware inventory and quoting engine for automotive accessory sellers: tint, wraps, PPF, audio and styling parts.",
+};
+
+// viewportFit "cover" lets the page run under the iPhone notch / home bar (the safe-area
+// paddings in globals.css keep content clear of them); "resizes-content" shrinks the
+// layout when the on-screen keyboard opens, so bottom-anchored controls stay visible.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  themeColor: "#111113",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

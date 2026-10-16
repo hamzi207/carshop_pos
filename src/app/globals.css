@@ -46,6 +46,21 @@
   --shadow-sm: 0 1px 2px rgba(17, 17, 19, 0.04);
   --shadow-md: 0 12px 32px rgba(17, 17, 19, 0.12);
 
+  /* Breakpoints: every @media query in this file uses one of these widths (max-width).
+     Media queries can't read CSS variables, so these are the reference values. */
+  --bp-xs: 480px;
+  --bp-sm: 640px;
+  --bp-md: 768px; /* phones: slide-out menu, stacked pages */
+  --bp-lg: 1024px; /* tablets: icon-rail sidebar */
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+  --container-max-width: 1720px;
+  /* Notch / home-bar insets (viewport-fit=cover in layout.tsx); 0 elsewhere */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
   --background: var(--slate-50);
   --foreground: var(--slate-900);
   --card: var(--white);
@@ -456,7 +471,7 @@
   .history-card > div:nth-of-type(2) strong { font-size: 10px; }
   .history-card button { margin-top: 9px; border: 0; background: transparent; color: var(--blue); font-size: 8px; padding: 0; display: flex; align-items: center; gap: 4px; font-weight: 600; }
   
-  @media (max-width: 1180px) {
+  @media (max-width: 1280px) {
     .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     .dashboard-grid { grid-template-columns: 1fr; }
     .alerts-card { display: none; }
@@ -464,7 +479,7 @@
     .quote-workspace { grid-template-columns: minmax(0, 1.35fr) minmax(310px, .8fr); }
   }
   
-  @media (max-width: 920px) {
+  @media (max-width: 1024px) {
     .sidebar { width: 74px; }
     .brand { padding: 0 20px; }
     .brand > div:last-child, .store-card, .nav-label, .nav-item span, .sidebar-foot { display: none; }
@@ -612,7 +627,7 @@
   .profile-details .details-list strong { font-size: 12px; word-break: break-word; }
   .profile-notes { display: flex; gap: 8px; margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: var(--amber-soft); color: #92400e; font-size: 11px; line-height: 1.5; white-space: pre-wrap; }
   .profile-notes svg { flex: none; margin-top: 2px; }
-  @media (max-width: 1080px) {
+  @media (max-width: 1024px) {
     .customer-profile-grid { grid-template-columns: 1fr; }
   }
   .vehicle-cell { display: grid; gap: 3px; min-width: 150px; }
@@ -654,7 +669,7 @@
   .vehicle-multi .ymm-add-cancel { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--slate-500); cursor: pointer; }
   .vehicle-multi .ymm-add-cancel:hover { background: var(--slate-200); }
   .ymm-add .field-error { grid-column: 1 / -1; }
-  @media (max-width: 1180px) {
+  @media (max-width: 1280px) {
     .category-pills button:nth-child(n+5) { display: inline-block; }
   }
   @media (max-width: 640px) {
@@ -665,7 +680,7 @@
     .ymm-add input[aria-label^="Model"] { grid-column: 1 / -1; }
   }
 
-  @media (max-width: 860px) {
+  @media (max-width: 1024px) {
     .auth-shell { grid-template-columns: 1fr; }
     .auth-aside { display: none; }
   }
@@ -764,11 +779,11 @@
   .document-table .customer-name strong { display: block; }
   .table-footer strong { color: var(--slate-800); }
 
-  @media (max-width: 1180px) {
+  @media (max-width: 1280px) {
     .selector-grid { grid-template-columns: 1fr 1fr 1fr; }
     .selector-grid > .field:first-child { grid-column: 1 / -1; }
   }
-  @media (max-width: 1080px) {
+  @media (max-width: 1024px) {
     .quote-workspace { grid-template-columns: 1fr; }
     .summary-card { position: static; }
   }
@@ -839,7 +854,7 @@
   .customize-group .check-field input { width: 16px; height: 16px; flex: none; margin-top: 1px; accent-color: var(--blue); }
   .customize-periods { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
 
-  @media (max-width: 860px) {
+  @media (max-width: 1024px) {
     .count-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .walk-in-panel, .product-details { grid-template-columns: 1fr; }
   }
@@ -908,7 +923,7 @@
   .doc-balance span { color: var(--slate-800); font-size: 12px; font-weight: 700; }
   .doc-balance strong { color: var(--slate-950) !important; font-size: 16px; }
 
-  @media (max-width: 1080px) {
+  @media (max-width: 1024px) {
     .doc-header, .doc-footer { grid-template-columns: 1fr; }
   }
 
@@ -952,13 +967,13 @@
   .summary-card { top: 108px; }
   .brand-lockup small { margin: 0 !important; padding-left: 4px; font-size: 8px; letter-spacing: .32em; color: var(--slate-400); }
   .brand-mark-img { display: none; width: 40px; height: 40px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
-  @media (max-width: 920px) {
+  @media (max-width: 1024px) {
     .brand { justify-content: center; padding: 0 !important; }
     .brand-mark-img { display: block; }
   }
   .auth-aside .brand-lockup img { width: 220px; }
   .auth-mobile-logo { display: none; }
-  @media (max-width: 860px) {
+  @media (max-width: 1024px) {
     .auth-main { align-content: center; gap: 28px; }
     .auth-mobile-logo { display: block; width: 204px; height: auto; justify-self: center; }
   }
@@ -982,7 +997,7 @@
   html[data-sidebar=collapsed] .sidebar .brand { padding: 24px 0 50px; } /* mark 24–64px, button 72–102px; header 114px like the open one */
   /* Section labels keep their space (hidden) so the menu icons don't jump when collapsing / expanding */
   html[data-sidebar=collapsed] .sidebar .nav-label { display: block; visibility: hidden; }
-  @media (max-width: 920px) { .sidebar .brand { padding: 28px 0 18px !important; } }
+  @media (max-width: 1024px) { .sidebar .brand { padding: 28px 0 18px !important; } }
   .sidebar .brand-lockup { justify-items: center; }
   .sidebar .brand-lockup small { padding-left: .32em; text-align: center; }
   .sidebar-toggle .when-collapsed { display: none; }
@@ -1003,7 +1018,7 @@
     white-space: nowrap; padding: 6px 10px; border-radius: 6px; background: var(--slate-900); color: var(--white);
     font-size: 12px; font-weight: 500; box-shadow: 0 6px 16px rgba(17,17,19,.25); z-index: 40; pointer-events: none;
   }
-  @media (max-width: 920px) {
+  @media (max-width: 1024px) {
     .sidebar-toggle { display: none; }
     .sidebar { overflow: visible; }
     .nav-item[data-label]:hover::after {
@@ -1051,7 +1066,7 @@
   .cal-day.edge { background: var(--blue); color: var(--white); font-weight: 600; }
   .range-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--slate-100); font-size: 12px; color: var(--slate-600); }
   .range-footer > div { display: flex; gap: 8px; }
-  @media (max-width: 760px) {
+  @media (max-width: 768px) {
     .range-panel { flex-direction: column; }
     .range-presets { grid-template-columns: repeat(3, auto); border-right: 0; border-bottom: 1px solid var(--slate-100); }
     .cal-month:first-child { display: none; } /* phones show one month: the later one, which holds the end date */
@@ -1072,7 +1087,7 @@
   .cal-day { height: 30px; font-size: 11.5px; }
   .range-footer { margin-top: 8px; padding-top: 8px; font-size: 11.5px; }
   .range-footer .button { height: 32px; padding: 0 12px; }
-  @media (max-width: 760px) {
+  @media (max-width: 768px) {
     .range-panel { width: min(320px, calc(100vw - 32px)); }
     .range-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; }
     .range-presets button { padding: 6px 8px; font-size: 11.5px; }
@@ -1106,7 +1121,7 @@
   .detail-link { color: var(--blue); text-decoration: none; }
   .detail-link:hover { text-decoration: underline; }
   @media (max-width: 1280px) { .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 520px) { .stat-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 480px) { .stat-grid { grid-template-columns: 1fr; } }
 
   /* ---- Record payment: apply a payment to specific invoice items ---- */
   .modal-payment { width: min(760px, calc(100vw - 40px)); }
@@ -1192,7 +1207,7 @@
   .stock-values span { font-size: 10px; color: var(--slate-500); }
   .stock-values strong { font-size: 15px; color: var(--slate-900); font-variant-numeric: tabular-nums; }
   .button-sm { height: 30px; padding: 0 10px; font-size: 11px; gap: 5px; }
-  @media (max-width: 1100px) { .report-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 1024px) { .report-grid { grid-template-columns: 1fr; } }
   @media (max-width: 640px) { .stock-values { grid-template-columns: 1fr; } }
 
   /* ---- Notification bell ---- */
@@ -1262,7 +1277,7 @@
   .share-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 22px; }
   .share-actions a { text-decoration: none; }
   .share-foot { text-align: center; margin-top: 14px; font-size: 10px; color: var(--slate-400); }
-  @media (max-width: 560px) {
+  @media (max-width: 640px) {
     .share-sheet { padding: 18px; }
     .share-head, .share-meta { flex-direction: column; }
     .share-title { justify-items: start; }
@@ -1344,19 +1359,25 @@
   /* Grid children may shrink below their content (the line-items table scrolls instead of widening the page). */
   .doc-page > *, .doc-header > *, .doc-footer > *, .report-grid > *, .metric-grid > *, .dashboard-grid > * { min-width: 0; }
   .doc-page, .reports-page { grid-template-columns: minmax(0, 1fr); }
-  /* Tablets (icon rail): no forced minimum width, so nothing scrolls sideways */
-  @media (max-width: 920px) {
+  /* Small laptops and tablets: no forced minimum width (242px sidebar + 900px would scroll sideways below 1142px) */
+  @media (max-width: 1280px) {
     .main-shell, html[data-sidebar=collapsed] .main-shell { min-width: 0; }
   }
   /* Phones: the sidebar becomes a slide-out menu opened from the ☰ button */
   @media (max-width: 768px) {
     .mobile-nav-button { display: grid; flex: none; margin-right: 6px; }
+    /* GPU-composited slide (translate3d); while a finger drags it, mobile-nav.tsx sets
+       --drawer-drag (≤ 0px) and data-mobile-nav-dragging to follow the finger without easing. */
     .sidebar, html[data-sidebar=collapsed] .sidebar {
-      width: 264px !important; overflow-y: auto; transform: translateX(-100%); transition: transform .2s ease; z-index: 70;
-      box-shadow: 8px 0 30px rgba(0,0,0,.35);
+      width: calc(264px + var(--safe-left)) !important; overflow-y: auto; z-index: 70;
+      transform: translate3d(-100%, 0, 0); transition: transform .22s cubic-bezier(.2, .8, .2, 1); will-change: transform;
+      padding: var(--safe-top) 0 var(--safe-bottom) var(--safe-left);
+      box-shadow: none;
     }
-    html[data-mobile-nav=open] .sidebar { transform: none; }
-    html[data-mobile-nav=open] .mobile-nav-scrim { display: block; position: fixed; inset: 0; z-index: 65; background: rgba(17,17,19,.5); }
+    /* Shadow only while open: on the closed drawer it would show along the page's left edge */
+    html[data-mobile-nav=open] .sidebar { transform: translate3d(var(--drawer-drag, 0px), 0, 0); box-shadow: 8px 0 30px rgba(0,0,0,.35); }
+    html[data-mobile-nav-dragging] .sidebar { transition: none; }
+    html[data-mobile-nav=open] .mobile-nav-scrim { display: block; position: fixed; inset: 0; z-index: 65; background: rgba(17,17,19,.5); touch-action: none; }
     /* Full menu (labels, shop logo) inside the drawer, whatever the desktop collapse state */
     .sidebar .brand-lockup, html[data-sidebar=collapsed] .sidebar .brand-lockup { display: grid !important; }
     .sidebar .brand-mark-img, html[data-sidebar=collapsed] .sidebar .brand-mark-img { display: none !important; }
@@ -1369,8 +1390,11 @@
     .main-shell, html[data-sidebar=collapsed] .main-shell { margin-left: 0 !important; width: 100% !important; min-width: 0 !important; }
 
     /* Top bar: menu button, search as an icon, compact profile */
-    .topbar, .brand { height: 60px; }
-    .topbar { padding: 0 12px; gap: 8px; }
+    .brand { height: 56px; }
+    .topbar {
+      height: calc(56px + var(--safe-top)); gap: 8px;
+      padding: var(--safe-top) max(12px, var(--safe-right)) 0 max(12px, var(--safe-left));
+    }
     button.global-search { width: 40px; flex: none; padding: 0; justify-content: center; margin-right: auto; }
     button.global-search span, button.global-search kbd { display: none; }
     .top-actions { gap: 8px; }
@@ -1378,7 +1402,12 @@
     .profile > div:not(.avatar), .profile > .icon { display: none; }
 
     /* Pages */
-    .page, .quote-page { padding: 18px 14px 32px !important; }
+    .page, .quote-page {
+      padding: 18px max(14px, var(--safe-right)) calc(32px + var(--safe-bottom)) max(14px, var(--safe-left)) !important;
+    }
+
+    /* iOS Safari zooms into any field under 16px when it's tapped */
+    input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea { font-size: 16px !important; }
     .page-heading { flex-wrap: wrap; gap: 12px; align-items: flex-start; }
     .page-heading h1 { font-size: 22px; }
     .heading-actions { flex-wrap: wrap; }

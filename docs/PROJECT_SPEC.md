@@ -5,6 +5,7 @@
 > **Target Audience**: AI Coding Agents (Claude Code, Antigravity) & Lead Engineers  
 > **Application Type**: Multi-Tenant B2B SaaS (Cloud POS & Quoting Engine)  
 > **Release Target**: Phase 1 MVP (Inventory, Quoting, Customer Directory, YMM Engine)
+> **Current Standing (2026-10-17)**: Phases 1–7 are built and committed (latest: `acc8dc9` "Phase 7"); Phase 8 is built, awaiting commit; Phases 9–15 (§8) are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
 
 ---
 
@@ -28,6 +29,7 @@ While these businesses are primarily **sellers and retailers** (supplying walk-i
 | **State & Forms** | **React Hook Form + Zod** | High-performance schema-validated form state management. |
 | **Database & Auth** | **Supabase (PostgreSQL + Auth)** | Managed PostgreSQL with native Row Level Security (RLS), real-time primitives, and JWT auth. |
 | **Document Engine** | **@react-pdf/renderer** | Deterministic, pixel-perfect vector PDF generation for quotes and invoices. |
+| **Email Engine** | **Resend** | High-deliverability transactional email delivery for onboarding, password resets, quotes/invoices, receipts, and staff invites. |
 | **External Data** | **NHTSA vPIC API** | Free, authoritative US Department of Transportation vehicle database for Year/Make/Model cataloging. |
 
 ### 1.3 Supabase Project Configuration & AI Tooling
@@ -104,11 +106,13 @@ AI agents implementing this project must adhere strictly to the boundaries defin
 
 | Category | IN SCOPE (Build This) | OUT OF SCOPE (DO NOT BUILD) |
 | :--- | :--- | :--- |
-| **Payments** | Manual payment logging (Cash, Bank Transfer, Card Terminal, Check). | **NO** Stripe, PayPal, Square, or online payment gateways. |
-| **Inventory** | On-hand quantity, low-stock threshold alert, Cost price, Retail price, SKU, YMM fitment vs Universal Fit. | **NO** multi-warehouse bin/aisle tracking, serial number tracking, or barcoding hardware integration. |
-| **Vehicle Data** | NHTSA vPIC Year, Make, Model selection. | **NO** complex 17-digit VIN decoding, engine code lookups, or OBD-II diagnostics. |
-| **Messaging** | WhatsApp click-to-chat links with pre-composed text and PDF links. | **NO** Twilio WhatsApp Business API or automated SMS webhooks. |
-| **Quoting** | Line items for physical inventory parts + optional labor/service fees (for sellers offering fitting/installation), discounts, tax rate, PDF generation, status pipeline. | **NO** complex multi-tiered commission splits or recurring billing subscriptions. |
+| **Payments** | Manual payment logging (Cash, Bank Transfer, Card Terminal, Check), quick cash buttons, 80mm thermal POS receipt printing. | **NO** Stripe, PayPal, Square, or online payment gateways. |
+| **Inventory** | On-hand quantity, low-stock threshold alert, Cost price, Retail price, SKU, YMM fitment vs Universal Fit, CSV bulk import/export. | **NO** multi-warehouse bin/aisle tracking, RFID hardware, or serial number tracking. |
+| **Vehicle Data** | NHTSA vPIC Year, Make, Model selection (model years 1960–2026). | **NO** complex 17-digit VIN decoding, engine code lookups, or OBD-II diagnostics. |
+| **Messaging & Email** | WhatsApp click-to-chat links with pre-composed text/PDF links + Resend transactional email engine. | **NO** Twilio WhatsApp Business API or automated SMS webhooks. |
+| **Quoting & POS** | Line items for physical inventory parts + optional labor/service fees, discounts, tax rate, PDF generation, status pipeline, 80mm thermal receipts. | **NO** complex multi-tiered commission splits or recurring billing subscriptions. |
+| **Platform Administration** | Superadmin Control Plane (`/admin`) for SaaS owners to manage tenants, users, company details, password resets, and support impersonation. | **NO** public access; strictly guarded by `is_superadmin` flag. |
+| **Device Compatibility** | Adaptive responsive design across Mobile, Tablet, Laptop, Desktop, and Ultrawide/4K displays with touch ergonomics. | **NO** native iOS/Android binary apps (PWA / responsive web app). |
 
 ---
 
@@ -160,7 +164,7 @@ AI agents implementing this project must adhere strictly to the boundaries defin
    - **Step 5: Dynamic Totals**: Subtotal, line-item discounts, shop tax rate calculation, and grand total.
 2. **Status Pipeline**:
    - Status transitions: `draft` $\rightarrow$ `sent` $\rightarrow$ `accepted` $\rightarrow$ `invoiced` $\rightarrow$ `paid` (or `cancelled`).
-   - Shown to users as three separate sections, **Drafts**, **Quotations** and **Invoices**, with one-click conversions (Draft → Quotation or Invoice, Quotation → Invoice). See Phase 5, step 4.
+   - Shown to users as three separate sections, **Drafts**, **Quotations** and **Invoices**, with one-click conversions (Draft → Quotation or Invoice, Quotation → Invoice). See §7 Phase 5.
 3. **One-Click Professional PDF Generation**:
    - Clean, automotive-branded PDF invoice/quote template generated on demand.
    - Includes Shop Logo, Shop Details, Customer Details, Vehicle YMM, Itemized Table (Parts & Labor), Totals, and Disclaimer.
@@ -890,177 +894,241 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. STEP-BY-STEP EXECUTION INSTRUCTIONS FOR CLAUDE CODE & ANTIGRAVITY
+## 7. COMPLETED PHASES (1–8): WHAT WAS BUILT
 
-> **MANDATORY INSTRUCTION FOR THE AI AGENT (Claude Code / Antigravity)**:  
-> You must execute this build in **6 sequential phases**.  
-> **DO NOT** skip steps or attempt to build future phases prematurely.  
-> **STOP AND PAUSE** after each phase is completed, describe what you implemented, and ask the human developer to run tests and execute a `git commit` before proceeding to the next phase.
+> **CURRENT STATUS (2026-10-17)**: Phases 1–7 are built and committed; Phase 8 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
-### PHASE 1: Project Foundation, Automated Supabase Setup & Multi-Tenant RLS
+### PHASE 1: Project Foundation, Supabase Setup & Multi-Tenant RLS [COMPLETED]
+**Commits**: `52884bb` "Phase 1", `c1eeee0` (hydration + dashboard prerender fixes).
+
+**What was built**:
+1. **Database (applied through the Supabase MCP, no manual SQL)**: tables `tenants`, `profiles`, `vehicles`, `inventory_items`, `customers`, `quotes`, `quote_items`, `item_vehicle_compatibility`, all with RLS. Migrations live in `supabase/migrations/`, named after the versions Supabase recorded; `npm run db:push` and `npm run db:types` (`scripts/db.mjs`) push migrations and regenerate `src/lib/types/database.types.ts`.
+2. **Tenant isolation**: every policy checks `tenant_id = private.current_tenant_id()` (moved to schema `private` in Phase 6; the public wrapper is SECURITY INVOKER).
+3. **Sign-up**: trigger `handle_new_shop_registration` creates the tenant and the owner's `admin` profile (later phases also add the walk-in customer and default categories). Pages `src/app/(auth)/register` and `login`.
+4. **App foundation**: Next.js **16.4** App Router with `src/proxy.ts` (replaces `middleware.ts`) and Cache Components (session reads inside `<Suspense>`; `src/lib/supabase/server.ts` awaits `connection()` before reading cookies). Supabase clients in `src/lib/supabase/`. `getShopSession()` in `src/lib/auth.ts` returns the tenant, role (anything but `admin` is staff), name and email.
+5. **Design system**: tokens and layout ported from `design/figma-ui/` into `src/app/globals.css` (mostly plain CSS classes) and `src/app/(dashboard)/layout.tsx` (sidebar + top bar). shadcn/ui is configured; its components import `cn` from `@/lib/utils`.
+6. **Storage**: bucket `shop-assets` for shop logos (`shop-assets/<tenant>/`).
+
+**No longer present**: `process_quote_payment` (§3.3) was dropped in the Phase 5 changes; payments use `invoice_payments` + `record_payment`.
+
+**Open item**: Supabase Auth leaked-password protection is off (a dashboard toggle for the developer).
+
+---
+
+### PHASE 2: NHTSA vPIC Vehicle Engine & Seed Pipeline [COMPLETED]
+**Commit**: `0b1e014` "Phase 2" (catalog extended in Phase 7).
+
+**What was built**:
+1. `src/lib/types/vehicle.ts`: NHTSA response and vehicle row types.
+2. `scripts/seed-vehicles.mts` (`npm run seed:vehicles`, Node's built-in TypeScript, no ts-node/dotenv): 20 makes, cars/trucks/MPVs only, exact `Make_Name` matches (vPIC matches substrings), rate-limited with retries; `--from=YYYY --to=YYYY` (added in Phase 7, default 1981–2026).
+3. Unique key `uq_vehicle_ymm` made NULLS NOT DISTINCT so re-runs skip existing rows (since Phase 7: `(year, make, model, trim, tenant_id)`).
+4. `/api/vehicles` (signed-in only): Year → Make → Model through RPCs `vehicle_years`, `vehicle_makes`, `vehicle_models` (SECURITY INVOKER). Responses are `no-store` (since Phase 7). Client hook `src/lib/hooks/use-vehicle-cascade.ts`.
+
+---
+
+### PHASE 3: Inventory Engine (Universal Fit & YMM Compatibility) [COMPLETED]
+**Commit**: `9693ac7` "Phase 3" (extended in Phases 4, 5 and 7).
+
+**What was built**:
+1. `src/lib/validations/inventory.schema.ts` and `src/lib/actions/inventory.ts` (list, create, update, delete).
+2. RPC `save_inventory_item`: item + vehicle links saved in one transaction; SKUs in capitals, unique per shop; vehicle-specific items need at least one vehicle. (Phase 7: takes `p_category_id`.)
+3. RPC `search_inventory_items`: SKU, name and linked vehicles (Phase 7: also category names), symbols matched literally.
+4. `/inventory` page: `inventory-table.tsx` (name, SKU, category, fitment, cost, selling price, colour-coded margin, stock; rows at or below their own `low_stock_threshold`, default 5, highlighted), `inventory-item-dialog.tsx` (add/edit, Generate SKU, live margin, Universal Fit / Vehicle Specific), `ymm-compatibility-selector.tsx` (Year → Make → Model chips; changing the year keeps the make), delete with confirmation.
+5. Filters in the URL. Any shop member can manage inventory. No pagination (Phase 9).
+
+---
+
+### PHASE 4: B2B Customer Directory, Pakistan Localization & Settings [COMPLETED]
+**Commits**: `0537081` "Phase 4", `135f72b` "Phase 4 Tweaks".
+
+**What was built**:
+1. **Localization (§2.3)**: currency `Rs.`/`PKR` with optional paisa (`formatMoney(amount, tenant.money)` in `src/lib/format.ts`); phones parsed, stored E.164 and shown `0300-1234567` (`src/lib/phone.ts`, also builds `wa.me` links); WhatsApp must be a mobile; international numbers only when `allow_international_phones` is on.
+2. **Tax-inclusive prices**: shop default `prices_include_tax` and per-item `price_includes_tax`.
+3. **Settings** (`/settings`, admins edit, staff view): currency, paisa (live preview), tax rate, prices include tax, international numbers, editable timezone (IANA, grouped by region), dashboard clock (show/hide, digital/analog, 12/24-hour). Phase 5 added quotation validity days and week start; Phase 6 shop details + logo; Phase 7 product categories.
+4. **Customers** (`src/lib/actions/customers.ts`, `/customers` with `customer-dialog.tsx`, profile `/customers/[id]` with WhatsApp button and document history): type badges (Dealership / Fleet / Retail), search by name, contact, phone, email, tax ID; delete blocked once a customer has documents.
+5. Later additions (Phase 5 changes): CNIC/NTN (`cnic_or_ntn`), sales-tax registration + STRN (database-enforced for dealerships/fleet and registered customers), default discount %, credit period (`credit_days`), and one hidden, non-editable "Walk-in / Cash Customer" per shop (`customers.is_walk_in`).
+
+---
+
+### PHASE 5: Drafts, Quotations, Invoices, Payments & Dashboard [COMPLETED]
+**Commits**: `cd9a9e4` (Phase 5), `fa2949f` (`docs/changes.md` rounds 1–5), `80434e2` (branding).
+
+**What was built**:
+1. **One document, three stages**: a `quotes` row moves draft → quotation (`sent` / `accepted` / `cancelled`) → invoice (`invoiced` / `paid`; cancelled invoice = `void`). Sidebar sections `/drafts`, `/quotations`, `/invoices`. Columns `draft_number`, `quotation_number`, `invoice_number` (unique per shop); `quote_number` is GENERATED (the current one). A quotation moved back to drafts keeps its Q- number for re-issue.
+2. **Numbering**: RPC `next_document_number('D'|'Q'|'INV')` returns prefix + (highest used + 1, from 1001), under an advisory lock; new documents preview their next number without reserving it.
+3. **RPCs**: `save_quote` (13 args: lines with per-unit discounts, document discount + required reason, walk-in name/phone, due date), `convert_quote` (to draft / quotation / invoice), `record_payment`, `dashboard_metrics`. Totals computed in SQL, mirrored in `src/lib/quote-math.ts`: line nets → subtotal → document discount → taxable → tax (inclusive lines have tax backed out, exclusive lines get it added).
+4. **Builder** (`src/components/quotes/quote-builder.tsx`, `line-items.tsx`, `line-search.tsx`, `customer-picker.tsx`): SOS-style layout (bill-to left, number/dates/status right, full-width lines, notes and totals at the bottom); customer search with inline registration; Walk-in / Cash button with optional buyer name and phone; customer default discount applied as the document discount; lines from a search box (`/api/quote-items?q`) or custom items (`item_id` null, no stock); inventory unit price fixed server-side; per-unit discount in % or Rs., `sale_price`, line total = qty × sale price; quantity steppers, move up/down, remove; Save & Close / Save as Copy; unsaved-changes guard (`src/lib/hooks/use-leave-guard.ts`); toasts via `src/lib/notify.ts`. **No vehicle picker and no Magic Fit filter on documents** (removed in changes.md round 2 at the product owner's request).
+5. **Stock**: drafts hold nothing; quotations reserve, invoices deduct **at invoicing, not payment** (trigger `quote_items_sync_stock`, SECURITY DEFINER, refuses more than on hand − reserved; `quotes_sync_stage_stock` on status changes). `inventory_items.reserved_quantity` is trigger-only. Quotation validity days (Settings, default 2); expired quotations keep their stock until acted on.
+6. **Payments**: `invoice_payments` (amount, method, date, reference) and `invoice_payment_items` (pay specific lines; share = line total / Σ line totals × invoice total, `src/lib/payments.ts`); trigger keeps `quotes.amount_paid`; `quotes_derive_payment_status` makes invoiced ↔ paid automatic (paid can't be set directly); `quote_items_relink_payments` re-links allocations after lines are replaced. `payment-dialog.tsx`; Mark Unpaid removes payments; delete only with nothing paid.
+7. **Invoice statuses** shown as Pending / Due / Partially Paid / Paid / Cancelled (`statusKey()` in `src/lib/documents.ts`, shop-local dates). Due date = invoice date + customer credit days, editable per invoice.
+8. **Dashboard** (`/dashboard`): one date range from the URL (`?range=today|week|month|year|all|custom&from&to`, `date-range-picker.tsx`, `tenants.week_start`); widgets for sales, profit, tax, pending invoices/quotations, aging, counts, each as Numbers / Bar / Pie per user (`profiles.dashboard_prefs`); hand-rolled SVG charts in `src/components/dashboard/charts.tsx`.
+9. **Vendors**: optional `vendor_name` per item, shown in the item details.
+10. **Branding** (`80434e2`): product name "CarShop.Pk POS System", logos in `public/brand/`, favicons, collapsible sidebar (`html[data-sidebar=collapsed]`), red accent `#D9161F`.
+
+---
+
+### PHASE 6: PDFs, Sharing, Search, Notifications, Reports & Phone Layout [COMPLETED]
+**Commit**: `b2d4fc5` "Phase 6".
+
+**What was built**:
+1. **PDFs** with `@react-pdf/renderer`: `src/components/pdf/document-pdf.tsx`, data loader `src/lib/printable.ts`. A4 with logo, shop details (address, phone, NTN, STRN), customer, lines with discounts, totals; invoices add payments, balance and a status stamp; "Terms & notes" (`tenants.quote_footer_notes`) at the bottom.
+2. **Routes**: `/api/documents/[id]/pdf` (signed in); public `/share/[token]` and `/share/[token]/pdf` (service-role read by `quotes.share_token`; drafts can't be shared).
+3. **Share menu** (`src/components/quotes/share-menu.tsx`): View PDF, Download PDF, Share on WhatsApp (pre-filled message + private link), Copy customer link. Links use `NEXT_PUBLIC_APP_URL` (still `http://localhost:3000` until deployed).
+4. **Shop details** in Settings (name, phone, email, address, NTN, STRN, terms) and logo upload `POST /api/shop/logo`.
+5. **Global search** (Ctrl K, `src/components/shared/global-search.tsx`, `/api/search`): documents by number or customer, customers, parts by name or SKU.
+6. **Notification bell** (RPC `shop_alerts()`): overdue invoices, invoices due within 3 days, low stock, quotations expiring soon, expired quotations still holding stock.
+7. **Reports** (`/reports`, RPC `report_data(range)`): sales, profit, payments collected, money owed, sales chart, top products/customers, payments by method, aging, stock value + low stock; CSV export per table (`src/components/reports/csv-button.tsx`).
+8. **Phone layout**: ☰ slide-out drawer ≤ 768px (`src/components/shared/mobile-nav.tsx`, `html[data-mobile-nav=open]`, closes on backdrop tap, Escape and navigation, shows the full menu whatever the desktop collapse state), 60px top bar with search as an icon, stacked pages, full-width dialogs, wide tables scrolling inside their cards, no sideways page scroll.
+9. **Security**: `rls_auto_enable()` execute revoked; `current_tenant_id()` moved to schema `private`. Dashboard "Coming next" card replaced with Quick actions.
+
+---
+
+### PHASE 7: Product Categories, 1960–2026 Vehicles & Pakistan-Market Catalog [COMPLETED]
+**Commit**: `acc8dc9` "Phase 7".
+
+**What was built**:
+1. **Product categories** (`20261016120000_product_categories.sql`):
+   - Table `public.categories` (`tenant_id`, `parent_id`, `name`, `sort_order`): a per-shop tree, at most 4 levels (trigger `private.categories_check_depth`); names unique per parent (case-insensitive). RLS: members read their shop's categories, only admins change them; a category with items or subcategories can't be deleted (`on delete restrict`).
+   - Default list from `docs/categories.md` (14 main, 157 total) via `private.seed_default_categories()` and trigger `tenants_seed_categories` for new shops.
+   - `inventory_items.category` (text) replaced by `category_id`; existing items mapped (Window Film → Exterior › Wrapping › Tinting Film, Vinyl Wrap → … › Vinyl Wraps, PPF → … › PPF, Car Audio → Audio, Accessories → Others, Hardware / Chemicals → Cleaning & Detailing). `save_inventory_item` takes `p_category_id`; `search_inventory_items` matches category and ancestor names.
+   - Code: `src/lib/categories.ts` (tree index, paths, icons, SKU prefixes per main category), `src/lib/category-data.ts`, `src/lib/actions/categories.ts` (admin-only), Settings → Product categories (`src/components/settings/category-manager.tsx`: search, expand, add, rename, delete), searchable picker `src/components/inventory/category-picker.tsx` in the part dialog (Generate SKU uses the main category prefix, e.g. EXT-).
+   - Inventory filters: category (includes everything below, with counts), Stock (`in`/`low`/`out`), Sort (`name`, `newest`, `stock`, `price-high`, `price-low`). Stock and Sort run in the server action after the query, not in SQL.
+2. **Vehicle years 1960–2026**: `vehicles.year` check 1960–2035 (`20261016173614_vehicle_years_from_1960.sql`); 1981–2014 seeded from NHTSA; for US-only makes, 1960–1980 are copies of each make's 1981 models (`20261016190000_vehicles_1960_1980_from_1981.sql`, an approximation the developer chose); for makes in the Pakistan list those copies were removed (`20261016200000_drop_copied_pre1981_for_pk_makes.sql`).
+3. **Shop vehicles** (`20261016180000_shop_vehicles.sql`): no separate table. `vehicles.tenant_id` is `null` for the shared catalog and set for a shop's own vehicles (RLS: catalog + own shop). RPC `add_vehicle(p_year, p_make, p_model)` returns an existing match (catalog first, case-insensitive) or inserts a shop vehicle; trigger `private.check_fitment_vehicle` blocks linking another shop's vehicle. UI: "Vehicle not listed? Add it" under the vehicle pickers in the **part dialog only** (`src/lib/actions/vehicles.ts`).
+4. **Pakistan-market catalog**: `scripts/data/vehicles-pk.json` (32 makes, ~600 models, production years per model from PakWheels make pages + model knowledge; a few years approximate), loaded by `scripts/seed-pk-vehicles.mts` (`npm run seed:vehicles:pk`, skips existing year/make/model case-insensitively): 8,514 vehicle-years added, 23,273 catalog rows. Short makes shown in capitals (BYD, MG, FAW, DFSK, GWM, BAIC, ORA) by `formatMake`.
+
+---
+
+### PHASE 8: Responsive Foundations, Breakpoint Tokens & iOS Zoom Fix [COMPLETED]
+**Commit**: pending (`Phase 8 - …`).
+
+**What was built**:
+1. **Viewport** (`src/app/layout.tsx`): `viewport` export with `width: device-width`, `initialScale: 1`, `maximumScale: 5`, `viewportFit: "cover"`, `interactiveWidget: "resizes-content"`, `themeColor: "#111113"`.
+2. **Breakpoint tokens** in `:root` (`src/app/globals.css`): `--bp-xs` 480, `--bp-sm` 640, `--bp-md` 768 (phones: drawer, stacked pages), `--bp-lg` 1024 (tablets: icon-rail sidebar), `--bp-xl` 1280, `--bp-2xl` 1536, `--container-max-width` 1720px. Every `@media` now uses one of these widths: 520→480, 560→640, 760→768, 860/920/1080/1100→1024, 1180→1280. Visible effect: the icon-rail sidebar starts below 1024px (was 920px); auth pages, document header/footer, reports and customer profile stack below 1024px.
+3. **No sideways scroll on small laptops**: `.main-shell`'s 900px minimum width is dropped at ≤ 1280px (242px sidebar + 900px scrolled sideways between 1025 and 1141px). Verified at 1440, 1280, 1100, 1030, 1000, 800 and 393px on dashboard, documents, reports, inventory, customers and settings.
+4. **Safe areas**: `--safe-top/bottom/left/right` (`env(safe-area-inset-*)`) applied to the phone top bar, the drawer and page padding.
+5. **iOS auto-zoom fix**: at ≤ 768px every input (except checkbox/radio/range), select and textarea is `font-size: 16px !important`.
+6. **Drawer** (extends Phase 6, `src/components/shared/mobile-nav.tsx`): `translate3d` slide with `will-change: transform` and an eased transition; swipe left to close (the drawer follows the finger via `--drawer-drag` / `html[data-mobile-nav-dragging]`; closes past 70px or on a quick flick; vertical moves are left to scrolling); the drawer's shadow only shows while open (it used to show along the page's left edge).
+7. **Phone top bar** 56px (+ top safe area), was 60px.
+
+---
+
+## 8. ROADMAP (PHASES 9–15): STILL TO BUILD
+
+> **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
+> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
+> 
+> 🛑 **CRITICAL EXECUTION RULE**:  
+> Build **strictly one phase at a time**. **DO NOT** combine phases, skip steps, or build future phases early.  
+> After each phase: **STOP AND PAUSE**, describe what you built, ask the developer to test in the browser and commit, then move the phase into §7 as "What was built" and update the phases after it.  
+> Commit messages always start with `Phase <N> - `.
+
+---
+
+### PHASE 9: Server-Side Pagination & Mobile Table Cards
 **Agent Directive**:
-1. **Connect Supabase MCP & Agent Skills**:
-   Claude Code is equipped with the Supabase MCP server for project `atjbxwhvtattwiivrqbe`:
-   ```bash
-   claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=atjbxwhvtattwiivrqbe&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"
-   npx skills add supabase/agent-skills
-   ```
-2. **Automated Database & Storage Provisioning (No Manual SQL for Human)**:
-   - Claude Code MUST NOT require the human developer to manually copy-paste SQL into the browser.
-   - Use the Supabase MCP server database execution tools (or Supabase CLI) to directly apply the SQL DDL from **Section 3.1 & 3.2** (`tenants`, `profiles`, `vehicles`, `inventory_items`, `customers`, `quotes`, `quote_items`, `item_vehicle_compatibility`, and all RLS policies).
-   - Execute the stored procedure from **Section 3.3** (`process_quote_payment`).
-   - Create and configure the public `shop-assets` storage bucket for shop logos.
-   - Run a verification query to confirm all 8 tables and functions exist.
-   - Generate TypeScript database types directly into `src/lib/types/database.types.ts`.
-3. **Initialize Next.js App Router**:
-   ```bash
-   npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*"
-   ```
-4. **Install Foundational Dependencies & shadcn/ui**:
-   ```bash
-   npm install @supabase/supabase-js @supabase/ssr lucide-react clsx tailwind-merge class-variance-authority zod react-hook-form @hookform/resolvers
-   npx shadcn-ui@latest init
-   npx shadcn-ui@latest add button dialog input label select table card badge dropdown-menu toast
-   ```
-5. **Port Visual Design System**:
-   - Inspect `design/figma-ui/src/index.css` and incorporate the color tokens, button classes, and badge styles into `src/app/globals.css`.
-   - Adapt the sidebar and topbar navigation from `design/figma-ui/src/App.tsx` into `src/app/(dashboard)/layout.tsx`.
-6. **Implement Supabase Auth & Multi-Shop Onboarding**:
-   - Create Supabase client utilities in `src/lib/supabase/client.ts`, `server.ts`, and `middleware.ts` connecting to project `atjbxwhvtattwiivrqbe`.
-   - Build the Shop Registration & Login pages (`src/app/(auth)/register/page.tsx` and `login/page.tsx`). On registration, automatically create both the `tenants` and `profiles` records in a single flow.
+1. **Pagination bar** `src/components/ui/pagination-bar.tsx`: "Showing **1–25** of **1,480**", `« First`, `‹ Previous`, page numbers with `…`, `Next ›`, `Last »`, rows per page (25/50/100); synced to `?page=&limit=` keeping the existing URL filters; a filter change resets to page 1.
+2. **Range queries with exact counts**: `getInventoryItems(filters, pagination)`, `getCustomers(filters, pagination)`, `getDocuments(section, filters, pagination)`. Move the Phase 7 Stock filter and Sort from JavaScript into SQL so pages and counts are right.
+3. **Cards below 768px** (replacing the Phase 6 in-card table scroll; tables unchanged on larger screens):
+   - Inventory: SKU, name, category pill, available/reserved pill, price, tap for details.
+   - Customers: name, type badge, one-tap WhatsApp, balance due, document count.
+   - Documents: number, status badge, customer, date/due date, total, balance.
 
 🛑 **PAUSE & CHECKPOINT**:  
-*Prompt the human developer*:
-> "Phase 1 complete! I have automatically executed the database migrations, enabled RLS, deployed the payment procedure, and built the registration flow. Please test user registration at http://localhost:3000/register. When verified, run `git add . && git commit -m 'feat: phase 1 - automated supabase db setup, auth & multi-tenant rls'` and tell me to continue to Phase 2."
+> "Phase 9 complete! Please test: 1) on desktop, `/inventory`, `/customers` and `/invoices` page correctly, rows per page works, the URL updates and filters are kept, 2) at 390px the tables become cards with no sideways scroll. Then run `git add . && git commit -m 'Phase 9 - server-side pagination and mobile table cards'` and tell me to begin Phase 10."
 
 ---
 
-### PHASE 2: NHTSA vPIC Vehicle Engine & Seed Pipeline
-**Agent Directive**:
-1. Implement TypeScript interfaces for NHTSA vPIC responses and database vehicle rows in `src/lib/types/vehicle.ts`.
-2. Build the ingestion CLI script in `scripts/seed-vehicles.ts` using the exact rate-limited batch logic from Section 4.3 of this specification.
-3. Add a script command in `package.json`:
-   ```json
-   "seed:vehicles": "ts-node -r dotenv/config scripts/seed-vehicles.ts"
-   ```
-4. Create a cached Next.js API route or Server Action in `src/app/api/vehicles/route.ts` that provides cascading vehicle queries:
-   - Query 1: Get distinct Years (`SELECT DISTINCT year FROM vehicles ORDER BY year DESC`)
-   - Query 2: Get Makes for a selected Year (`SELECT DISTINCT make FROM vehicles WHERE year = ?`)
-   - Query 3: Get Models for a selected Year + Make (`SELECT DISTINCT model, id FROM vehicles WHERE year = ? AND make = ?`)
+### PHASE 10: Mobile Document Builder & Sticky Cashier Bar
+**Agent Directive** (extends the Phase 5 builder):
+1. **Sticky cashier bar** `src/components/quotes/mobile-action-bar.tsx`: bottom of the screen on phones (`position: sticky; bottom: 0; z-index: 40` + safe-area inset), live grand total, line count, primary action (Save / Record Payment), translucent blurred background.
+2. **Line cards below 768px** (`.mobile-line-card`): ≥ 44px +/− buttons (reusing the existing stepper logic), unit price and discount in a tap-to-edit sheet, one-tap delete with an undo toast.
+3. **Full-screen search sheets on phones** for `line-search.tsx` and `customer-picker.tsx`: slide-up, auto-focused, category filter chips, tap to add.
+4. **Header accordion on phones**: customer, document details, dates, due date and status in a collapsible touch card.
 
 🛑 **PAUSE & CHECKPOINT**:  
-*Prompt the human developer*:
-> "Phase 2 complete! Please run `npm run seed:vehicles` to populate your Supabase `vehicles` table with common automotive makes and models. Verify that the vehicles table has data, run `git add . && git commit -m 'feat: phase 2 - nhtsa vehicle engine and seed pipeline'`, and confirm when you are ready for Phase 3."
+> "Phase 10 complete! Please test `/invoices/new` in mobile emulation: 1) the full-screen part search adds items, 2) the large +/− buttons work, 3) the bottom bar shows the live total and main button, 4) save the invoice. Then run `git add . && git commit -m 'Phase 10 - mobile document builder and sticky cashier bar'` and tell me to begin Phase 11."
 
 ---
 
-### PHASE 3: Inventory Engine (Universal Fit & YMM Compatibility)
+### PHASE 11: Bottom-Sheets, Quick Cash & 80mm Thermal Receipts
 **Agent Directive**:
-1. Implement the Zod validation schema for inventory items in `src/lib/validations/inventory.schema.ts`.
-2. Create Server Actions for Inventory CRUD in `src/lib/actions/inventory.ts`:
-   - `getInventoryItems(filters: { category?, search?, fitment? })`
-   - `createInventoryItem(data)` (handles both `is_universal = true` and vehicle junction table inserts)
-   - `updateInventoryItem(id, data)`
-   - `deleteInventoryItem(id)`
-3. Build the Inventory Management UI:
-   - `src/app/(dashboard)/inventory/page.tsx`
-   - `src/components/inventory/inventory-table.tsx` (displays SKU, Name, Cost, Selling Price, Margin %, Stock Pills)
-   - `src/components/inventory/ymm-compatibility-selector.tsx` (allows linking a part to multiple YMM vehicles)
-4. Implement the Low-Stock Alert visual indicators (highlighting rows with $\le 5$ units).
+1. **Bottom-sheets below 768px** for the app's Radix `.modal*` dialogs (16px top corners, drag handle, `max-height: 90vh`, actions pinned above the keyboard): part dialog (`inventory-item-dialog.tsx`), customer dialog (`customer-dialog.tsx`), payment dialog (`payment-dialog.tsx`).
+2. **Dashboard date range picker on phones** (`date-range-picker.tsx`): a one-month calendar in a bottom sheet instead of the two-month popover.
+3. **80mm thermal receipt** `src/components/pdf/thermal-receipt.tsx`: continuous roll (Epson, Xprinter, Sunmi), compact shop header, number, date, customer, condensed items, tax/discount summary, payment method, balance, QR code to the share link; "Print POS Slip (80mm)" in the Phase 6 Share menu and document actions.
+4. **Quick cash & change** in `payment-dialog.tsx`: `+Rs. 500`, `+Rs. 1,000`, `+Rs. 5,000`, `Exact Amount`, and "Received: Rs. 5,000 → Change Due: Rs. 350" (cash above the balance is change, not a payment).
+5. **Touch targets ≥ 44px**: category picker and manager rows, filter chips, table row actions.
 
 🛑 **PAUSE & CHECKPOINT**:  
-*Prompt the human developer*:
-> "Phase 3 complete! Open `/inventory` in your browser. Create 1 Universal item (e.g. 'Standard Window Cleaner') and 1 Vehicle-Specific item (e.g. 'Ford F-150 Pre-cut Ceramic Tint'). Verify both items save to Supabase and show appropriate fitment tags. Run `git add . && git commit -m 'feat: phase 3 - inventory management and ymm compatibility'` and instruct me to begin Phase 4."
+> "Phase 11 complete! Please test: 1) 'Add New Part' on mobile opens as a bottom sheet with Save reachable, 2) 'Record Payment' quick cash buttons and Change Due, 3) 'Print POS Slip (80mm)' opens an 80mm print preview, 4) the dashboard date picker on a phone. Then run `git add . && git commit -m 'Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts'` and tell me to begin Phase 12."
 
 ---
 
-### PHASE 4: B2B Customer Directory & WhatsApp CRM
+### PHASE 12: Superadmin Schema, Shop Settings Columns & Resend Email
 **Agent Directive**:
-1. **Pakistan localization (§2.3)**:
-   - Migration on `tenants`: currency limited to `Rs.` / `PKR` with default `Rs.` (existing shops move from `$` to `Rs.`); add `timezone text not null default 'Asia/Karachi'` and `allow_international_phones boolean not null default false`.
-   - Shared phone helpers in `src/lib/phone.ts`: parse/normalize to E.164, format for display (`0300-1234567`), build `wa.me` links.
-   - Currency formatting `Rs. 12,500.00` and date formatting in the shop timezone in `src/lib/format.ts`.
-   - Minimal shop Settings page (`src/app/(dashboard)/settings/page.tsx`, admins only): currency (`Rs.` / `PKR`) and the international-numbers switch. The rest of Feature A settings comes in a later phase.
-2. Create Customer Zod schema in `src/lib/validations/customer.schema.ts` using the §2.3 phone rules (Pakistani local format by default, `+` international only when the shop allows it; WhatsApp must be a mobile).
-3. Build Customer Server Actions in `src/lib/actions/customers.ts` (List, Create, Update, Get with Purchase History).
-4. Build Customer Management UI:
-   - `src/app/(dashboard)/customers/page.tsx` (Customer table with badges for Dealership, Fleet, Retail)
-   - Add / edit customer as a modal on the list page (matching the inventory pattern), instead of a separate `customers/new` page
-   - `src/app/(dashboard)/customers/[id]/page.tsx` (Client profile with quick WhatsApp launch button and full quote history).
+1. **Migration** `supabase/migrations/<timestamp>_superadmin_and_scaling.sql`:
+   - `profiles.is_superadmin boolean not null default false` + partial index; not writable by `authenticated`.
+   - `public.superadmin_audit_logs` (admin id, target tenant/user id, action, details diff JSONB, IP, created_at).
+   - `public.email_logs` (tenant id, recipient, template type, subject, resend id, status, error, metadata, created_at).
+   - New `tenants` columns: `status` ('active' | 'suspended' | 'trial'), `invoice_prefix` / `quote_prefix` / `draft_prefix` (defaults `INV` / `Q` / `D`), `invoice_start_number` / `quote_start_number` / `draft_start_number` (a "start from" floor, not a counter), `bank_name`, `bank_account_title`, `bank_account_number`, `bank_iban`, `bank_raast_id`, `bank_wallets`, `invoice_terms`, `print_format`.
+   - Update the Phase 5 `next_document_number` to use the shop's prefix and `greatest(highest used, start − 1) + 1`, still derived from existing documents. `quote_footer_notes` stays as the quotation terms.
+   - RLS and grants for the new tables and columns.
+2. **Resend**: `npm install resend`; `src/lib/email/client.ts` with console fallback when `RESEND_API_KEY` is missing.
+3. **Templates** in `src/lib/email/templates/`: welcome, password reset (1-hour link), staff invite, document share (link + PDF from the Phase 6 renderer), payment receipt.
+4. **`sendTransactionalEmail()`** in `src/lib/actions/email.ts`, logging every send to `email_logs`.
 
 🛑 **PAUSE & CHECKPOINT**:  
-*Prompt the human developer*:
-> "Phase 4 complete! Navigate to `/customers` and add a test customer (e.g., 'Precision Auto Dealership' with WhatsApp `0300-1234567`). Check that Pakistani numbers validate, that `+` international numbers are rejected until you enable them in Settings, and that prices show as `Rs.`. Run `git add . && git commit -m 'feat: phase 4 - b2b customer directory'` and tell me to proceed to Phase 5."
+> "Phase 12 complete! Please verify: 1) `is_superadmin` on `profiles` and the `email_logs` table exist, 2) a test email is delivered (or logged to the console without a key) and appears in `email_logs`, 3) existing documents keep their numbers and new ones continue the series. Then run `git add . && git commit -m 'Phase 12 - superadmin schema, shop settings columns and resend email'` and tell me to begin Phase 13."
 
 ---
 
-### PHASE 5: The Quoting Engine & Magic YMM Fitment Filter
+### PHASE 13: Superadmin Control Plane (`/admin`)
 **Agent Directive**:
-1. Build the Quoting Server Actions in `src/lib/actions/quotes.ts`:
-   - Auto-generate sequential quote numbers (e.g. `Q-1001`, `Q-1002`) isolated per tenant.
-   - `createQuote(payload)` and `updateQuote(id, payload)` with line items.
-2. Build the Quoting Wizard at `src/app/(dashboard)/quotes/new/page.tsx`:
-   - Customer Combobox selector.
-   - Cascading Vehicle Selector (Year $\rightarrow$ Make $\rightarrow$ Model).
-   - **The Magic Fit Filter**: When a vehicle is chosen, filter inventory parts to show:
-     ```typescript
-     const compatibleItems = allItems.filter(item => 
-       item.is_universal || item.compatible_vehicle_ids.includes(selectedVehicleId)
-     );
-     ```
-   - Dynamic Line Items Editor: Add inventory parts OR custom non-inventory labor lines.
-   - Live Subtotal, Shop Tax calculation, and Grand Total display.
-3. ~~Build the Quotes Pipeline List at `src/app/(dashboard)/quotes/page.tsx` with status filter tabs (`Draft`, `Sent`, `Invoiced`, `Paid`).~~ Replaced by the three sections below (requested by the product owner, 2026-10-15).
-4. **Separate Drafts / Quotations / Invoices sections.** One sidebar item each instead of a single "Quotes & POS" list. All three are the same kind of document (a `quotes` row with line items) at different stages, so nothing is re-typed when converting:
-
-   | Section | Route | Shows statuses | Number series |
-   | :--- | :--- | :--- | :--- |
-   | **Drafts** | `/drafts` | `draft` | `D-1001`… (internal only) |
-   | **Quotations** | `/quotations` | `sent`, `accepted`, `cancelled` | `Q-1001`… |
-   | **Invoices** | `/invoices` | `invoiced`, `paid` | `INV-1001`… |
-
-   - **Conversions** (one click, with confirmation):
-     - Draft → Quotation: status `sent`, gets the next `Q-` number.
-     - Draft → Invoice: status `invoiced`, gets the next `INV-` number.
-     - Quotation → Invoice: status `invoiced`, gets the next `INV-` number and keeps a link to the quotation (e.g. "from Q-1004").
-   - Invoices are not converted back. A quotation can be cancelled; an invoice is settled by marking it paid (Phase 6).
-   - "New" buttons: create a draft from Drafts or Quotations, or bill directly from Invoices (walk-in sale).
-   - Each document keeps every number it has had (draft → quotation → invoice), so the customer history and PDFs stay traceable. Built as `draft_number`, `quotation_number` and `invoice_number` columns (unique per tenant), with `quote_number` generated as the current one. Conversions update the same row, so it needs no separate `converted_from` link: an invoice's own `quotation_number` is where it came from.
-   - Totals are worked out in SQL (`save_quote`), with the same maths mirrored in `src/lib/quote-math.ts` for the live preview. The discount is quote-level (Rs. or %), and unit prices are editable per line. Tax-inclusive prices have tax backed out; tax-exclusive prices have it added.
-   - Drafts can be deleted. Quotations can be accepted, cancelled or re-opened. Drafts, open quotations and unpaid invoices can be edited; paid invoices and cancelled quotations are read-only.
+1. **Guard**: `requireSuperadmin()` in `src/lib/superadmin.ts`; `/admin` redirects non-superadmins to `/dashboard` in `src/proxy.ts`.
+2. **Layout & KPIs** (`src/app/admin/`, `src/components/admin/admin-navbar.tsx`, dark slate / racing red): total shops, active users, platform GMV, invoice/quote totals, signups chart (reuse `src/components/dashboard/charts.tsx`), recent activity.
+3. **Tenants** (`src/app/admin/tenants/`): search/filter (name, slug, phone, owner email, status); Create Organization (through the existing sign-up provisioning, + welcome email); Edit Company Details (reuse `shop-profile-form.tsx` and `/api/shop/logo`); Suspend / Activate (suspended shops blocked at login with a polite message).
+4. **Users** (`src/app/admin/users/`): cross-tenant search, Reset Password (Resend email or temporary password), change role.
+5. **Impersonation ("Login As")**: signed cookie `carshop_impersonation`, warning banner with Exit on every page, all actions logged to `superadmin_audit_logs`. Decide first how tenant isolation works while impersonating (RLS uses `private.current_tenant_id()` from the caller's profile): service-role reads with explicit `tenant_id` filters, or a verified superadmin claim honoured by `current_tenant_id()`.
 
 🛑 **PAUSE & CHECKPOINT**:  
-*Prompt the human developer*:
-> "Phase 5 complete! Test creating a quote at `/quotes/new`: Select a vehicle and verify that the inventory selector dynamically hides incompatible parts while displaying universal items. Save a draft quote. Run `git add . && git commit -m 'feat: phase 5 - quoting engine & ymm magic filter'` and prompt me to proceed to Phase 6."
+> "Phase 13 complete! Please test: 1) set `is_superadmin = true` on your profile, 2) `/admin` shows KPIs, 3) create a test shop, 4) edit its details, 5) Impersonate Shop shows the exit banner, 6) trigger a password reset. Then run `git add . && git commit -m 'Phase 13 - superadmin control plane, tenants, users and impersonation'` and tell me to begin Phase 14."
 
 ---
 
-### PHASE 6: PDF Generation, WhatsApp Dispatch & Atomic Stock Deduction
+### PHASE 14: Settings Sections, Team, Document Numbering & Bank Details
+**Agent Directive** (uses the Phase 12 columns):
+1. **Settings sections/tabs**: Profile, Localization, Categories, Team, Documents, Printing, POS, moving the existing Settings cards (Phases 4, 6, 7) rather than rebuilding them.
+2. **Team** (`/settings/team`): members with role and status (Active / Invited); Invite Team Member (name, email, role → token + Resend email); change role, deactivate, resend invite.
+3. **Documents** (`/settings/documents`): prefixes and "start from" numbers (e.g. continue from 5001); quotation terms (`quote_footer_notes`) vs invoice payment terms (`invoice_terms`) printed on the matching documents.
+4. **Bank details**: bank name, account title, account number, IBAN, Raast ID, mobile wallets (JazzCash/EasyPaisa); Bank Remittance card on invoice PDFs (`document-pdf.tsx`) and on `/share/[token]` with Copy IBAN.
+
+🛑 **PAUSE & CHECKPOINT**:  
+> "Phase 14 complete! Please test: 1) Settings → Documents: set prefixes and bank details, 2) an invoice PDF shows Bank Remittance below the totals, 3) `/share/<token>` shows the bank card with Copy IBAN, 4) Settings → Team: invite a test staff member. Then run `git add . && git commit -m 'Phase 14 - settings sections, team, numbering and bank details'` and tell me to begin Phase 15."
+
+---
+
+### PHASE 15: Inventory CSV Import/Export, Chart Labels, 4K Containment & Final Build
 **Agent Directive**:
-1. Install and configure `@react-pdf/renderer`:
-   ```bash
-   npm install @react-pdf/renderer
-   ```
-2. Build the vector PDF quote template in `src/components/pdf/quote-pdf-document.tsx`:
-   - Embeds Shop Logo, Shop Details, Customer Name, Vehicle YMM, Itemized Table, Totals, and Shop Terms/Disclaimer.
-3. Implement the WhatsApp sharing link generator in `src/lib/utils/whatsapp.ts`:
-   - Format: `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
-   - Message includes: Quote Number, Vehicle, Total Price, and a link to view the quote.
-4. ~~Payment modal~~ Built early (see Feature D step 5): payments, partial payments, Mark Unpaid and invoice statuses already exist.
-5. Show the payment status and balance on the PDF.
+1. **Inventory CSV** `src/components/inventory/csv-import-dialog.tsx` + `src/lib/actions/inventory-csv.ts`: sample template (SKU, Name, Category path e.g. `Exterior › Wrapping › PPF`, Cost, Sale Price, Stock, Universal, Vendor), client-side parsing, validation preview with errors highlighted, batch insert following `save_inventory_item` rules; "Export Inventory (CSV)" (reuse the Phase 6 CSV helper).
+2. **Chart labels below 480px** in `src/components/dashboard/charts.tsx` (already `viewBox`-scaled): show every other bar label so dates don't collide.
+3. **Large screens**: `max-width: 1720px; margin: 0 auto;` on page content for 1440p/4K.
+4. **Final verification**: `npm run lint && npm run build` and a pass over phone, tablet, laptop, desktop and ultrawide.
 
-🛑 **PAUSE & FINAL PROJECT SIGNOFF**:  
-*Prompt the human developer*:
-> "Phase 6 complete! The full MVP Quoting and Inventory Engine is now operational. Please test: 1) Generating and viewing a PDF quote, 2) Clicking 'Share to WhatsApp' to verify the pre-filled message, and 3) Checking the PDF shows the invoice's payments and balance due. Run `git add . && git commit -m 'feat: phase 6 - pdf generation, whatsapp dispatch & inventory deduction'`."
+🛑 **PAUSE & FINAL SIGNOFF**:  
+> "Phase 15 complete! Lint and the production build pass. All phases are done. Please run `git add . && git commit -m 'Phase 15 - inventory csv import/export, chart labels and 4k containment'`."
 
 ---
 
-## 8. SUMMARY FOR THE DEVELOPER & AI AGENTS
+
+## 9. SUMMARY FOR THE DEVELOPER & AI AGENTS
 
 This specification represents the **single source of truth** for this codebase. Any AI agent (Claude Code, Antigravity) reading this file must:
 - Respect the **Strict Scope** (No online payment gateways, no complex warehouse tracking).
-- Enforce the **Multi-Tenant RLS Digital Lock** on every query and mutation.
-- Use the **NHTSA vPIC Data** to power the cascading vehicle selectors.
-- Deliver a clean, professional, high-performance UI tailored specifically for automotive accessory sellers, retail stores, and outfitter shops.
+- Enforce the **Multi-Tenant RLS Digital Lock** on every tenant query and mutation.
+- Use **Server Actions with `requireSuperadmin()`** and `createAdminClient()` for all platform administration operations.
+- Ensure **all UI features are fully responsive** across Mobile, Tablet, Laptop, Desktop, and Ultrawide displays with zero horizontal window scrolling.
+- Follow the **Sequential Phases** with strict pause-and-checkpoint verification after each phase.
+
+

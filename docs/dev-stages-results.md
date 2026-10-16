@@ -534,3 +534,21 @@ Pakistan-market vehicles, 2026-10-16:
 
 Test steps:
   1. Add New Part → Vehicle Specific: try 1985 → Suzuki (Khyber, FX…), 2016 → Suzuki (Mehran), 2025 → Changan / Haval / BYD / Prince.
+
+Phase 8 (responsive foundations), 2026-10-17:
+  - Viewport settings (notch-aware, keyboard resizes the page, zoom allowed up to 5x, dark browser bar colour).
+  - Breakpoints consolidated onto 480 / 640 / 768 / 1024 / 1280 / 1536px (tokens in globals.css). The icon-rail sidebar now
+    starts below 1024px (was 920px).
+  - Fixed: screens 1025–1141px wide scrolled sideways (the main area had a 900px minimum width).
+  - iPhone notch / home-bar spacing on the top bar, menu and pages.
+  - No zoom-in when tapping a field on iPhone: phone fields use 16px text.
+  - Menu: smoother slide, swipe left to close (it follows your finger), its shadow no longer shows on the page's left edge.
+  - Phone top bar 56px.
+Typecheck and lint pass; browser test passed 54 checks (no sideways scroll at 1440/1280/1100/1030/1000/800/393px on six pages,
+16px fields, 56px bar, ☰ open, swipe close, short swipe snaps back, vertical scroll keeps it open, backdrop tap).
+
+Test steps (Chrome DevTools → device toolbar → iPhone 14 Pro):
+  1. Tap a field (search, a form): the page doesn't zoom.
+  2. Tap ☰, then swipe the menu left: it follows your finger and closes; a short swipe snaps back. Tap the dark area to close too.
+  3. Open each page: no sideways scrolling. Then try a 1100px-wide window: no sideways scrollbar.
+  4. Commit: git add . && git commit -m "Phase 8 - responsive breakpoint tokens, drawer polish and ios zoom fix"
