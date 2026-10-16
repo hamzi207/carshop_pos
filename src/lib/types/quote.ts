@@ -49,19 +49,18 @@ export type QuoteDocument = Tables<"quotes"> & {
   payments: (Tables<"invoice_payments"> & { allocations: Tables<"invoice_payment_items">[] })[];
 };
 
-/** An inventory part offered by the line-item search. */
+/** An inventory part offered by the line-item search (with its category's name). */
 export type PickerItem = Pick<
   Tables<"inventory_items">,
   | "id"
   | "sku"
   | "name"
-  | "category"
   | "selling_price"
   | "quantity_on_hand"
   | "reserved_quantity"
   | "low_stock_threshold"
   | "price_includes_tax"
->;
+> & { category: { name: string } | null };
 
 /** GET /api/quote-items */
 export type PickerItemsResponse = { items: PickerItem[] };

@@ -1,7 +1,5 @@
 Product Categories:
 
-Accessories: 
-
 Interior
 - Floor Mats
 - Seat Covers

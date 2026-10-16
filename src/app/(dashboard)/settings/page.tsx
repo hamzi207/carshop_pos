@@ -1,17 +1,23 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getShopSession } from "@/lib/auth";
+import { getCategories, getCategoryCounts } from "@/lib/category-data";
 import { timeZoneGroups } from "@/lib/timezones";
 import type { Currency } from "@/lib/validations/settings.schema";
 import { formatPhone } from "@/lib/phone";
 import { formatStrn } from "@/lib/tax-id";
+import { CategoryManager } from "@/components/settings/category-manager";
 import { ShopProfileForm } from "@/components/settings/shop-profile-form";
 import { ShopSettingsForm } from "@/components/settings/shop-settings-form";
 
 export const metadata: Metadata = { title: "Settings" };
 
 async function SettingsContent() {
-  const { tenant, role, fullName, email } = await getShopSession();
+  const [{ tenant, role, fullName, email }, categories, counts] = await Promise.all([
+    getShopSession(),
+    getCategories(),
+    getCategoryCounts(),
+  ]);
   const facts = [
     { label: "Shop handle", value: tenant.slug, mono: true },
     { label: "Shop ID", value: tenant.id, mono: true },
@@ -51,6 +57,7 @@ async function SettingsContent() {
           allowInternationalPhones: tenant.allowInternationalPhones,
         }}
       />
+      <CategoryManager categories={categories} counts={counts} canEdit={role === "admin"} />
     </div>
   );
 }
@@ -62,7 +69,7 @@ export default function SettingsPage() {
         <div>
           <span className="eyebrow">SHOP SETTINGS</span>
           <h1>Settings</h1>
-          <p>Your shop&apos;s details, currency, tax, phone numbers and timezone.</p>
+          <p>Your shop&apos;s details, currency, tax, phone numbers, timezone and product categories.</p>
         </div>
       </div>
       <Suspense fallback={<section className="card"><div className="empty-state">Loading settings…</div></section>}>

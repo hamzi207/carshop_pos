@@ -2,6 +2,8 @@
 
 import { refresh } from "next/cache";
 import { z } from "zod";
+import { buildCategoryIndex, descendantIds } from "@/lib/categories";
+import { getCategories } from "@/lib/category-data";
 import { createClient } from "@/lib/supabase/server";
 import type { InventoryListItem } from "@/lib/types/inventory";
 import {
@@ -23,7 +25,7 @@ const itemIdSchema = z.uuid();
 const ITEM_WITH_FITMENT = "*, item_vehicle_compatibility(vehicles(id, year, make, model, trim))";
 
 export async function getInventoryItems(filters: InventoryFilters = {}): Promise<InventoryListItem[]> {
-  const { category, search, fitment } = inventoryFiltersSchema.parse(filters);
+  const { category, search, fitment, stock, sort } = inventoryFiltersSchema.parse(filters);
   const supabase = await createClient();
 
   // Search runs in SQL (search_inventory_items) because it has to match SKU,
@@ -35,7 +37,11 @@ export async function getInventoryItems(filters: InventoryFilters = {}): Promise
       : supabase.from("inventory_items").select(ITEM_WITH_FITMENT)
   ).order("name");
 
-  if (category) query = query.eq("category", category);
+  if (category) {
+    // The category and everything below it; an unknown id matches nothing.
+    const node = buildCategoryIndex(await getCategories()).byId.get(category);
+    query = query.in("category_id", node ? descendantIds(node) : [category]);
+  }
   if (fitment) query = query.eq("is_universal", fitment === "universal");
 
   const { data, error } = await query;
@@ -44,12 +50,34 @@ export async function getInventoryItems(filters: InventoryFilters = {}): Promise
     throw new Error("Could not load inventory.");
   }
 
-  return data.map(({ item_vehicle_compatibility, ...item }) => ({
+  const items: InventoryListItem[] = data.map(({ item_vehicle_compatibility, ...item }) => ({
     ...item,
     vehicles: item_vehicle_compatibility
       .flatMap((link) => (link.vehicles ? [link.vehicles] : []))
       .sort((a, b) => b.year - a.year || a.make.localeCompare(b.make) || a.model.localeCompare(b.model)),
   }));
+
+  // Stock compares columns (available = on hand − reserved vs the alert level), so it
+  // filters here rather than in the query; the list is one shop's parts.
+  const available = (i: InventoryListItem) => i.quantity_on_hand - i.reserved_quantity;
+  const shown = stock
+    ? items.filter((i) =>
+        stock === "in" ? available(i) > 0 : stock === "out" ? available(i) <= 0 : available(i) <= i.low_stock_threshold,
+      )
+    : items;
+
+  switch (sort) {
+    case "newest":
+      return shown.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case "stock":
+      return shown.sort((a, b) => available(a) - available(b) || a.name.localeCompare(b.name));
+    case "price-high":
+      return shown.sort((a, b) => Number(b.selling_price) - Number(a.selling_price));
+    case "price-low":
+      return shown.sort((a, b) => Number(a.selling_price) - Number(b.selling_price));
+    default:
+      return shown;
+  }
 }
 
 /** Creates (no id) or updates an item and its vehicle fitment in one transaction. */
@@ -71,7 +99,7 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
     p_sku: item.sku,
     p_name: item.name,
     p_description: item.description || undefined,
-    p_category: item.category,
+    p_category_id: item.categoryId,
     p_cost_price: item.costPrice,
     p_selling_price: item.sellingPrice,
     p_quantity_on_hand: item.quantityOnHand,
@@ -97,6 +125,9 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
         console.error("saveInventoryItem failed:", error);
         return { status: "error", message: "We couldn't save this item. Please try again." };
       case "23503":
+        if (error.message.includes("inventory_items_category_fkey")) {
+          return { status: "error", field: "categoryId", message: "That category no longer exists. Choose another one." };
+        }
         return { status: "error", field: "vehicleIds", message: "One of the selected vehicles no longer exists. Remove it and try again." };
       case "22023":
         return { status: "error", field: "vehicleIds", message: error.message };

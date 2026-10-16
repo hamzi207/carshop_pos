@@ -1,9 +1,14 @@
 "use client";
 
-import { Car, Loader2, X } from "lucide-react";
+import { useState } from "react";
+import { Car, Loader2, Plus, X } from "lucide-react";
+import { addVehicle } from "@/lib/actions/vehicles";
 import { formatMake, formatVehicle } from "@/lib/format";
 import { useVehicleCascade } from "@/lib/hooks/use-vehicle-cascade";
 import type { FitmentVehicle } from "@/lib/types/inventory";
+
+// Newest first; a vehicle can be added for any year the catalog accepts.
+const ADD_YEARS = Array.from({ length: new Date().getFullYear() + 1 - 1960 + 1 }, (_, i) => new Date().getFullYear() + 1 - i);
 
 type Props = {
   value: FitmentVehicle[];
@@ -18,7 +23,8 @@ type Props = {
  * which makes "same model, several years" a two-click job.
  */
 export function YmmCompatibilitySelector({ value, onChange, error }: Props) {
-  const { years, year, makes, make, models, loading, error: lookupError, selectYear, selectMake } = useVehicleCascade();
+  const { years, year, makes, make, models, loading, error: lookupError, selectYear, selectMake, showAdded } =
+    useVehicleCascade();
 
   const selectedIds = new Set(value.map((v) => v.id));
 
@@ -29,6 +35,29 @@ export function YmmCompatibilitySelector({ value, onChange, error }: Props) {
   };
 
   const remove = (id: number) => onChange(value.filter((v) => v.id !== id));
+
+  // "Vehicle not listed?": saved for this shop and linked to the part straight away.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ year: "", make: "", model: "" });
+  const [addError, setAddError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const openAdd = () => {
+    setDraft({ year: year === "" ? "" : String(year), make: make ? formatMake(make) : "", model: "" });
+    setAddError(null);
+    setAdding(true);
+  };
+
+  const saveVehicle = async () => {
+    setSaving(true);
+    const result = await addVehicle({ year: Number(draft.year), make: draft.make, model: draft.model });
+    setSaving(false);
+    if (result.status === "error") return setAddError(result.message);
+    const vehicle = result.vehicle;
+    if (!selectedIds.has(vehicle.id)) onChange([...value, vehicle]);
+    setAdding(false);
+    void showAdded(vehicle.year, vehicle.make);
+  };
 
   return (
     <div className="vehicle-multi">
@@ -73,6 +102,68 @@ export function YmmCompatibilitySelector({ value, onChange, error }: Props) {
         </select>
         {loading && <Loader2 size={14} className="animate-spin" aria-label="Loading" />}
       </div>
+
+      {adding ? (
+        // Not a <form>: this sits inside the part dialog's form.
+        <div
+          className="ymm-add"
+          role="group"
+          aria-label="Add a vehicle that isn't listed"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (!saving) void saveVehicle();
+            } else if (e.key === "Escape") {
+              e.stopPropagation();
+              setAdding(false);
+            }
+          }}
+        >
+          <select aria-label="Year of the new vehicle" value={draft.year} onChange={(e) => setDraft({ ...draft, year: e.target.value })}>
+            <option value="">Year</option>
+            {ADD_YEARS.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+          <input
+            aria-label="Make of the new vehicle"
+            placeholder="Make, e.g. Suzuki"
+            maxLength={64}
+            list="ymm-add-makes"
+            value={draft.make}
+            onChange={(e) => setDraft({ ...draft, make: e.target.value })}
+          />
+          <datalist id="ymm-add-makes">
+            {makes.map((m) => (
+              <option key={m} value={formatMake(m)} />
+            ))}
+          </datalist>
+          <input
+            aria-label="Model of the new vehicle"
+            placeholder="Model, e.g. Mehran"
+            maxLength={64}
+            autoFocus
+            value={draft.model}
+            onChange={(e) => setDraft({ ...draft, model: e.target.value })}
+          />
+          <button
+            type="button"
+            className="ymm-add-save"
+            disabled={saving || !draft.year || !draft.make.trim() || !draft.model.trim()}
+            onClick={() => void saveVehicle()}
+          >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />} Add
+          </button>
+          <button type="button" className="ymm-add-cancel" aria-label="Cancel adding a vehicle" onClick={() => setAdding(false)}>
+            <X size={14} />
+          </button>
+          {addError && <span className="field-error" role="alert">{addError}</span>}
+        </div>
+      ) : (
+        <button type="button" className="ymm-add-link" onClick={openAdd}>
+          <Plus size={12} /> Vehicle not listed? Add it
+        </button>
+      )}
 
       <div className="vehicle-chips" aria-live="polite" aria-invalid={error ? true : undefined}>
         {value.length === 0 ? (

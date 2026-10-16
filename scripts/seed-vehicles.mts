@@ -1,6 +1,7 @@
 // NHTSA vPIC → public.vehicles seed (PROJECT_SPEC.md §4.3).
 //   npm run seed:vehicles              -> seed every TARGET_YEARS × TARGET_MAKES
 //   npm run seed:vehicles -- --dry-run -> fetch + print one year/make, write nothing
+//   npm run seed:vehicles -- --from=1981 --to=2014 -> only those years
 //
 // Runs on Node's built-in TypeScript support, so only `import type` may reach
 // into src/ (type imports are erased; runtime imports would need a bundler).
@@ -14,7 +15,15 @@ import type {
   VehicleInsert,
 } from "../src/lib/types/vehicle";
 
-const TARGET_YEARS = Array.from({ length: 2026 - 2015 + 1 }, (_, i) => 2026 - i);
+// --from=YYYY / --to=YYYY narrow the run (e.g. to fill in older years only).
+// vPIC has no models before 1981, so earlier years return nothing.
+const yearArg = (name: string, fallback: number) => {
+  const arg = process.argv.find((a) => a.startsWith(`--${name}=`));
+  return arg ? Number(arg.split("=")[1]) : fallback;
+};
+const FROM_YEAR = yearArg("from", 1981);
+const TO_YEAR = yearArg("to", 2026);
+const TARGET_YEARS = Array.from({ length: TO_YEAR - FROM_YEAR + 1 }, (_, i) => TO_YEAR - i);
 const TARGET_MAKES = [
   "Toyota", "Ford", "Chevrolet", "Honda", "Nissan", "Jeep", "Ram",
   "Subaru", "GMC", "BMW", "Mercedes-Benz", "Audi", "Tesla", "Porsche",
@@ -105,7 +114,7 @@ async function main() {
         if (rows.length > 0) {
           const { error } = await supabase
             .from("vehicles")
-            .upsert(rows, { onConflict: "year,make,model,trim", ignoreDuplicates: true });
+            .upsert(rows, { onConflict: "year,make,model,trim,tenant_id", ignoreDuplicates: true });
           if (error) throw new Error(`DB: ${error.message}`);
         }
         fetched += rows.length;

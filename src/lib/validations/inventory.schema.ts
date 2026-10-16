@@ -1,18 +1,14 @@
 import { z } from "zod";
 
-// Mirrors the inventory_items.category check constraint.
-export const INVENTORY_CATEGORIES = [
-  "Window Film",
-  "Vinyl Wrap",
-  "PPF",
-  "Car Audio",
-  "Accessories",
-  "Hardware / Chemicals",
-] as const;
-export type InventoryCategory = (typeof INVENTORY_CATEGORIES)[number];
-
 export const FITMENT_FILTERS = ["universal", "specific"] as const;
 export type FitmentFilter = (typeof FITMENT_FILTERS)[number];
+
+/** in = some available · low = at or below the alert level (incl. none) · out = none available. */
+export const STOCK_FILTERS = ["in", "low", "out"] as const;
+export type StockFilter = (typeof STOCK_FILTERS)[number];
+
+export const INVENTORY_SORTS = ["name", "newest", "stock", "price-high", "price-low"] as const;
+export type InventorySort = (typeof INVENTORY_SORTS)[number];
 
 // numeric(10,2) tops out just under 100 million.
 const MAX_PRICE = 99_999_999.99;
@@ -47,7 +43,7 @@ export const inventoryItemSchema = z
     description: z.string().trim().max(500, "Description must be 500 characters or fewer."),
     /** Who the shop buys it from (free text; no supplier records yet). */
     vendorName: z.string().trim().max(255, "Vendor name must be 255 characters or fewer."),
-    category: z.enum(INVENTORY_CATEGORIES, { error: "Choose a category." }),
+    categoryId: z.uuid({ error: "Choose a category." }),
     costPrice: price("cost price"),
     sellingPrice: price("selling price"),
     quantityOnHand: wholeUnits("stock quantity"),
@@ -73,9 +69,12 @@ export type InventoryItemInput = z.infer<typeof inventoryItemSchema>;
 
 // URL search params for /inventory. Invalid values are dropped, not errors.
 export const inventoryFiltersSchema = z.object({
-  category: z.enum(INVENTORY_CATEGORIES).optional().catch(undefined),
+  /** A category id; includes everything below it. */
+  category: z.uuid().optional().catch(undefined),
   search: z.string().trim().max(100).optional().catch(undefined),
   fitment: z.enum(FITMENT_FILTERS).optional().catch(undefined),
+  stock: z.enum(STOCK_FILTERS).optional().catch(undefined),
+  sort: z.enum(INVENTORY_SORTS).optional().catch(undefined),
 });
 
 export type InventoryFilters = z.infer<typeof inventoryFiltersSchema>;

@@ -13,7 +13,7 @@ import type { PickerItemsResponse } from "@/lib/types/quote";
 const querySchema = z.object({ q: z.string().trim().max(100).optional() });
 
 const ITEM_COLUMNS =
-  "id, sku, name, category, selling_price, quantity_on_hand, reserved_quantity, low_stock_threshold, price_includes_tax";
+  "id, sku, name, category:categories(name), selling_price, quantity_on_hand, reserved_quantity, low_stock_threshold, price_includes_tax";
 
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));

@@ -14,18 +14,15 @@ import type {
  *   GET /api/vehicles?year=2023&make=TOYOTA  → { year, make, models: [{ id, model, trim }] }
  *
  * Vehicles are global reference data, but RLS only lets signed-in users read
- * them, so this runs with the caller's session. The catalog only changes when
- * the seed script runs, so browsers may cache each answer privately for an hour.
+ * them, so this runs with the caller's session. Answers are never cached: the
+ * catalog grows when the seed runs or a shop adds its own vehicle.
  */
 const querySchema = z.object({
-  year: z.coerce.number().int().min(1980).max(2035).optional(),
+  year: z.coerce.number().int().min(1960).max(2035).optional(),
   make: z.string().trim().min(1).max(64).optional(),
 });
 
-// Empty answers are never cached, so a not-yet-seeded catalog does not stick.
-const cacheHeaders = (rows: unknown[]) => ({
-  "Cache-Control": rows.length > 0 ? "private, max-age=3600" : "no-store",
-});
+const NO_STORE = { "Cache-Control": "no-store" };
 
 export async function GET(request: NextRequest) {
   const params = Object.fromEntries(request.nextUrl.searchParams);
@@ -48,14 +45,14 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.rpc("vehicle_years");
     if (error) return lookupFailed(error);
     const body: VehicleYearsResponse = { years: data.map((r) => r.year) };
-    return Response.json(body, { headers: cacheHeaders(body.years) });
+    return Response.json(body, { headers: NO_STORE });
   }
 
   if (!make) {
     const { data, error } = await supabase.rpc("vehicle_makes", { p_year: year });
     if (error) return lookupFailed(error);
     const body: VehicleMakesResponse = { year, makes: data.map((r) => r.make) };
-    return Response.json(body, { headers: cacheHeaders(body.makes) });
+    return Response.json(body, { headers: NO_STORE });
   }
 
   // Makes are stored upper-case (as NHTSA returns them).
@@ -68,7 +65,7 @@ export async function GET(request: NextRequest) {
     // Generated types mark trim non-null, but seeded rows have no trim.
     models: data.map((r) => ({ id: r.id, model: r.model, trim: r.trim ?? null })),
   };
-  return Response.json(body, { headers: cacheHeaders(body.models) });
+  return Response.json(body, { headers: NO_STORE });
 }
 
 function lookupFailed(error: { message: string }) {

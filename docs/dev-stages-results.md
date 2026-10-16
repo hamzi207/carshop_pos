@@ -488,3 +488,49 @@ Phase 6 is built and tested, with every open item folded in. Typecheck and lint 
 
   Not committed. The phase log and my notes are updated, and the test shop and its files are deleted. When you're happy, say "commit" and I'll use a    
   "Phase 6 - …" message.
+
+Product categories (docs/categories.md), 2026-10-16:
+
+The six fixed categories are replaced by your own category tree, up to 4 levels deep (e.g. Exterior › Wrapping › Wrapping Tools › Heat Gun).
+  - Every shop starts with the list from docs/categories.md: 14 main categories, 157 in all. Your existing parts were moved over:
+    Window Film → Exterior › Wrapping › Tinting Film, Vinyl Wrap → … › Vinyl Wraps, PPF → … › PPF, Car Audio → Audio,
+    Accessories → Others, Hardware / Chemicals → Cleaning & Detailing.
+  - Settings → Product categories: search, expand, add main categories or subcategories, rename, delete. Only admins can change them.
+    A category with parts or subcategories can't be deleted. Duplicate names under the same parent are refused.
+  - Part dialog: a searchable category picker; a part can sit on any level. Generate SKU uses the main category (EXT-, INT-, AUD-…).
+  - Inventory: the category filter is the same picker with part counts, and picking a category includes everything below it.
+    New Stock filter (in / low / out) and Sort (name, newest, lowest stock, price). Search also matches category names.
+  - Badges show "Main › Sub"; hover for the full path.
+Typecheck and lint pass; the browser test passed 14 checks (filters, picker search, add part, Settings add/rename/duplicate/delete, phone width).
+
+Test steps:
+  1. Inventory: open the category filter, pick Exterior, then search "floor" in the picker and press Enter.
+  2. Add New Part: pick a deep category, press Generate for the SKU, save, and check the badge.
+  3. Settings → Product categories: add a subcategory, rename it, delete it. Try deleting a category that has parts.
+  4. Try the Stock and Sort filters.
+
+Vehicle years from 1960 + shop's own vehicles, 2026-10-16:
+  - The vehicle Year list now runs 1960–2026 (was 2015–2026). 1981–2014 came from NHTSA; NHTSA has nothing older,
+    so 1960–1980 reuse each make's 1981 models.
+  - "Vehicle not listed? Add it" under the vehicle pickers: type year, make and model; it is saved for your shop only
+    (other shops don't see it) and linked to the part straight away. Typing a vehicle that already exists reuses it.
+  - Vehicle lists are no longer kept in the browser for an hour, so new vehicles show up immediately.
+  - npm run seed:vehicles takes --from=YYYY --to=YYYY (default 1981–2026).
+Typecheck and lint pass; browser test passed 9 checks.
+
+Test steps:
+  1. Add New Part → Vehicle Specific: open Year and scroll to 1960. Pick 1975 → Toyota → Corolla.
+  2. Click "Vehicle not listed? Add it", add e.g. 1972 Suzuki Mehran, save the part, then search "mehran".
+
+Pakistan-market vehicles, 2026-10-16:
+  - New list scripts/data/vehicles-pk.json: 32 makes, about 600 models, each with its production years (from 1960):
+    Toyota, Honda, Suzuki, Daihatsu, Nissan, Datsun, Hyundai, Kia, Mitsubishi, Mazda, Changan, Deepal, BYD, Haval, Tank,
+    GWM, ORA, Prince, DFSK, United, FAW, Chery, Jaecoo, Omoda, Jetour, MG, Proton, Isuzu, Peugeot, BAIC, Daewoo, Chevrolet.
+  - Models come from PakWheels' make pages (local assembly + common Japanese/Chinese imports); years are each model's
+    production span, so a few may be off by a year or two. Edit the JSON and re-run to correct or add models.
+  - Loaded with npm run seed:vehicles:pk (8,514 vehicle-years added). The rough 1960–1980 copies for Toyota, Honda,
+    Nissan, Hyundai and Kia were replaced by these real years. Catalog now 23,273 rows.
+  - Short makes display in capitals (BYD, MG, FAW, DFSK, GWM, BAIC, ORA).
+
+Test steps:
+  1. Add New Part → Vehicle Specific: try 1985 → Suzuki (Khyber, FX…), 2016 → Suzuki (Mehran), 2025 → Changan / Haval / BYD / Prince.

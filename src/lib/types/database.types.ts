@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          sort_order?: number
+          tenant_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_fkey"
+            columns: ["tenant_id", "parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           billing_address: string | null
@@ -87,7 +129,7 @@ export type Database = {
       }
       inventory_items: {
         Row: {
-          category: string
+          category_id: string
           cost_price: number
           created_at: string
           description: string | null
@@ -105,7 +147,7 @@ export type Database = {
           vendor_name: string | null
         }
         Insert: {
-          category: string
+          category_id: string
           cost_price: number
           created_at?: string
           description?: string | null
@@ -123,7 +165,7 @@ export type Database = {
           vendor_name?: string | null
         }
         Update: {
-          category?: string
+          category_id?: string
           cost_price?: number
           created_at?: string
           description?: string | null
@@ -141,6 +183,13 @@ export type Database = {
           vendor_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_fkey"
+            columns: ["tenant_id", "category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["tenant_id", "id"]
+          },
           {
             foreignKeyName: "inventory_items_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -685,6 +734,7 @@ export type Database = {
           id: number
           make: string
           model: string
+          tenant_id: string | null
           trim: string | null
           year: number
         }
@@ -693,6 +743,7 @@ export type Database = {
           id?: number
           make: string
           model: string
+          tenant_id?: string | null
           trim?: string | null
           year: number
         }
@@ -701,16 +752,35 @@ export type Database = {
           id?: number
           make?: string
           model?: string
+          tenant_id?: string | null
           trim?: string | null
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      add_vehicle: {
+        Args: { p_make: string; p_model: string; p_year: number }
+        Returns: {
+          id: number
+          make: string
+          model: string
+          trim: string
+          year: number
+        }[]
+      }
       convert_quote: {
         Args: { p_quote_id: string; p_target: string }
         Returns: {
@@ -781,7 +851,7 @@ export type Database = {
       }
       save_inventory_item: {
         Args: {
-          p_category: string
+          p_category_id: string
           p_cost_price: number
           p_description?: string
           p_is_universal: boolean
@@ -888,7 +958,7 @@ export type Database = {
       search_inventory_items: {
         Args: { p_query: string }
         Returns: {
-          category: string
+          category_id: string
           cost_price: number
           created_at: string
           description: string | null

@@ -8,6 +8,8 @@ import type { InventoryListItem } from "@/lib/types/inventory";
 type Props = {
   item: InventoryListItem | null;
   money: MoneyFormat;
+  /** Full category path, e.g. "Exterior › Wrapping › Tinting Film". */
+  categoryLabel: string;
   onOpenChange: (open: boolean) => void;
   onEdit: (item: InventoryListItem) => void;
 };
@@ -25,7 +27,7 @@ function Row({ label, value, mono }: { label: string; value: React.ReactNode; mo
  * Read-only product details, opened from the product name. The vendor shows
  * here only, not in the inventory table (docs/changes.md §6).
  */
-export function InventoryItemDetails({ item, money, onOpenChange, onEdit }: Props) {
+export function InventoryItemDetails({ item, money, categoryLabel, onOpenChange, onEdit }: Props) {
   const cost = Number(item?.cost_price ?? 0);
   const selling = Number(item?.selling_price ?? 0);
   const margin = marginPercent(cost, selling);
@@ -42,7 +44,7 @@ export function InventoryItemDetails({ item, money, onOpenChange, onEdit }: Prop
                 <div>
                   <Dialog.Title asChild><h2 className="product-details-title">{item?.name}</h2></Dialog.Title>
                   <Dialog.Description asChild>
-                    <p><span className="mono">{item?.sku}</span> · {item?.category}</p>
+                    <p><span className="mono">{item?.sku}</span> · {categoryLabel}</p>
                   </Dialog.Description>
                 </div>
               </div>

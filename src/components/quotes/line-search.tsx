@@ -137,7 +137,7 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom }: Props) {
               <span className="product-thumbnail"><Box size={15} /></span>
               <span className="line-search-info">
                 <strong className="product-title">{item.name}</strong>
-                <span><span className="mono">{item.sku}</span> · {item.category} · <Stock item={item} /></span>
+                <span><span className="mono">{item.sku}</span> · {item.category?.name ?? "Uncategorised"} · <Stock item={item} /></span>
               </span>
               <span className="line-search-price">
                 {formatMoney(item.selling_price, money)}

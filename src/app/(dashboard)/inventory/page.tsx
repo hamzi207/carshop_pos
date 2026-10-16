@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Plus } from "lucide-react";
 import { getInventoryItems } from "@/lib/actions/inventory";
 import { getShopSession } from "@/lib/auth";
+import { getCategories, getCategoryCounts } from "@/lib/category-data";
 import { inventoryFiltersSchema } from "@/lib/validations/inventory.schema";
 import { AddItemButton } from "@/components/inventory/add-item-button";
 import { InventoryFilters } from "@/components/inventory/inventory-filters";
@@ -15,8 +16,13 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 async function AddItemAction() {
-  const { tenant } = await getShopSession();
-  return <AddItemButton currency={tenant.currency} pricesIncludeTax={tenant.pricesIncludeTax} />;
+  const [{ tenant }, categories] = await Promise.all([getShopSession(), getCategories()]);
+  return <AddItemButton currency={tenant.currency} pricesIncludeTax={tenant.pricesIncludeTax} categories={categories} />;
+}
+
+async function FiltersSection() {
+  const [categories, counts] = await Promise.all([getCategories(), getCategoryCounts()]);
+  return <InventoryFilters categories={categories} counts={counts} />;
 }
 
 async function InventoryResults({ searchParams }: { searchParams: SearchParams }) {
@@ -25,14 +31,17 @@ async function InventoryResults({ searchParams }: { searchParams: SearchParams }
     category: first(raw.category),
     search: first(raw.q) || undefined,
     fitment: first(raw.fitment),
+    stock: first(raw.stock),
+    sort: first(raw.sort),
   });
-  const [items, { tenant }] = await Promise.all([getInventoryItems(filters), getShopSession()]);
-  const filtered = Boolean(filters.category || filters.search || filters.fitment);
+  const [items, { tenant }, categories] = await Promise.all([getInventoryItems(filters), getShopSession(), getCategories()]);
+  const filtered = Boolean(filters.category || filters.search || filters.fitment || filters.stock);
   return (
     <InventoryTable
       items={items}
       money={tenant.money}
       pricesIncludeTax={tenant.pricesIncludeTax}
+      categories={categories}
       filtered={filtered}
     />
   );
@@ -69,7 +78,7 @@ export default function InventoryPage({ searchParams }: { searchParams: SearchPa
         </div>
       </div>
       <Suspense fallback={<section className="card filter-card" aria-hidden="true" />}>
-        <InventoryFilters />
+        <FiltersSection />
       </Suspense>
       <Suspense fallback={<ResultsSkeleton />}>
         <InventoryResults searchParams={searchParams} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog } from "radix-ui";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,28 +8,17 @@ import { Car, CheckCircle2, Loader2, Package, Plus, Save, Wand2, X } from "lucid
 import { createInventoryItem, updateInventoryItem } from "@/lib/actions/inventory";
 import { formatMoney, marginPercent } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import { buildCategoryIndex, skuPrefix, type Category, type CategoryIndex } from "@/lib/categories";
 import { useDiscardGuard } from "@/components/shared/discard-changes";
 import type { FitmentVehicle, InventoryListItem } from "@/lib/types/inventory";
-import {
-  INVENTORY_CATEGORIES,
-  inventoryItemSchema,
-  type InventoryCategory,
-  type InventoryItemInput,
-} from "@/lib/validations/inventory.schema";
+import { inventoryItemSchema, type InventoryItemInput } from "@/lib/validations/inventory.schema";
+import { CategoryPicker } from "./category-picker";
 import { YmmCompatibilitySelector } from "./ymm-compatibility-selector";
 
-const SKU_PREFIX: Record<InventoryCategory, string> = {
-  "Window Film": "WF",
-  "Vinyl Wrap": "VW",
-  PPF: "PPF",
-  "Car Audio": "AUD",
-  Accessories: "ACC",
-  "Hardware / Chemicals": "CHM",
-};
-
-function generateSku(category: InventoryCategory) {
+/** Prefix from the main category (e.g. EXT-4K9QZ). */
+function generateSku(index: CategoryIndex, categoryId: string | undefined) {
   const suffix = Math.random().toString(36).slice(2, 7).toUpperCase();
-  return `${SKU_PREFIX[category]}-${suffix}`;
+  return `${skuPrefix(categoryId ? index.byId.get(categoryId) : undefined)}-${suffix}`;
 }
 
 type Props = {
@@ -38,12 +27,13 @@ type Props = {
   currency: string;
   /** Shop default for "price includes tax" on new items. */
   pricesIncludeTax: boolean;
+  categories: Category[];
   /** Edit this item; omit to create a new one. */
   item?: InventoryListItem;
 };
 
 /** Add / edit inventory part modal (Figma "Add inventory part"). */
-export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, item }: Props) {
+export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, categories, item }: Props) {
   // Closing with unsaved edits asks first (Cancel, X, Escape, clicking outside).
   const guard = useDiscardGuard({
     onOpenChange,
@@ -62,6 +52,7 @@ export function InventoryItemDialog({ open, onOpenChange, currency, pricesInclud
                   item={item}
                   currency={currency}
                   pricesIncludeTax={pricesIncludeTax}
+                  categories={categories}
                   onDirtyChange={guard.setDirty}
                   onDone={guard.close}
                 />
@@ -79,18 +70,21 @@ function ItemForm({
   item,
   currency,
   pricesIncludeTax,
+  categories,
   onDirtyChange,
   onDone,
 }: {
   item?: InventoryListItem;
   currency: string;
   pricesIncludeTax: boolean;
+  categories: Category[];
   onDirtyChange: (dirty: boolean) => void;
   onDone: () => void;
 }) {
   const isEdit = Boolean(item);
   const [serverError, setServerError] = useState<string | null>(null);
   const [vehicles, setVehicles] = useState<FitmentVehicle[]>(item?.vehicles ?? []);
+  const index = useMemo(() => buildCategoryIndex(categories), [categories]);
 
   const {
     register,
@@ -108,7 +102,7 @@ function ItemForm({
           name: item.name,
           description: item.description ?? "",
           vendorName: item.vendor_name ?? "",
-          category: item.category as InventoryCategory,
+          categoryId: item.category_id,
           costPrice: Number(item.cost_price),
           sellingPrice: Number(item.selling_price),
           quantityOnHand: item.quantity_on_hand,
@@ -122,7 +116,6 @@ function ItemForm({
           name: "",
           description: "",
           vendorName: "",
-          category: "Window Film",
           quantityOnHand: 0,
           lowStockThreshold: 5,
           priceIncludesTax: pricesIncludeTax,
@@ -211,9 +204,9 @@ function ItemForm({
               <button
                 type="button"
                 className="button button-ghost"
-                title="Generate a SKU from the category"
+                title="Generate a SKU from the main category"
                 onClick={() =>
-                  setValue("sku", generateSku(getValues("category")), { shouldValidate: true })
+                  setValue("sku", generateSku(index, getValues("categoryId")), { shouldValidate: true, shouldDirty: true })
                 }
               >
                 <Wand2 size={13} /> Generate
@@ -221,15 +214,27 @@ function ItemForm({
             </div>
             {fieldError("sku")}
           </label>
-          <label>
-            <span>CATEGORY</span>
-            <select {...invalid("category")} {...register("category")}>
-              {INVENTORY_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            {fieldError("category")}
-          </label>
+          <div className="form-field">
+            <label htmlFor="item-category"><span>CATEGORY</span></label>
+            <Controller
+              control={control}
+              name="categoryId"
+              render={({ field }) => (
+                <CategoryPicker
+                  id="item-category"
+                  index={index}
+                  value={field.value ?? null}
+                  onChange={(id) => {
+                    field.onChange(id ?? undefined);
+                    field.onBlur();
+                  }}
+                  invalid={Boolean(errors.categoryId)}
+                  describedBy={errors.categoryId ? "categoryId-error" : undefined}
+                />
+              )}
+            />
+            {fieldError("categoryId")}
+          </div>
           <label className="span-two">
             <span>PRODUCT NAME</span>
             <input placeholder="e.g. Suntek Carbon 20% · 40in Roll" {...invalid("name")} {...register("name")} />

@@ -8,8 +8,10 @@ import type {
   VehicleYearsResponse,
 } from "@/lib/types/vehicle";
 
+// Always asks the server: the catalog changes when the seed runs or a shop adds a
+// vehicle, and a cached list would hide the new years and models.
 async function getJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { signal, cache: "no-store" });
   if (!res.ok) throw new Error(`Vehicle lookup failed (${res.status})`);
   return res.json() as Promise<T>;
 }
@@ -106,5 +108,18 @@ export function useVehicleCascade(initial?: { year: number; make: string }) {
     else setModels([]);
   };
 
-  return { years, year, makes, make, models, loading, error, selectYear, selectMake };
+  /** After a vehicle is added: reload the lists and select its year and make. */
+  const showAdded = async (y: number, m: string) => {
+    setYear(y);
+    setMake(m);
+    setModels([]);
+    const yearsBody = await lookup<VehicleYearsResponse>("/api/vehicles", "makes");
+    if (yearsBody) setYears(yearsBody.years);
+    const makesBody = await lookup<VehicleMakesResponse>(makesUrl(y), "makes");
+    if (makesBody) setMakes(makesBody.makes);
+    const modelsBody = await lookup<VehicleModelsResponse>(modelsUrl(y, m), "models");
+    if (modelsBody) setModels(modelsBody.models);
+  };
+
+  return { years, year, makes, make, models, loading, error, selectYear, selectMake, showAdded };
 }

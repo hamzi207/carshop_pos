@@ -1,37 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import {
-  AlertTriangle,
-  Box,
-  Car,
-  CheckCircle2,
-  Package,
-  Pencil,
-  Plus,
-  Speaker,
-  SprayCan,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, Car, CheckCircle2, Package, Pencil, Plus, Trash2 } from "lucide-react";
+import { buildCategoryIndex, categoryIcon, fullPath, shortPath, type Category } from "@/lib/categories";
 import { formatMoney, formatVehicleGroups, marginPercent, type MoneyFormat } from "@/lib/format";
 import type { InventoryListItem } from "@/lib/types/inventory";
 import { DeleteItemDialog } from "./delete-item-dialog";
 import { InventoryItemDetails } from "./inventory-item-details";
 import { InventoryItemDialog } from "./inventory-item-dialog";
 
-const CATEGORY_ICON: Record<string, LucideIcon> = {
-  "Car Audio": Speaker,
-  Accessories: Car,
-  "Hardware / Chemicals": SprayCan,
-};
-
 type Props = {
   items: InventoryListItem[];
   money: MoneyFormat;
   /** Shop default for new items (tenants.prices_include_tax). */
   pricesIncludeTax: boolean;
-  /** True when a search/category/fitment filter is active (changes the empty state). */
+  categories: Category[];
+  /** True when a search/category/stock/fitment filter is active (changes the empty state). */
   filtered: boolean;
 };
 
@@ -99,7 +83,8 @@ function StockCell({ item }: { item: InventoryListItem }) {
   );
 }
 
-export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Props) {
+export function InventoryTable({ items, money, pricesIncludeTax, categories, filtered }: Props) {
+  const index = useMemo(() => buildCategoryIndex(categories), [categories]);
   const [editing, setEditing] = useState<InventoryListItem | null>(null);
   const [viewing, setViewing] = useState<InventoryListItem | null>(null);
   const [deleting, setDeleting] = useState<InventoryListItem | null>(null);
@@ -127,7 +112,7 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
           {filtered ? (
             <>
               <strong>No parts match these filters</strong>
-              Try a different search, category or fitment type.
+              Try a different search, category, stock level or fitment type.
             </>
           ) : (
             <>
@@ -158,7 +143,8 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
             </thead>
             <tbody>
               {items.map((item) => {
-                const Icon = CATEGORY_ICON[item.category] ?? Box;
+                const category = index.byId.get(item.category_id);
+                const Icon = categoryIcon(category);
                 const cost = Number(item.cost_price);
                 const selling = Number(item.selling_price);
                 const low = availableOf(item) <= item.low_stock_threshold;
@@ -173,7 +159,7 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
                           </button>
                           <span>
                             <span className="mono">{item.sku}</span>
-                            <span className="badge">{item.category}</span>
+                            {category && <span className="badge" title={fullPath(category)}>{shortPath(category)}</span>}
                           </span>
                         </div>
                       </div>
@@ -215,12 +201,14 @@ export function InventoryTable({ items, money, pricesIncludeTax, filtered }: Pro
         }}
         currency={money.currency}
         pricesIncludeTax={pricesIncludeTax}
+        categories={categories}
         item={editing ?? undefined}
       />
       <DeleteItemDialog item={deleting} onOpenChange={(open) => !open && setDeleting(null)} />
       <InventoryItemDetails
         item={viewing}
         money={money}
+        categoryLabel={viewing ? (() => { const c = index.byId.get(viewing.category_id); return c ? fullPath(c) : "—"; })() : ""}
         onOpenChange={(open) => !open && setViewing(null)}
         onEdit={(item) => {
           setViewing(null);

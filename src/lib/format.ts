@@ -25,7 +25,7 @@ export function marginPercent(cost: number, selling: number) {
 }
 
 // NHTSA stores makes upper-case. These read best kept as acronyms.
-const ACRONYM_MAKES = new Set(["BMW", "GMC", "MINI", "AMC"]);
+const ACRONYM_MAKES = new Set(["BMW", "GMC", "MINI", "AMC", "BYD", "MG", "FAW", "DFSK", "GWM", "BAIC", "ORA"]);
 
 /** "MERCEDES-BENZ" → "Mercedes-Benz", "BMW" stays "BMW". */
 export function formatMake(make: string) {
