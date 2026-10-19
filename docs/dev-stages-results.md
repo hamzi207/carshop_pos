@@ -732,3 +732,25 @@ Test steps:
      member appears as Invited. To sign in as them: /admin → Users → ⋯ → Set a temporary password. After they
      sign in they show as Active; try Deactivate / Reactivate.
   5. Commit: git add . && git commit -m "Phase 14 - settings sections, team, numbering and bank details"
+
+Phase 15 (inventory CSV import/export, chart labels, 4K, final build), 2026-10-19:
+  - Inventory: Export CSV downloads every item (not just the page on screen) and Import CSV adds or updates many
+    parts at once from Excel / Google Sheets. Download template shows the columns: SKU, Name, Category (e.g.
+    Exterior › Wrapping › PPF), Cost Price, Sale Price, Stock, Universal (Yes/No), Vehicles (e.g. 2018-2022
+    SUZUKI Alto; 2020 Honda Civic), Vendor, plus optional Low Stock Alert, Price Includes Tax, Description.
+  - Before anything is saved, a preview checks every row and highlights problems (unknown category or vehicle,
+    duplicate SKU, prices that aren't numbers…). Rows with problems are skipped; the rest are imported with a
+    progress bar. Items whose SKU already exists are only changed when "Update items with the same SKU" is
+    ticked; empty cells keep the current value. An exported file can be edited and imported back.
+  - Charts narrower than 480px (phones) show every other date label so they don't overlap.
+  - On very large screens (1440p / 4K) pages stay at most 1720px wide, centred.
+npm run lint and npm run build pass. Browser test on the production build: 21 checks passed, including no
+sideways scrolling on 11 pages at phone, tablet, laptop, desktop and ultrawide sizes (see PROJECT_SPEC.md §7).
+
+Test steps:
+  1. Inventory → Export CSV: open the file in Excel; every item is there.
+  2. Inventory → Import CSV → Download template; fill a few rows (try a wrong category on one), save as CSV,
+     choose it: the preview shows the problem; Import the rest.
+  3. Change a price in the exported file, tick "Update items with the same SKU" and import it.
+  4. Reports on a phone: the sales chart's dates don't overlap.
+  5. Commit: git add . && git commit -m "Phase 15 - inventory csv import/export, chart labels and 4k containment"

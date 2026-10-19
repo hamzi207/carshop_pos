@@ -76,7 +76,12 @@ export function BarChart({ bars, format, title }: { bars: Bar[]; format: (n: num
               )}
               {/* Selective direct label: only the tallest column. */}
               {i === peak && <text className="chart-value" x={x + width / 2} y={y - 5}>{format(b.value)}</text>}
-              {i % labelEvery === 0 && <text className="chart-label" x={i * slot + slot / 2} y={H - 6}>{b.label}</text>}
+              {/* Every other shown label is dropped when the chart is under 480px wide (container query in globals.css). */}
+              {i % labelEvery === 0 && (
+                <text className={`chart-label${(i / labelEvery) % 2 === 1 ? " chart-label-alt" : ""}`} x={i * slot + slot / 2} y={H - 6}>
+                  {b.label}
+                </text>
+              )}
             </g>
           );
         })}

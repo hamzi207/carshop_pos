@@ -8,6 +8,7 @@ import { getCategories, getCategoryCounts } from "@/lib/category-data";
 import { parsePagination, pastEndRedirect } from "@/lib/pagination";
 import { inventoryFiltersSchema } from "@/lib/validations/inventory.schema";
 import { AddItemButton } from "@/components/inventory/add-item-button";
+import { ExportInventoryButton, ImportInventoryButton } from "@/components/inventory/csv-import-dialog";
 import { InventoryFilters } from "@/components/inventory/inventory-filters";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 
@@ -75,6 +76,8 @@ export default function InventoryPage({ searchParams }: { searchParams: SearchPa
           <p>Manage products, stock levels, margins, and vehicle compatibility.</p>
         </div>
         <div className="heading-actions">
+          <ExportInventoryButton />
+          <ImportInventoryButton />
           <Suspense
             fallback={
               <button type="button" className="button button-primary" disabled>

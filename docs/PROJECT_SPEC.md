@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–14): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–15): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-19)**: Phases 1–13 are built and committed; Phase 14 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-19)**: All phases (1–15) are built; Phases 1–14 are committed and Phase 15 is awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1098,7 +1098,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 14: Settings Sections, Team, Document Numbering & Bank Details [COMPLETED]
-**Commit**: pending (`Phase 14 - settings sections, team, numbering and bank details`).
+**Commit**: `d468d1e` (`Phase 14 - settings sections, team, numbering and bank details`).
 
 **What was built**:
 1. **Migration** `supabase/migrations/20261019173257_team_and_documents.sql` (applied remotely under the same version): `profiles.deactivated_at`; `private.current_tenant_id()` also returns null for a deactivated member (cut off at their next request) and `private.is_shop_admin()` ignores deactivated admins; `public.my_shop_status()` returns `'deactivated'` for them; `public.document_number_floors()` (authenticated, invoker: highest number used per series in the caller's shop, for the "next number" preview; same rule as `next_document_number`); `tenants_bank_wallets_size_check` (≤ 5 wallets). Verified in SQL (rolled back): deactivated → no shop, status `deactivated`, 0 quotes.
@@ -1111,29 +1111,25 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
+### PHASE 15: Inventory CSV Import/Export, Chart Labels, 4K Containment & Final Build [COMPLETED]
+**Commit**: pending (`Phase 15 - inventory csv import/export, chart labels and 4k containment`).
+
+**What was built**:
+1. **Migration** `supabase/migrations/20261019182238_inventory_csv_vehicle_match.sql`: `public.match_vehicles(p_specs jsonb)` (authenticated, invoker so the vehicles RLS applies): `[{label: "suzuki alto", from, to}]` → `(spec_index, vehicle_id)` rows, matching `lower(make || ' ' || model)` exactly ("Alto" ≠ "Alto Lapin") within the years.
+2. **CSV helpers** `src/lib/csv.ts` (`toCsv`, `downloadCsv` with BOM, `parseCsv`: quotes, `""`, CRLF, multi-line cells, `;`-separated Excel files, blank lines dropped); the Phase 6 reports `CsvButton` now uses it. **Inventory CSV rules** `src/lib/inventory-csv.ts` (browser + server): columns SKU, Name, Category, Cost Price, Sale Price, Stock, Universal, Vehicles, Vendor, Low Stock Alert, Price Includes Tax, Description, matched by header name in any order with common synonyms ("Part Code", "Qty", "Supplier", "Category Path"…); SKU / Name / Category / Sale Price columns required; ≤ 1000 rows. Money cells accept "Rs. 1,200". **Vehicles cell**: `2018-2022 SUZUKI Alto; 2020 Honda Civic` (year or range + make + model, any capitals); export collapses consecutive years into ranges. Category: full path with ›, > or / (any capitals), or a category's own name when only one category has it. `TEMPLATE_ROWS` = the downloadable template.
+3. **Actions** `src/lib/actions/inventory-csv.ts` (caller's session / RLS): `checkInventoryCsv(rows, updateExisting)` returns per row new / update / error with every problem (unknown category, unknown vehicle, unreadable vehicle entry, duplicate SKU in the file, SKU already in the shop unless updating, not-a-number, Yes/No, Universal + vehicles, vehicle-specific with no vehicles, and all `inventoryItemSchema` rules); `importInventoryCsv(batch ≤ 100, updateExisting)` re-checks and saves each row through `save_inventory_item` (same rules as the part dialog; SKU race / stock-below-reservations reported per row); updates keep the current value for empty cells or missing columns (fitment too). `exportInventoryCsv()` pages through **every** item (1000 per request), in the template's columns (category path, vehicles cell), so an export re-imports cleanly.
+4. **UI** `src/components/inventory/csv-import-dialog.tsx`: Inventory heading gets **Export CSV** (`inventory-YYYY-MM-DD.csv`) and **Import CSV** (dialog: choose file, Download template, "Update items with the same SKU" (re-checks), column help → preview with new / to update / with problems counts, problem rows highlighted with each reason, "Show problems only" → Import N items in batches with a progress bar → result with any rows not saved; the list refreshes).
+5. **Chart labels** (`charts.tsx`): `.chart` is a size container; when a chart is under 480px wide every other shown label (`.chart-label-alt`) is hidden (`@container (max-width: 480px)`), so dates don't collide on phones (or in narrow cards).
+6. **Large screens**: `.page` uses `max-width: var(--container-max-width)` (1720px), centred.
+7. **Verified**: `npm run lint` and `npm run build` pass. Helper tests (parser, synonyms, money, vehicles parse/format, category paths). Browser test on the production build (21 checks): mixed file → 3 new / 5 problems with the right reasons, import saves 3 (SKUs upper-cased, "Rs." parsed, Alto mats linked to 8 vehicles, category by leaf name), existing SKU refused until "update" is ticked, update keeps empty-cell values, 30-row import, export has all 33 items (more than a page) with paths and vehicles and re-imports as 33 updates with no problems, report chart labels 7 → 4 at 390px (all 7 on desktop), 4K page 1720px centred, **no sideways scroll on 11 pages (dashboard, inventory, quotations, invoices, drafts, customers, reports, settings, documents, team, new quotation) at phone 390, tablet 820, laptop 1366, desktop 1920 and ultrawide 3440**, no browser console errors. Test data removed.
+
 ---
 
-## 8. ROADMAP (PHASE 15): STILL TO BUILD
-
-> **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
-> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17; Phases 12–14 moved to §7 on 2026-10-19). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
-> 
-> 🛑 **CRITICAL EXECUTION RULE**:  
-> Build **strictly one phase at a time**. **DO NOT** combine phases, skip steps, or build future phases early.  
-> After each phase: **STOP AND PAUSE**, describe what you built, ask the developer to test in the browser and commit, then move the phase into §7 as "What was built" and update the phases after it.  
-> Commit messages always start with `Phase <N> - `.
-
 ---
 
-### PHASE 15: Inventory CSV Import/Export, Chart Labels, 4K Containment & Final Build
-**Agent Directive**:
-1. **Inventory CSV** `src/components/inventory/csv-import-dialog.tsx` + `src/lib/actions/inventory-csv.ts`: sample template (SKU, Name, Category path e.g. `Exterior › Wrapping › PPF`, Cost, Sale Price, Stock, Universal, Vendor), client-side parsing, validation preview with errors highlighted, batch insert following `save_inventory_item` rules; "Export Inventory (CSV)" (reuse the Phase 6 CSV helper; the inventory list is paged since Phase 9, so the export must fetch every page / all rows).
-2. **Chart labels below 480px** in `src/components/dashboard/charts.tsx` (already `viewBox`-scaled): show every other bar label so dates don't collide.
-3. **Large screens**: `max-width: 1720px; margin: 0 auto;` on page content for 1440p/4K.
-4. **Final verification**: `npm run lint && npm run build` and a pass over phone, tablet, laptop, desktop and ultrawide.
+## 8. ROADMAP: STILL TO BUILD
 
-🛑 **PAUSE & FINAL SIGNOFF**:  
-> "Phase 15 complete! Lint and the production build pass. All phases are done. Please run `git add . && git commit -m 'Phase 15 - inventory csv import/export, chart labels and 4k containment'`."
+> Nothing: Phases 12–15 moved to §7 on 2026-10-19 and every phase of this blueprint is built. New work starts as a new phase here, listing only what doesn't exist yet and naming the §7 phase it extends.
 
 ---
 

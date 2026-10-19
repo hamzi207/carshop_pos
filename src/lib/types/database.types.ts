@@ -1100,6 +1100,10 @@ export type Database = {
       }
       is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
       document_number_floors: { Args: never; Returns: Json }
+      match_vehicles: {
+        Args: { p_specs: Json }
+        Returns: { spec_index: number; vehicle_id: number }[]
+      }
       my_shop_status: { Args: never; Returns: string }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
       shop_alerts: { Args: never; Returns: Json }

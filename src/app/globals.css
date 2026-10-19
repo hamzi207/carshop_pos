@@ -199,7 +199,7 @@
   .profile strong { font-size: 11px; color: var(--slate-800); }
   .profile span { font-size: 9px; color: var(--slate-500); margin-top: 2px; }
   .profile > .icon { color: var(--slate-400); transform: rotate(90deg); margin-left: 3px; }
-  .page { padding: 29px 30px 42px; max-width: 1600px; margin: 0 auto; }
+  .page { padding: 29px 30px 42px; max-width: var(--container-max-width); margin: 0 auto; } /* 1440p / 4K: content stays a readable width, centred */
   .page-heading { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 23px; }
   .eyebrow { display: block; color: var(--blue); font-size: 9px; font-weight: 800; letter-spacing: .13em; margin-bottom: 7px; }
   h1, h2, h3, p { margin: 0; }
@@ -1320,7 +1320,10 @@
   .split-button > .split-toggle { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: -1px; padding: 0 8px; }
 
   /* ---- Dashboard charts (dataviz: thin marks, recessive grid, text in ink colours) ---- */
-  .chart { position: relative; padding-top: 4px; }
+  .chart { position: relative; padding-top: 4px; container-type: inline-size; }
+  @container (max-width: 480px) {
+    .chart-label-alt { display: none; }
+  }
   .chart svg { display: block; width: 100%; height: auto; max-height: 190px; overflow: visible; }
   .chart-donut svg { max-height: 130px; width: 130px; }
   .chart-grid { stroke: var(--slate-100); stroke-width: 1; }
@@ -1904,5 +1907,37 @@
     .team-meta { grid-column: 2 / 4; grid-auto-flow: column; justify-content: start; align-items: center; gap: 8px; }
     .team-role { grid-column: 2 / 4; }
     .share-bank dl { grid-template-columns: 1fr; }
+  }
+
+  /* ---- Phase 15: inventory CSV import ---- */
+  .modal-csv { width: min(760px, calc(100vw - 40px)); }
+  .csv-import .modal-body { display: grid; gap: 14px; max-height: min(70vh, 640px); overflow-y: auto; }
+  .csv-choose { display: grid; gap: 10px; }
+  .csv-drop { display: grid; justify-items: center; gap: 4px; padding: 18px 14px; border: 1.5px dashed var(--slate-300); border-radius: 10px; background: var(--slate-50); color: var(--slate-600); font: inherit; cursor: pointer; text-align: center; }
+  .csv-drop:hover:not(:disabled) { border-color: var(--blue); color: var(--slate-900); }
+  .csv-drop strong { font-size: 13px; color: var(--slate-900); overflow-wrap: anywhere; }
+  .csv-drop span { font-size: 11px; }
+  .csv-options { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .csv-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--slate-700); cursor: pointer; }
+  .csv-help { font-size: 11px; line-height: 1.55; color: var(--slate-500); }
+  .csv-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .csv-summary .csv-check { margin-left: auto; }
+  .csv-table-wrap { border: 1px solid var(--slate-200); border-radius: 8px; overflow: auto; max-height: 320px; }
+  .csv-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .csv-table th { position: sticky; top: 0; background: var(--slate-50); text-align: left; padding: 7px 9px; font-size: 9px; letter-spacing: .08em; color: var(--slate-500); border-bottom: 1px solid var(--slate-200); }
+  .csv-table td { padding: 7px 9px; border-bottom: 1px solid var(--slate-100); vertical-align: top; color: var(--slate-800); }
+  .csv-table td.mono { white-space: nowrap; }
+  .csv-table tr.is-error td { background: #fff5f5; }
+  .csv-table tr.is-error td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+  .csv-errors { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; color: #b91c1c; font-size: 11px; line-height: 1.45; }
+  .csv-progress, .csv-done { display: grid; justify-items: center; gap: 8px; padding: 20px 6px; text-align: center; color: var(--slate-700); }
+  .csv-done > svg { color: var(--green); }
+  .csv-done .csv-errors { justify-items: start; text-align: left; width: 100%; }
+  .csv-bar { width: min(360px, 100%); height: 6px; border-radius: 3px; background: var(--slate-100); overflow: hidden; }
+  .csv-bar > span { display: block; height: 100%; background: var(--blue); transition: width .2s; }
+  @media (max-width: 640px) {
+    .modal-csv { width: calc(100vw - 20px) !important; }
+    .csv-table th:first-child, .csv-table td:first-child { display: none; }
+    .inventory-heading .heading-actions .button { flex: 1 1 auto; justify-content: center; }
   }
 }
