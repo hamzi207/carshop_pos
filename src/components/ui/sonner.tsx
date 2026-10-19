@@ -51,6 +51,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast: "cn-toast",
+          // Multi-line descriptions (e.g. one changed setting per line).
+          description: "whitespace-pre-line",
         },
       }}
       {...props}

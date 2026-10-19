@@ -4,8 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImagePlus, Loader2, Save, Store, Trash2 } from "lucide-react";
+import { ImagePlus, Loader2, Store, Trash2 } from "lucide-react";
 import { setShopLogo, updateShopProfile } from "@/lib/actions/settings";
+import { useUnsavedSettings } from "./unsaved-settings";
 import { notify } from "@/lib/notify";
 import { formatStrn } from "@/lib/tax-id";
 import { shopProfileSchema, type ShopProfileValues } from "@/lib/validations/settings.schema";
@@ -17,6 +18,17 @@ type Props = {
   /** Read-only facts shown above the fields. */
   facts: { label: string; value: string; mono?: boolean }[];
   canEdit: boolean;
+};
+
+/** "Shop details saved" names each changed field ("Address updated."), in form order; untouched ones aren't mentioned. */
+const FIELD_NAME: Record<keyof ShopProfileValues, string> = {
+  name: "Shop name",
+  phone: "Phone",
+  email: "Email",
+  address: "Address",
+  ntn: "NTN",
+  strn: "STRN",
+  terms: "Terms & notes",
 };
 
 // The PDF library draws PNG and JPEG only (checked again on the server by the file's bytes).
@@ -34,24 +46,38 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<ShopProfileValues, unknown, z.output<typeof shopProfileSchema>>({
     resolver: zodResolver(shopProfileSchema),
     defaultValues: initial,
   });
 
-  const onSubmit = handleSubmit(async (values) => {
+  const persist = async (values: z.output<typeof shopProfileSchema>) => {
     setServerError(null);
     const result = await updateShopProfile(values);
     if (result.status === "error") {
       setServerError(result.message);
       notify.error("Shop details not saved", result.message);
-      return;
+      return false;
     }
+    const changed = (Object.keys(FIELD_NAME) as (keyof ShopProfileValues)[]).filter((k) => dirtyFields[k]).map((k) => FIELD_NAME[k]);
     // Back to how people type them (the saved values are normalised).
     reset({ ...values, strn: formatStrn(values.strn || null) });
-    notify.success("Shop details saved", "Your quotations and invoices now show these details.");
-  });
+    notify.success("Shop details saved", changed.map((f) => `${f} updated.`).join("\n") || "Nothing was changed.");
+    return true;
+  };
+  const onSubmit = handleSubmit(persist);
+  // Saved only from the page's save bar (or Enter in a field); see unsaved-settings.tsx.
+  useUnsavedSettings(
+    "shop-profile",
+    "Your shop",
+    isDirty,
+    () => new Promise<boolean>((resolve) => void handleSubmit(async (v) => resolve(await persist(v)), () => resolve(false))()),
+    () => {
+      setServerError(null);
+      reset();
+    },
+  );
 
   const uploadLogo = async (file: File) => {
     if (!LOGO_TYPES.includes(file.type)) return notify.error("Logo not uploaded", "Use a PNG or JPG image.");
@@ -165,14 +191,6 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
       </fieldset>
       {(Object.values(errors)[0] || serverError) && (
         <span className="field-error settings-error">{Object.values(errors)[0]?.message ?? serverError}</span>
-      )}
-      {canEdit && (
-        <div className="settings-actions">
-          <button type="submit" className="button button-primary" disabled={!isDirty || isSubmitting}>
-            {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {isSubmitting ? "Saving…" : "Save Shop Details"}
-          </button>
-        </div>
       )}
     </form>
   );

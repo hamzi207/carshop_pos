@@ -10,6 +10,7 @@ import { formatMoney, marginPercent } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { buildCategoryIndex, skuPrefix, type Category, type CategoryIndex } from "@/lib/categories";
 import { useDiscardGuard } from "@/components/shared/discard-changes";
+import { ModalSheet } from "@/components/shared/modal-sheet";
 import type { FitmentVehicle, InventoryListItem } from "@/lib/types/inventory";
 import { inventoryItemSchema, type InventoryItemInput } from "@/lib/validations/inventory.schema";
 import { CategoryPicker } from "./category-picker";
@@ -42,24 +43,20 @@ export function InventoryItemDialog({ open, onOpenChange, currency, pricesInclud
   return (
     <>
       <Dialog.Root open={open} onOpenChange={guard.requestOpenChange}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="modal-backdrop">
-            <Dialog.Content className="modal">
-              {/* Remount per open so the form always starts from the item's current values. */}
-              {open && (
-                <ItemForm
-                  key={item?.id ?? "new"}
-                  item={item}
-                  currency={currency}
-                  pricesIncludeTax={pricesIncludeTax}
-                  categories={categories}
-                  onDirtyChange={guard.setDirty}
-                  onDone={guard.close}
-                />
-              )}
-            </Dialog.Content>
-          </Dialog.Overlay>
-        </Dialog.Portal>
+        <ModalSheet>
+          {/* Remount per open so the form always starts from the item's current values. */}
+          {open && (
+            <ItemForm
+              key={item?.id ?? "new"}
+              item={item}
+              currency={currency}
+              pricesIncludeTax={pricesIncludeTax}
+              categories={categories}
+              onDirtyChange={guard.setDirty}
+              onDone={guard.close}
+            />
+          )}
+        </ModalSheet>
       </Dialog.Root>
       {guard.prompt}
     </>

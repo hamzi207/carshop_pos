@@ -14,6 +14,11 @@ export const WEEK_STARTS = [1, 7, 6] as const;
 export type WeekStart = (typeof WEEK_STARTS)[number];
 export const WEEK_START_LABEL: Record<WeekStart, string> = { 1: "Monday", 7: "Sunday", 6: "Saturday" };
 
+// How documents are printed from the document screens (tenants.print_format).
+export const PRINT_FORMATS = ["a4", "pos"] as const;
+export type PrintFormat = (typeof PRINT_FORMATS)[number];
+export const PRINT_FORMAT_LABEL: Record<PrintFormat, string> = { a4: "A4 PDF", pos: "80mm POS slip" };
+
 export const shopSettingsSchema = z.object({
   currency: z.enum(CURRENCIES, { error: "Choose Rs. or PKR." }),
   showPaisa: z.boolean(),
@@ -33,6 +38,7 @@ export const shopSettingsSchema = z.object({
     .int("Use whole days.")
     .min(1, "Quotations must be valid for at least 1 day.")
     .max(365, "Use 365 days or fewer."),
+  printFormat: z.enum(PRINT_FORMATS, { error: "Choose A4 PDF or POS slip." }),
 });
 
 export type ShopSettingsInput = z.infer<typeof shopSettingsSchema>;

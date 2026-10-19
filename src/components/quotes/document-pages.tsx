@@ -295,6 +295,7 @@ async function NewDocument({ section, searchParams }: { section: DocumentSection
       allowInternationalPhones={tenant.allowInternationalPhones}
       terms={tenant.quoteTerms}
       shopName={tenant.name}
+      printFormat={tenant.printFormat}
       initialCustomer={initialCustomer}
       walkIn={walkIn}
       categories={categories}
@@ -351,6 +352,7 @@ async function EditDocument({ section, params }: { section: DocumentSection; par
       allowInternationalPhones={tenant.allowInternationalPhones}
       terms={tenant.quoteTerms}
       shopName={tenant.name}
+      printFormat={tenant.printFormat}
       initialCustomer={null}
       walkIn={walkIn}
       categories={categories}

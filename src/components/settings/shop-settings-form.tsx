@@ -3,12 +3,51 @@
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlarmClock, Clock, Coins, FileText, Loader2, Phone, Receipt, Save } from "lucide-react";
+import { AlarmClock, Clock, Coins, FileText, Phone, Receipt } from "lucide-react";
 import { updateShopSettings } from "@/lib/actions/settings";
+import { useUnsavedSettings } from "./unsaved-settings";
 import { formatMoney } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { DEFAULT_TIMEZONE, type TimeZoneGroup } from "@/lib/timezones";
-import { CLOCK_STYLES, CURRENCIES, shopSettingsSchema, WEEK_START_LABEL, WEEK_STARTS, type ShopSettingsInput } from "@/lib/validations/settings.schema";
+import {
+  CLOCK_STYLES,
+  CURRENCIES,
+  PRINT_FORMAT_LABEL,
+  PRINT_FORMATS,
+  shopSettingsSchema,
+  WEEK_START_LABEL,
+  WEEK_STARTS,
+  type ShopSettingsInput,
+} from "@/lib/validations/settings.schema";
+
+const onOff = (on: boolean) => (on ? "On" : "Off");
+
+/**
+ * "Settings saved" names each changed setting as "<label> updated to <value>", in the order the
+ * cards show them; settings that weren't changed aren't mentioned.
+ */
+const CHANGE_TEXT: Record<keyof ShopSettingsInput, [label: string, value: (v: ShopSettingsInput) => string]> = {
+  currency: ["Currency symbol", (v) => v.currency],
+  showPaisa: ["Show paisa", (v) => onOff(v.showPaisa)],
+  taxRate: ["Tax rate", (v) => `${v.taxRate}%`],
+  pricesIncludeTax: ["Selling prices include tax", (v) => onOff(v.pricesIncludeTax)],
+  quoteValidityDays: ["Quotation valid for", (v) => `${v.quoteValidityDays} day${v.quoteValidityDays === 1 ? "" : "s"}`],
+  printFormat: ["Print format", (v) => PRINT_FORMAT_LABEL[v.printFormat]],
+  allowInternationalPhones: ["Allow international numbers", (v) => onOff(v.allowInternationalPhones)],
+  timezone: ["Shop timezone", (v) => v.timezone],
+  weekStart: ["First day of the week", (v) => WEEK_START_LABEL[v.weekStart]],
+  showClock: ["Show clock on dashboard", (v) => onOff(v.showClock)],
+  clockStyle: ["Clock design", (v) => (v.clockStyle === "analog" ? "Analog" : "Digital")],
+  clock24Hour: ["Time format", (v) => (v.clock24Hour ? "24-hour" : "12-hour")],
+};
+
+/** One line per changed setting, e.g. "Print format updated to 80mm POS slip."; empty when nothing changed. */
+function describeChanges(before: ShopSettingsInput, after: ShopSettingsInput) {
+  return (Object.keys(CHANGE_TEXT) as (keyof ShopSettingsInput)[])
+    .filter((k) => before[k] !== after[k])
+    .map((k) => `${CHANGE_TEXT[k][0]} updated to ${CHANGE_TEXT[k][1](after)}.`)
+    .join("\n");
+}
 
 type Props = {
   initial: ShopSettingsInput;
@@ -25,7 +64,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
     control,
     handleSubmit,
     reset,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { errors, isSubmitting, isDirty, defaultValues: saved },
   } = useForm<ShopSettingsInput>({
     resolver: zodResolver(shopSettingsSchema),
     defaultValues: initial,
@@ -37,20 +76,33 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
   });
   const preview = formatMoney(12500, { currency, showPaisa });
 
-  const onSubmit = handleSubmit(async (values) => {
+  const persist = async (values: ShopSettingsInput) => {
     setServerError(null);
     const result = await updateShopSettings(values);
     if (result.status === "error") {
       setServerError(result.message);
       notify.error("Settings not saved", result.message);
-      return;
+      return false;
     }
+    // Compared with the last saved values, so a setting changed and then changed back isn't listed.
+    // `saved` = defaultValues, which reset() moves to the values just saved.
+    const changes = describeChanges({ ...initial, ...saved } as ShopSettingsInput, values);
     reset(values);
-    notify.success(
-      "Settings saved",
-      `${values.currency} · tax ${values.taxRate}% · ${values.timezone} · quotations valid ${values.quoteValidityDays} day${values.quoteValidityDays === 1 ? "" : "s"}.`,
-    );
-  });
+    notify.success("Settings saved", changes || "Nothing was changed.");
+    return true;
+  };
+  const onSubmit = handleSubmit(persist);
+  // Saved only from the page's save bar (or Enter in a field); see unsaved-settings.tsx.
+  useUnsavedSettings(
+    "shop-settings",
+    "Shop settings",
+    isDirty,
+    () => new Promise<boolean>((resolve) => void handleSubmit(async (v) => resolve(await persist(v)), () => resolve(false))()),
+    () => {
+      setServerError(null);
+      reset();
+    },
+  );
 
   return (
     <form className="settings-form" onSubmit={onSubmit} noValidate>
@@ -163,6 +215,35 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             </span>
           </label>
           {errors.quoteValidityDays && <span className="field-error settings-error">{errors.quoteValidityDays.message}</span>}
+          <div className="settings-row">
+            <span className="settings-label">
+              Print format
+              <small>
+                What quotations, invoices and drafts offer: an A4 PDF to view or download, or an 80mm slip printed straight from
+                the screen on a receipt printer. The customer link always shows the A4 version.
+              </small>
+            </span>
+            <Controller
+              control={control}
+              name="printFormat"
+              render={({ field }) => (
+                <div className="segmented" role="radiogroup" aria-label="Print format">
+                  {PRINT_FORMATS.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      role="radio"
+                      aria-checked={field.value === f}
+                      className={field.value === f ? "active" : ""}
+                      onClick={() => field.onChange(f)}
+                    >
+                      {PRINT_FORMAT_LABEL[f]}
+                    </button>
+                  ))}
+                </div>
+              )}
+            />
+          </div>
 
         </section>
 
@@ -306,15 +387,6 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             </div>
           )}
         </section>
-
-        {canEdit && (
-          <div className="settings-actions">
-            <button type="submit" className="button button-primary" disabled={!isDirty || isSubmitting}>
-              {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {isSubmitting ? "Saving…" : "Save Settings"}
-            </button>
-          </div>
-        )}
       </fieldset>
     </form>
   );

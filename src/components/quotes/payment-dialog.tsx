@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Dialog } from "radix-ui";
-import { Banknote, Loader2, X } from "lucide-react";
+import { Banknote, Coins, Loader2, X } from "lucide-react";
+import { ModalSheet } from "@/components/shared/modal-sheet";
 import { recordPayment } from "@/lib/actions/quotes";
 import { PAYMENT_METHODS, type PaymentMethod } from "@/lib/documents";
 import { formatMoney, type MoneyFormat } from "@/lib/format";
@@ -34,13 +35,9 @@ type Props = {
 export function PaymentDialog({ open, onOpenChange, ...props }: Props) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="modal-backdrop">
-          <Dialog.Content className={props.lines.length > 0 ? "modal modal-payment" : "modal modal-sm"}>
-            {open && <PaymentForm {...props} onDone={() => onOpenChange(false)} />}
-          </Dialog.Content>
-        </Dialog.Overlay>
-      </Dialog.Portal>
+      <ModalSheet className={props.lines.length > 0 ? "modal modal-payment" : "modal modal-sm"}>
+        {open && <PaymentForm {...props} onDone={() => onOpenChange(false)} />}
+      </ModalSheet>
     </Dialog.Root>
   );
 }
@@ -48,6 +45,9 @@ export function PaymentDialog({ open, onOpenChange, ...props }: Props) {
 type Row = { on: boolean; apply: number; qty: number | null };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Quick cash buttons: notes the customer hands over, added up. */
+const CASH_NOTES = [500, 1000, 5000];
 
 /** Units that `amount` pays for in full, when it's a whole number of units. */
 function wholeUnits(line: LineBalance, amount: number) {
@@ -59,6 +59,7 @@ function wholeUnits(line: LineBalance, amount: number) {
 
 function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }: Omit<Props, "open" | "onOpenChange"> & { onDone: () => void }) {
   const fmt = (n: number) => formatMoney(n, money);
+  const fmtNote = (n: number) => formatMoney(n, { ...money, showPaisa: false });
   const [amount, setAmount] = useState(balance);
   // Once the amount is typed, ticking items spreads it over them; until then, ticking items sets the amount.
   const [amountTyped, setAmountTyped] = useState(false);
@@ -70,6 +71,9 @@ function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }
   const [notes, setNotes] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Cash handed over (quick cash). Up to `cashDue` of it is the payment; anything above is change.
+  const [received, setReceived] = useState<number | null>(null);
+  const [cashDue, setCashDue] = useState<number | null>(null);
 
   const payable = lines.filter((l) => l.remaining > 0);
   const selected = lines.filter((l) => rows[l.id].on);
@@ -91,6 +95,7 @@ function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }
 
   /** After a change to the items: either spread the typed amount, or make the amount their total. */
   const commit = (next: Record<string, Row>, respread: boolean) => {
+    clearCash();
     if (amountTyped && respread) {
       setRows(spread(next, amount));
       return;
@@ -115,11 +120,30 @@ function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }
     const apply = Number.isFinite(value) ? value : 0;
     commit({ ...rows, [l.id]: { on: true, apply, qty: wholeUnits(l, apply) } }, false);
   };
-  const changeAmount = (value: number) => {
+  const applyAmount = (value: number) => {
     setAmount(value);
     setAmountTyped(true);
     if (selected.length > 0) setRows(spread({ ...rows }, value));
   };
+  const changeAmount = (value: number) => {
+    clearCash();
+    applyAmount(value);
+  };
+
+  /** Cash received: the payment is what's due (or all of it, when it's less); the rest is change. */
+  const takeCash = (value: number) => {
+    const due = cashDue ?? (Number.isFinite(amount) && amount > 0 ? amount : balance);
+    const cash = Number.isFinite(value) && value > 0 ? round2(value) : 0;
+    applyAmount(cash ? Math.min(cash, due) : due);
+    if (!cash) return clearCash();
+    setCashDue(due);
+    setReceived(cash);
+  };
+  const clearCash = () => {
+    setReceived(null);
+    setCashDue(null);
+  };
+  const change = received !== null && Number.isFinite(amount) ? round2(received - amount) : 0;
   const selectAll = (on: boolean) => {
     const next = Object.fromEntries(
       lines.map((l) => [l.id, on && l.remaining > 0 ? { on: true, apply: l.remaining, qty: wholeUnits(l, l.remaining) } : { on: false, apply: 0, qty: null }]),
@@ -157,14 +181,15 @@ function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }
     }
     const paidBy = parsed.data.method === "Check" ? "Cheque" : parsed.data.method;
     const left = round2(balance - parsed.data.amount);
+    const giveChange = received !== null && received - parsed.data.amount > 0.005 ? ` Give ${fmt(round2(received - parsed.data.amount))} change.` : "";
     const forItems = paying.length
       ? ` For ${allocationSummary(paying.map((l) => ({ description: l.description, quantity: rows[l.id].qty })))}.`
       : "";
     notify.success(
       parsed.data.amount >= balance ? `${number} paid in full` : `${fmt(parsed.data.amount)} recorded on ${number}`,
       left <= 0
-        ? `${fmt(parsed.data.amount)} by ${paidBy}.${forItems} The invoice is now Paid.`
-        : `${paidBy}.${forItems} Balance due: ${fmt(left)} (Partially Paid).`,
+        ? `${fmt(parsed.data.amount)} by ${paidBy}.${forItems} The invoice is now Paid.${giveChange}`
+        : `${paidBy}.${forItems} Balance due: ${fmt(left)} (Partially Paid).${giveChange}`,
     );
     onDone();
   };
@@ -202,7 +227,13 @@ function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }
           </label>
           <label>
             <span>METHOD</span>
-            <select value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
+            <select
+              value={method}
+              onChange={(e) => {
+                setMethod(e.target.value as PaymentMethod);
+                clearCash();
+              }}
+            >
               {PAYMENT_METHODS.map((m) => (
                 <option key={m} value={m}>{m === "Check" ? "Cheque" : m}</option>
               ))}
@@ -217,6 +248,49 @@ function PaymentForm({ invoiceId, number, balance, lines, money, today, onDone }
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Cheque #4521, HBL transfer" maxLength={300} />
           </label>
         </div>
+
+        {method === "Cash" && (
+          <div className="quick-cash">
+            <span className="quick-cash-label"><Coins size={13} /> CASH RECEIVED</span>
+            <div className="quick-cash-row">
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={received ?? ""}
+                placeholder="Amount handed over"
+                onChange={(e) => (e.target.value === "" ? takeCash(0) : takeCash(e.target.valueAsNumber))}
+                aria-label="Cash received"
+              />
+              {CASH_NOTES.map((n) => (
+                <button key={n} type="button" className="quick-cash-chip" onClick={() => takeCash((received ?? 0) + n)}>
+                  +{fmtNote(n)}
+                </button>
+              ))}
+              <button
+                type="button"
+                className="quick-cash-chip"
+                onClick={() => takeCash(cashDue ?? (Number.isFinite(amount) && amount > 0 ? amount : balance))}
+              >
+                Exact Amount
+              </button>
+            </div>
+            {received !== null && (
+              <p className={`quick-cash-result${change > 0.005 ? " change" : ""}`} role="status">
+                Received: <strong>{fmt(received)}</strong> →{" "}
+                {change > 0.005 ? (
+                  <>Change Due: <strong>{fmt(change)}</strong></>
+                ) : received < balance - 0.005 ? (
+                  <>{fmt(round2(balance - received))} left on the invoice</>
+                ) : (
+                  <>No change</>
+                )}
+                <button type="button" className="link-button" onClick={() => takeCash(0)}>Clear</button>
+              </p>
+            )}
+          </div>
+        )}
 
         {lines.length > 0 && (
           <fieldset className="pay-items">

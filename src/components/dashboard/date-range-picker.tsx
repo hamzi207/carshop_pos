@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Popover } from "radix-ui";
 import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { MobileSheet } from "@/components/quotes/mobile-sheet";
 import { RANGE_LABEL, type RangeKey } from "@/lib/dashboard";
+import { PHONE_QUERY, useMediaQuery } from "@/lib/hooks/use-media-query";
 import type { WeekStart } from "@/lib/validations/settings.schema";
 
 type Props = {
@@ -69,8 +71,12 @@ function activePreset(list: Preset[], range: RangeKey, from: string, to: string)
   return list.find((p) => p.range === "custom" && p.from === from && p.to === to) ?? null;
 }
 
-/** Date range for the dashboard figures: shortcuts plus a two-month calendar, kept in the URL (?range=&from=&to=). */
+/**
+ * Date range for the dashboard figures: shortcuts plus a two-month calendar, kept in the URL (?range=&from=&to=).
+ * Phones get a bottom sheet with one month instead of the popover (Phase 11).
+ */
 export function DateRangePicker({ range, from, to, today, weekStart }: Props) {
+  const phone = useMediaQuery(PHONE_QUERY);
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
@@ -169,63 +175,110 @@ export function DateRangePicker({ range, from, to, today, weekStart }: Props) {
   const nextView = addMonths(view, 1);
   const canGoForward = addMonths(nextView, 1) <= monthStart(today);
 
+  const triggerContent = (
+    <>
+      {pending ? <Loader2 size={14} className="animate-spin" /> : <CalendarRange size={14} />}
+      <strong>{label}</strong>
+      <span>{rangeText(from, to)}</span>
+      <ChevronDown size={14} className="range-chevron" />
+    </>
+  );
+  const triggerLabel = `Date range: ${label}, ${rangeText(from, to)}`;
+  const presetButtons = list.map((p) => (
+    <button
+      key={p.key}
+      type="button"
+      role="option"
+      aria-selected={current?.key === p.key}
+      className={current?.key === p.key ? "active" : undefined}
+      onClick={() => pickPreset(p)}
+    >
+      {p.label}
+    </button>
+  ));
+  const nav = (
+    <div className="cal-nav">
+      <button type="button" className="icon-button" onClick={() => setView(addMonths(view, -1))} aria-label="Previous month">
+        <ChevronLeft size={16} />
+      </button>
+      <button type="button" className="icon-button" onClick={() => setView(nextView)} disabled={!canGoForward} aria-label="Next month">
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+  const picked = end === null ? `${rangeText(start, null)} – pick an end date` : rangeText(start, end);
+  const apply = (
+    <button
+      type="button"
+      className="button button-primary"
+      disabled={end === null}
+      onClick={() => end && go({ range: "custom", from: start, to: end })}
+    >
+      Apply
+    </button>
+  );
+
+  if (phone) {
+    return (
+      <>
+        <button
+          type="button"
+          className="range-trigger"
+          data-state={open ? "open" : "closed"}
+          aria-haspopup="dialog"
+          aria-label={triggerLabel}
+          onClick={() => onOpenChange(true)}
+        >
+          {triggerContent}
+        </button>
+        <MobileSheet
+          open={open}
+          onOpenChange={onOpenChange}
+          variant="bottom"
+          title="Date range"
+          description="Pick a quick range, or tap a start and an end date."
+          footer={
+            <>
+              <button type="button" className="button" onClick={() => setOpen(false)}>Cancel</button>
+              <span className="sheet-done">{apply}</span>
+            </>
+          }
+        >
+          <div className="sheet-chips" role="listbox" aria-label="Quick ranges">{presetButtons}</div>
+          {/* One month: the later one, which holds the end date. */}
+          <div className="range-calendar range-sheet-calendar">
+            {nav}
+            <div className="cal-months">{month(nextView)}</div>
+            <p className="range-sheet-picked">{picked}</p>
+          </div>
+        </MobileSheet>
+      </>
+    );
+  }
+
   return (
     <Popover.Root open={open} onOpenChange={onOpenChange}>
       <Popover.Trigger asChild>
-        <button type="button" className="range-trigger" aria-label={`Date range: ${label}, ${rangeText(from, to)}`}>
-          {pending ? <Loader2 size={14} className="animate-spin" /> : <CalendarRange size={14} />}
-          <strong>{label}</strong>
-          <span>{rangeText(from, to)}</span>
-          <ChevronDown size={14} className="range-chevron" />
+        <button type="button" className="range-trigger" aria-label={triggerLabel}>
+          {triggerContent}
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content className="range-panel" align="end" sideOffset={8} collisionPadding={16}>
           <div className="range-presets" role="listbox" aria-label="Quick ranges">
-            {list.map((p) => (
-              <button
-                key={p.key}
-                type="button"
-                role="option"
-                aria-selected={current?.key === p.key}
-                className={current?.key === p.key ? "active" : undefined}
-                onClick={() => pickPreset(p)}
-              >
-                {p.label}
-              </button>
-            ))}
+            {presetButtons}
           </div>
           <div className="range-calendar" onMouseLeave={() => setHover(null)}>
-            <div className="cal-nav">
-              <button type="button" className="icon-button" onClick={() => setView(addMonths(view, -1))} aria-label="Previous month">
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                type="button"
-                className="icon-button"
-                onClick={() => setView(nextView)}
-                disabled={!canGoForward}
-                aria-label="Next month"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
+            {nav}
             <div className="cal-months">
               {month(view)}
               {month(nextView)}
             </div>
             <div className="range-footer">
-              <span>{end === null ? `${rangeText(start, null)} – pick an end date` : rangeText(start, end)}</span>
+              <span>{picked}</span>
               <div>
                 <button type="button" className="button" onClick={() => setOpen(false)}>Cancel</button>
-                <button
-                  type="button"
-                  className="button button-primary"
-                  disabled={end === null}
-                  onClick={() => end && go({ range: "custom", from: start, to: end })}
-                >
-                  Apply
-                </button>
+                {apply}
               </div>
             </div>
           </div>

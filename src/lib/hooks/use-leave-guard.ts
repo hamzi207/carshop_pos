@@ -10,8 +10,14 @@ let guardHref: string | null = null;
 /** What to do once the guard entry has been popped. */
 let afterGuardPop: (() => void) | null = null;
 
+// The guard entry carries this mark, so we know whether it's the current entry: after a save
+// that stays on the page, `guardHref` still names the page, but once the user has left and
+// come back the entry on top is an ordinary one (going "back off the guard" would leave).
+const GUARD_MARK = "__carshopLeaveGuard";
+const onGuardEntry = () => Boolean((window.history.state as Record<string, unknown> | null)?.[GUARD_MARK]);
+
 const pushGuard = () => {
-  window.history.pushState(window.history.state, "", window.location.href);
+  window.history.pushState({ ...window.history.state, [GUARD_MARK]: true }, "", window.location.href);
   guardHref = window.location.href;
 };
 
@@ -75,11 +81,11 @@ export function useLeaveGuard(dirty: boolean, enabled: boolean) {
   }, []);
 
   useEffect(() => {
-    if (dirty && enabled && guardHref !== window.location.href) pushGuard();
+    if (dirty && enabled && !onGuardEntry()) pushGuard();
   }, [dirty, enabled]);
 
   const leaveWith = useCallback((navigate: () => void) => {
-    if (guardHref === window.location.href) {
+    if (guardHref === window.location.href && onGuardEntry()) {
       afterGuardPop = navigate;
       window.history.back();
     } else {

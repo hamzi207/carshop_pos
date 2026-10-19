@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–10): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–11): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-17)**: Phases 1–9 are built and committed; Phase 10 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-19)**: Phases 1–10 are built and committed; Phase 11 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1032,7 +1032,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 10: Mobile Document Builder & Sticky Cashier Bar [COMPLETED]
-**Commit**: pending (`Phase 10 - mobile document builder and sticky cashier bar`).
+**Commit**: `9f67719` (`Phase 10 - mobile document builder and sticky cashier bar`).
 
 **What was built** (extends the Phase 5 builder; everything below applies at ≤ 768px, desktop is unchanged):
 1. **Sheet component** `src/components/quotes/mobile-sheet.tsx` (Radix Dialog): `variant="full"` covers the screen, `variant="bottom"` rises from the bottom edge (16px top corners, drag handle, `max-height: 90dvh`); slide-up animation, safe-area padding, 44px close button, optional pinned footer, `initialFocus` ref. CSS `.sheet*` in `globals.css`. Phase 11's bottom-sheets can reuse it.
@@ -1045,7 +1045,24 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 8. ROADMAP (PHASES 11–15): STILL TO BUILD
+### PHASE 11: Bottom-Sheets, Quick Cash & 80mm Thermal Receipts [COMPLETED]
+**Commit**: pending (`Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts`).
+
+**What was built**:
+1. **Form dialogs as bottom sheets** `src/components/shared/modal-sheet.tsx` (`ModalSheet`: portal + overlay + content inside a `Dialog.Root`), used by the part (`inventory-item-dialog.tsx`), customer (`customer-dialog.tsx`) and payment (`payment-dialog.tsx`) dialogs. Desktop: the same centred `.modal`. ≤ 768px (`.modal-sheet`): pinned to the bottom edge, full width, 16px top corners, drag handle (`.modal-handle`, reuses Phase 10 `.sheet-handle`), `max-height: 90dvh`, slide-up, the body scrolls and the footer (48px buttons) stays visible. **Keyboard**: `src/lib/hooks/use-keyboard-inset.ts` sets `--keyboard-inset` on `<html>` from `visualViewport` while a sheet is open; the sheet's `margin-bottom` lifts it (and its buttons) above the iOS keyboard (Android already resizes via `interactiveWidget`).
+2. **Dashboard date range on phones** (`date-range-picker.tsx`): `useMediaQuery(PHONE_QUERY)` (`src/lib/hooks/use-media-query.ts`) swaps the two-month popover for a Phase 10 `MobileSheet` (`variant="bottom"`): quick ranges as chips (apply at once), one full-width month with 44px days and 44px month arrows, the picked range, Cancel / Apply. Desktop unchanged.
+3. **80mm POS slip**, black only: shop name / address / phone / NTN·STRN, title, number, dates, status, customer + phone, items (name, `qty × sale price`, per-unit discount, line total), subtotal / discount / tax / TOTAL, invoices: paid-by methods, paid, balance due; a vector **QR code** to the customer share link (`src/lib/qr.ts` → `qrPath`, `qrcode` package; `customerLink` in `src/lib/customer-link.ts` gives none for drafts / cancelled), terms, "Thank you". Two renderers of the same `PrintableDocument`:
+   - **Printed from the screen** (no new tab): `usePosSlipPrint()` in `src/components/quotes/pos-slip.tsx` fetches `GET /api/documents/[id]/printable` (JSON `{ doc, shareUrl }`, signed-in, RLS), portals the slip into `<body>` (`.pos-print-root`, off-screen), measures it, injects `@page { size: 80mm <height>mm; margin: 0 }`, sets `html.pos-printing` (print CSS hides everything else) and calls `window.print()`; `afterprint` removes it all. Works on phones too (system print / AirPrint / Sunmi print service).
+   - **PDF** `src/components/pdf/thermal-receipt.tsx` (react-pdf, 226.77pt wide, auto height needs `<Page wrap={false}>`): `GET /api/documents/[id]/receipt` (`?download=1` saves it; `receiptResponse` in `src/lib/pdf.tsx`).
+   - **Shop setting "Print format"** (Settings → Quotations & invoices; `tenants.print_format` 'a4' | 'pos', migration `20261019120000_tenant_print_format.sql`, admin-only like the other settings) decides the format everywhere on the document screen: one toolbar print button next to Share (`usePrintDocument`, `src/components/quotes/print-document.tsx`) reads **Print PDF** (A4) or **Print POS Slip** (80mm), and the Share menu offers **View / Download PDF** or **View / Download POS Slip** (`/api/documents/[id]/pdf` or `/receipt`, `?download=1` saves). Print PDF loads the A4 PDF into a hidden off-screen iframe (inline styles) and calls its `print()`, so the dialog opens on the same page; on phones or browsers without a built-in PDF viewer (`navigator.pdfViewerEnabled` false) it opens the PDF in the device's viewer instead. Applies to drafts, quotations and invoices; WhatsApp / Copy customer link stay in both, and the customer link (`/share/[token]`) always shows the A4 version.
+4. **Quick cash & change** (`payment-dialog.tsx`, method Cash only): CASH RECEIVED field plus `+Rs. 500`, `+Rs. 1,000`, `+Rs. 5,000` (add up) and `Exact Amount`. Cash above the amount being paid is change ("Received: Rs. 20,000 → Change Due: Rs. 4,000"); cash below it becomes the payment ("Rs. 14,500 left on the invoice"); Clear restores the amount. Only the payment is recorded; the success toast adds "Give Rs. X change." Typing the amount, changing items or the method clears the cash.
+5. **Touch targets ≥ 44px** (`@media (max-width: 768px), (pointer: coarse)`): category picker rows and expand buttons, category trigger, category manager rows (48px) and row actions, inventory filter chips and "Clear", the status / customer-type pills, table row actions.
+6. Also fixed on phones: the Settings shop card no longer scrolls sideways (`.settings-form` column `minmax(0, 1fr)`, long values wrap).
+7. **Settings save only on "Save Settings"** (`src/components/settings/unsaved-settings.tsx`): the shop-details and shop-settings forms report unsaved changes (`useUnsavedSettings`) to one `UnsavedSettings` provider on the page, which shows a bar pinned to the bottom of the screen ("Unsaved changes · Your shop · Shop settings", Discard / Save Settings) and asks before leaving (reuses `useLeaveGuard` + `LeaveDialog`: Keep editing / Discard changes / Save Settings). The per-form "Save Shop Details" / "Save Settings" buttons were removed. The save toasts list only the changed fields, one per line ("Print format updated to 80mm POS slip."; `describeChanges` compares with the form's `defaultValues` = last saved, in shop-settings-form; `dirtyFields` + `FIELD_NAME` → "Address updated." in shop-profile-form; sonner descriptions are `whitespace-pre-line`). The logo and product categories still save immediately (their own actions). `useLeaveGuard` now marks its guard history entry (`__carshopLeaveGuard` in `history.state`) and only steps back off it when it is the current entry (after a save that stays on the page, the old URL check sent "Discard changes" back to the wrong page).
+
+---
+
+## 8. ROADMAP (PHASES 12–15): STILL TO BUILD
 
 > **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
 > Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
@@ -1057,26 +1074,13 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-### PHASE 11: Bottom-Sheets, Quick Cash & 80mm Thermal Receipts
-**Agent Directive**:
-1. **Bottom-sheets below 768px** for the app's Radix `.modal*` dialogs (reuse the Phase 10 `.sheet-bottom` styles from `mobile-sheet.tsx`; 16px top corners, drag handle, `max-height: 90vh`, actions pinned above the keyboard): part dialog (`inventory-item-dialog.tsx`), customer dialog (`customer-dialog.tsx`), payment dialog (`payment-dialog.tsx`).
-2. **Dashboard date range picker on phones** (`date-range-picker.tsx`): a one-month calendar in a bottom sheet instead of the two-month popover.
-3. **80mm thermal receipt** `src/components/pdf/thermal-receipt.tsx`: continuous roll (Epson, Xprinter, Sunmi), compact shop header, number, date, customer, condensed items, tax/discount summary, payment method, balance, QR code to the share link; "Print POS Slip (80mm)" in the Phase 6 Share menu and document actions.
-4. **Quick cash & change** in `payment-dialog.tsx`: `+Rs. 500`, `+Rs. 1,000`, `+Rs. 5,000`, `Exact Amount`, and "Received: Rs. 5,000 → Change Due: Rs. 350" (cash above the balance is change, not a payment).
-5. **Touch targets ≥ 44px**: category picker and manager rows, filter chips, table row actions.
-
-🛑 **PAUSE & CHECKPOINT**:  
-> "Phase 11 complete! Please test: 1) 'Add New Part' on mobile opens as a bottom sheet with Save reachable, 2) 'Record Payment' quick cash buttons and Change Due, 3) 'Print POS Slip (80mm)' opens an 80mm print preview, 4) the dashboard date picker on a phone. Then run `git add . && git commit -m 'Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts'` and tell me to begin Phase 12."
-
----
-
 ### PHASE 12: Superadmin Schema, Shop Settings Columns & Resend Email
 **Agent Directive**:
 1. **Migration** `supabase/migrations/<timestamp>_superadmin_and_scaling.sql`:
    - `profiles.is_superadmin boolean not null default false` + partial index; not writable by `authenticated`.
    - `public.superadmin_audit_logs` (admin id, target tenant/user id, action, details diff JSONB, IP, created_at).
    - `public.email_logs` (tenant id, recipient, template type, subject, resend id, status, error, metadata, created_at).
-   - New `tenants` columns: `status` ('active' | 'suspended' | 'trial'), `invoice_prefix` / `quote_prefix` / `draft_prefix` (defaults `INV` / `Q` / `D`), `invoice_start_number` / `quote_start_number` / `draft_start_number` (a "start from" floor, not a counter), `bank_name`, `bank_account_title`, `bank_account_number`, `bank_iban`, `bank_raast_id`, `bank_wallets`, `invoice_terms`, `print_format`.
+   - New `tenants` columns: `status` ('active' | 'suspended' | 'trial'), `invoice_prefix` / `quote_prefix` / `draft_prefix` (defaults `INV` / `Q` / `D`), `invoice_start_number` / `quote_start_number` / `draft_start_number` (a "start from" floor, not a counter), `bank_name`, `bank_account_title`, `bank_account_number`, `bank_iban`, `bank_raast_id`, `bank_wallets`, `invoice_terms` (`print_format` was added in Phase 11).
    - Update the Phase 5 `next_document_number` to use the shop's prefix and `greatest(highest used, start − 1) + 1`, still derived from existing documents. `quote_footer_notes` stays as the quotation terms.
    - RLS and grants for the new tables and columns.
 2. **Resend**: `npm install resend`; `src/lib/email/client.ts` with console fallback when `RESEND_API_KEY` is missing.

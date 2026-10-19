@@ -4,6 +4,7 @@ import { ChevronDown, Download, ExternalLink, Link2, MessageCircle, Share2 } fro
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { formatMoney, type MoneyFormat } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import type { PrintFormat } from "@/lib/validations/settings.schema";
 
 type Props = {
   id: string;
@@ -23,6 +24,8 @@ type Props = {
   /** Quotations: formatted "valid until" date. */
   validUntil: string | null;
   money: MoneyFormat;
+  /** Shop setting: which file View / Download give, the A4 PDF or the 80mm POS slip. */
+  printFormat: PrintFormat;
   disabled?: boolean;
 };
 
@@ -32,10 +35,11 @@ function shareUrl(token: string) {
   return `${base}/share/${token}`;
 }
 
-/** PDF (view / download) and sending the document to the customer over WhatsApp or as a link. */
+/** View / download in the shop's print format (A4 PDF or POS slip), and sending the document to the customer over WhatsApp or as a link. */
 export function ShareMenu(p: Props) {
   const money = (n: number) => formatMoney(n, p.money);
-  const pdf = `/api/documents/${p.id}/pdf`;
+  const file = `/api/documents/${p.id}/${p.printFormat === "pos" ? "receipt" : "pdf"}`;
+  const fileName = p.printFormat === "pos" ? "POS Slip" : "PDF";
 
   const whatsapp = () => {
     const link = shareUrl(p.shareToken);
@@ -76,12 +80,12 @@ export function ShareMenu(p: Props) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-auto min-w-52">
-        <DropdownMenuItem onSelect={() => window.open(pdf, "_blank", "noopener,noreferrer")}>
-          <ExternalLink size={14} /> View PDF
+        <DropdownMenuItem onSelect={() => window.open(file, "_blank", "noopener,noreferrer")}>
+          <ExternalLink size={14} /> View {fileName}
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <a href={`${pdf}?download=1`} download>
-            <Download size={14} /> Download PDF
+          <a href={`${file}?download=1`} download>
+            <Download size={14} /> Download {fileName}
           </a>
         </DropdownMenuItem>
         {p.shareable && (

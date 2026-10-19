@@ -594,3 +594,49 @@ Test steps (Chrome DevTools → device toolbar → iPhone 14 Pro, then /invoices
   3. Use the big +/− on a card; tap a card and give it a discount; delete a line and press Undo.
   4. Check the bottom bar's total and button, then Create Invoice from the bar.
   5. Commit: git add . && git commit -m "Phase 10 - mobile document builder and sticky cashier bar"
+
+Phase 11 (bottom sheets, quick cash, 80mm POS slip), 2026-10-19:
+  - Phones (768px and narrower): Add / Edit Part, Register / Edit Customer and Record Payment open as sheets from the
+    bottom: rounded top, grab handle, at most 90% of the screen, the form scrolls and Save / Cancel stay visible, also
+    above the iPhone keyboard.
+  - Record Payment (Cash): "Cash received" box with +Rs. 500, +Rs. 1,000, +Rs. 5,000 (they add up) and Exact Amount.
+    "Received: Rs. 20,000 → Change Due: Rs. 4,000". Cash above what's owed is change, not a payment; less than that is
+    recorded as a part payment. The success message says how much change to give.
+  - POS slip for 80mm receipt printers (Epson, Xprinter, Sunmi): shop, number, dates, customer, items, totals, how it
+    was paid, balance, a QR code to the customer link, terms. "Print POS Slip" prints it straight from the screen (the
+    print dialog opens on the same page, no new tab; the paper is exactly as long as the slip). View / Download POS Slip
+    are in the Share menu.
+  - New setting, Settings → Quotations & invoices → Print format: "A4 PDF" (default) or "80mm POS slip". The print
+    button next to Share follows it: "Print PDF" (A4, prints the PDF on the same page on computers; phones open it in
+    their PDF viewer, which has Print) or "Print POS Slip". The Share menu offers View / Download in the same format. Applies to
+    drafts, quotations and invoices; the customer's WhatsApp link always shows the A4 version.
+  - Dashboard date range on phones: a sheet from the bottom with quick-range chips and one big month.
+  - Bigger tap areas (44px) on phones and touch screens: category picker and Settings category rows and their buttons,
+    filter chips, status / customer-type buttons, table row buttons.
+  - Settings on phones no longer scrolls sideways (long shop ID / handle wrap).
+  - Settings are only saved with "Save Settings": changing anything (shop details or settings) shows a bar at the
+    bottom of the screen, "Unsaved changes", with Discard and Save Settings. Leaving the page with unsaved changes asks
+    Keep editing / Discard changes / Save Settings. (Before, the only Save button was at the very bottom and leaving
+    silently dropped the change; that's why the POS slip setting never took effect.)
+  - The "Settings saved" / "Shop details saved" messages name only what was changed, one line each (e.g. "Print
+    format updated to 80mm POS slip."), not every setting; a value changed and then changed back isn't listed.
+Typecheck and lint pass; browser test with a temporary test shop (4 parts, a customer registered in the new sheet) passed
+33 checks: three sheets on the bottom edge / 16px corners / handle / ≤ 90% / buttons visible, sheet above a 320px
+keyboard, 48px sheet buttons, 44px category rows, chips and pills, quick cash (change, short payment, Exact, change in
+the toast), POS slip 80mm × content height as one page with QR, 404 for other ids, phone date sheet (one month, 44px
+days, custom range + chip), desktop dialogs / popover unchanged, no sideways scroll. Print format round (12 checks): A4
+shows only PDF items, the setting saves, POS shows only slip items + toolbar button (phone too), printing stays on the
+page, paper sized 80mm × slip height, Chrome's print output is one 80mm page with only the slip, cleanup after printing,
+slip PDF downloads. Save-bar round (14 checks, in-app navigation): no bar until a change, bar pinned to the bottom
+(phone too, 44px buttons), leaving asks, Save Settings saves and an already-opened invoice then shows Print POS Slip,
+Discard restores both forms, leave → Discard saves nothing, leave → Save saves then leaves, the invoice builder's leave
+prompt still works. Test shops deleted.
+
+Test steps (Chrome DevTools → device toolbar → iPhone 14 Pro):
+  1. Inventory → Add New Part: it slides up from the bottom; scroll the form, Save stays at the bottom.
+  2. Open an unpaid invoice → Record Payment → Cash: tap +Rs. 5,000 a few times and check Change Due; tap Exact Amount.
+  3. Settings → Print format → 80mm POS slip: the save bar appears → Save Settings. Open an invoice: the button next to Share is "Print POS Slip" and
+     the Share menu has View / Download POS Slip. Switch back to A4 PDF: "Print PDF" (print dialog on the same page) and
+     View / Download PDF.
+  4. Dashboard → date range: a sheet with one month; pick two days and Apply.
+  5. Commit: git add . && git commit -m "Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts"

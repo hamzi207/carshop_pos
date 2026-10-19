@@ -13,6 +13,7 @@ import {
   FilePen,
   FileText,
   Loader2,
+  Printer,
   ReceiptText,
   RotateCcw,
   Save,
@@ -54,6 +55,8 @@ import { LineItems, type BuilderLine } from "./line-items";
 import type { CategoryChip } from "./line-search";
 import { MobileActionBar } from "./mobile-action-bar";
 import { PaymentDialog } from "./payment-dialog";
+import type { PrintFormat } from "@/lib/validations/settings.schema";
+import { usePrintDocument } from "./print-document";
 import { ShareMenu } from "./share-menu";
 import { allocationSummary, lineBalances } from "@/lib/payments";
 
@@ -83,6 +86,8 @@ type Props = {
   terms: string | null;
   /** For the PDF / WhatsApp message. */
   shopName: string;
+  /** Shop setting: A4 PDF or 80mm POS slip from this screen. */
+  printFormat: PrintFormat;
   /** Pre-selected customer (?customer= from a customer profile). */
   initialCustomer: CustomerOption | null;
   /** The shop's walk-in / cash customer. */
@@ -166,6 +171,7 @@ function BuilderForm({
   allowInternationalPhones,
   terms,
   shopName,
+  printFormat,
   initialCustomer,
   walkIn,
   categories,
@@ -176,6 +182,7 @@ function BuilderForm({
   const editable = doc === null || isEditable(doc.status);
   const current: DocumentSection = doc ? sectionForStatus(doc.status) : section;
   const isInvoice = current === "invoices";
+  const printer = usePrintDocument(printFormat);
 
   const [customer, setCustomer] = useState<CustomerOption | null>(doc?.customer ?? initialCustomer);
   const [walkInName, setWalkInName] = useState(doc?.walk_in_name ?? "");
@@ -673,9 +680,16 @@ function BuilderForm({
               balance={isInvoice ? balance : null}
               validUntil={current === "quotations" ? (meta.find((m) => m.label === "Valid until")?.value ?? null) : null}
               money={money}
+              printFormat={printFormat}
               disabled={pending || dirty}
             />
           )}
+          {doc && (
+            <button type="button" className="button" disabled={pending || dirty || printer.loading} onClick={() => printer.print(doc.id)}>
+              {printer.loading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />} {printer.label}
+            </button>
+          )}
+          {printer.element}
           {actions.map((a) =>
             a.menu ? (
               <div key={a.key} className="split-button">

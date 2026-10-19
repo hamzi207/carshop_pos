@@ -671,6 +671,7 @@ export type Database = {
           ntn: string | null
           phone: string | null
           prices_include_tax: boolean
+          print_format: string
           quote_footer_notes: string | null
           quote_validity_days: number
           show_clock: boolean
@@ -696,6 +697,7 @@ export type Database = {
           ntn: string | null
           phone?: string | null
           prices_include_tax?: boolean
+          print_format?: string
           quote_footer_notes?: string | null
           quote_validity_days?: number
           show_clock?: boolean
@@ -721,6 +723,7 @@ export type Database = {
           ntn?: string | null
           phone?: string | null
           prices_include_tax?: boolean
+          print_format?: string
           quote_footer_notes?: string | null
           quote_validity_days?: number
           show_clock?: boolean

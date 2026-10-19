@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { parseDashboardPrefs, type DashboardPrefs } from "@/lib/dashboard";
 import type { MoneyFormat } from "@/lib/format";
-import type { ClockStyle, WeekStart } from "@/lib/validations/settings.schema";
+import type { ClockStyle, PrintFormat, WeekStart } from "@/lib/validations/settings.schema";
 
 export type ShopSession = {
   userId: string;
@@ -42,6 +42,8 @@ export type ShopSession = {
     quoteValidityDays: number;
     /** Pass to formatMoney(). */
     money: MoneyFormat;
+    /** A4 PDF or 80mm POS slip on the document screens. */
+    printFormat: PrintFormat;
   };
 };
 
@@ -60,7 +62,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, dashboard_prefs, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, quote_footer_notes, quote_validity_days, phone, email, address, ntn, strn, logo_url)")
+    .select("full_name, email, role, dashboard_prefs, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, quote_validity_days, phone, email, address, ntn, strn, logo_url)")
     .eq("id", userId)
     .single();
 
@@ -100,6 +102,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       strn: tenant.strn,
       logoUrl: tenant.logo_url,
       money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
+      printFormat: tenant.print_format === "pos" ? "pos" : "a4",
     },
   };
 });

@@ -9,6 +9,7 @@ import { createCustomer, updateCustomer } from "@/lib/actions/customers";
 import { formatPhone, PHONE_EXAMPLE } from "@/lib/phone";
 import { notify } from "@/lib/notify";
 import { useDiscardGuard } from "@/components/shared/discard-changes";
+import { ModalSheet } from "@/components/shared/modal-sheet";
 import { formatStrn } from "@/lib/tax-id";
 import type { Tables } from "@/lib/types/database.types";
 import {
@@ -41,23 +42,19 @@ export function CustomerDialog({ open, onOpenChange, allowInternationalPhones, c
   return (
     <>
       <Dialog.Root open={open} onOpenChange={guard.requestOpenChange}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="modal-backdrop">
-            <Dialog.Content className="modal">
-              <CustomerForm
-                key={customer?.id ?? "new"}
-                customer={customer}
-                prefill={prefill}
-                allowInternationalPhones={allowInternationalPhones}
-                onDirtyChange={guard.setDirty}
-                onDone={(id) => {
-                  guard.close();
-                  onSaved?.(id);
-                }}
-              />
-            </Dialog.Content>
-          </Dialog.Overlay>
-        </Dialog.Portal>
+        <ModalSheet>
+          <CustomerForm
+            key={customer?.id ?? "new"}
+            customer={customer}
+            prefill={prefill}
+            allowInternationalPhones={allowInternationalPhones}
+            onDirtyChange={guard.setDirty}
+            onDone={(id) => {
+              guard.close();
+              onSaved?.(id);
+            }}
+          />
+        </ModalSheet>
       </Dialog.Root>
       {guard.prompt}
     </>
