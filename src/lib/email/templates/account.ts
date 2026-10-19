@@ -3,22 +3,29 @@ import { button, layout, muted, paragraph, type EmailContent } from "./layout";
 
 const PLATFORM = "CarShop POS";
 
-/** A new shop's first email (Phase 13: shops created by a superadmin; also usable after sign-up). */
-export function welcomeEmail(p: { fullName: string; shopName: string; loginUrl: string; email: string }): EmailContent {
+/**
+ * A new shop's first email (Phase 13: shops created by a superadmin; also usable after sign-up).
+ * With `setPasswordUrl` (the owner has no password yet) the button chooses one first.
+ */
+export function welcomeEmail(p: { fullName: string; shopName: string; loginUrl: string; email: string; setPasswordUrl?: string }): EmailContent {
   const subject = `Welcome to ${PLATFORM}, ${p.shopName}`;
   const lines = [
     `Hi ${p.fullName},`,
     `Your shop ${p.shopName} is ready on ${PLATFORM}. Add your parts, then send your first quotation or invoice.`,
   ];
+  const [label, href] = p.setPasswordUrl ? ["Choose your password", p.setPasswordUrl] : ["Sign in", p.loginUrl];
+  const note = p.setPasswordUrl
+    ? `The link works for 1 hour and can be used once. After that, sign in at ${p.loginUrl} with ${p.email}.`
+    : `Sign in with ${p.email}.`;
   return {
     subject,
     html: layout({
       heading: `Welcome, ${p.shopName}`,
       preheader: "Your shop is ready. Sign in to add parts and send your first invoice.",
-      body: lines.map(paragraph).join("") + button("Sign in", p.loginUrl) + muted(`Sign in with ${p.email}.`),
+      body: lines.map(paragraph).join("") + button(label, href) + muted(note),
       footer: `${PLATFORM} · You're receiving this because a shop was created with this email address.`,
     }),
-    text: [...lines, "", `Sign in: ${p.loginUrl}`, `Sign in with ${p.email}.`].join("\n\n"),
+    text: [...lines, "", `${label}: ${href}`, note].join("\n\n"),
   };
 }
 

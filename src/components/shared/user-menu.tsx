@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, LogOut } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, LogOut, ShieldCheck } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,9 +17,11 @@ type UserMenuProps = {
   fullName: string;
   email: string;
   roleLabel: string;
+  /** Platform operators get a link to the /admin console. */
+  isSuperadmin?: boolean;
 };
 
-export function UserMenu({ initials, fullName, email, roleLabel }: UserMenuProps) {
+export function UserMenu({ initials, fullName, email, roleLabel, isSuperadmin = false }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -37,6 +40,17 @@ export function UserMenu({ initials, fullName, email, roleLabel }: UserMenuProps
           <div className="text-xs font-normal text-muted-foreground">{email}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isSuperadmin && (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/admin">
+                <ShieldCheck />
+                Superadmin console
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut />
           Sign out

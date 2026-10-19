@@ -1,7 +1,10 @@
 import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { getImpersonation } from "@/lib/impersonation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/types/database.types";
 import { parseDashboardPrefs, type DashboardPrefs } from "@/lib/dashboard";
 import type { MoneyFormat } from "@/lib/format";
 import type { ClockStyle, PrintFormat, WeekStart } from "@/lib/validations/settings.schema";
@@ -45,7 +48,49 @@ export type ShopSession = {
     /** A4 PDF or 80mm POS slip on the document screens. */
     printFormat: PrintFormat;
   };
+  /** Platform operator: the user menu links to /admin. */
+  isSuperadmin: boolean;
+  /** Set while a superadmin is acting as this shop ("Login As"): the banner shows it. */
+  impersonating: { tenantName: string; expiresAt: string } | null;
 };
+
+const TENANT_COLUMNS =
+  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, quote_validity_days, phone, email, address, ntn, strn, logo_url";
+
+type TenantRow = Pick<
+  Tables<"tenants">,
+  | "id" | "name" | "slug" | "currency" | "tax_rate" | "timezone" | "show_paisa" | "prices_include_tax"
+  | "allow_international_phones" | "clock_style" | "show_clock" | "clock_24_hour" | "week_start" | "print_format"
+  | "quote_footer_notes" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url"
+>;
+
+function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
+  return {
+    id: tenant.id,
+    name: tenant.name,
+    slug: tenant.slug,
+    currency: tenant.currency,
+    taxRate: Number(tenant.tax_rate),
+    timezone: tenant.timezone,
+    showPaisa: tenant.show_paisa,
+    pricesIncludeTax: tenant.prices_include_tax,
+    allowInternationalPhones: tenant.allow_international_phones,
+    clockStyle: tenant.clock_style === "analog" ? "analog" : "digital",
+    showClock: tenant.show_clock,
+    clock24Hour: tenant.clock_24_hour,
+    weekStart: tenant.week_start === 6 || tenant.week_start === 7 ? tenant.week_start : 1,
+    quoteTerms: tenant.quote_footer_notes,
+    quoteValidityDays: tenant.quote_validity_days,
+    phone: tenant.phone,
+    email: tenant.email,
+    address: tenant.address,
+    ntn: tenant.ntn,
+    strn: tenant.strn,
+    logoUrl: tenant.logo_url,
+    money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
+    printFormat: tenant.print_format === "pos" ? "pos" : "a4",
+  };
+}
 
 /**
  * Data Access Layer: the signed-in user's profile and shop.
@@ -59,15 +104,39 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   const userId = claimsData?.claims?.sub;
   if (!userId) redirect("/login");
 
+  // Superadmin acting as a shop: RLS now shows that shop (not their own profile), so their name
+  // comes from the service role and they count as the shop's admin.
+  const impersonation = await getImpersonation(userId);
+  if (impersonation) {
+    const [{ data: own }, { data: tenant }] = await Promise.all([
+      createAdminClient().from("profiles").select("full_name, email, dashboard_prefs").eq("id", userId).single(),
+      supabase.from("tenants").select(TENANT_COLUMNS).eq("id", impersonation.tenantId).single(),
+    ]);
+    if (!own || !tenant) redirect("/admin/tenants");
+    return {
+      userId,
+      fullName: own.full_name,
+      email: own.email,
+      role: "admin",
+      dashboardPrefs: parseDashboardPrefs(own.dashboard_prefs),
+      tenant: mapTenant(tenant),
+      isSuperadmin: true,
+      impersonating: { tenantName: impersonation.tenantName, expiresAt: impersonation.expiresAt },
+    };
+  }
+
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email, role, dashboard_prefs, tenants(id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, quote_validity_days, phone, email, address, ntn, strn, logo_url)")
+    .select(`full_name, email, role, is_superadmin, dashboard_prefs, tenants(${TENANT_COLUMNS})`)
     .eq("id", userId)
     .single();
 
   const tenant = profile?.tenants;
   if (!profile || !tenant) {
+    // A suspended shop is hidden from its own users by RLS: sign them out with a polite message.
+    const { data: status } = await supabase.rpc("my_shop_status");
+    if (status === "suspended") redirect("/auth/suspended");
     // Signed in but not attached to any shop: shouldn't happen after registration.
     redirect("/login?error=no_shop");
   }
@@ -79,30 +148,8 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
     // DB check constraint limits role to admin|staff; fail closed to staff.
     role: profile.role === "admin" ? "admin" : "staff",
     dashboardPrefs: parseDashboardPrefs(profile.dashboard_prefs),
-    tenant: {
-      id: tenant.id,
-      name: tenant.name,
-      slug: tenant.slug,
-      currency: tenant.currency,
-      taxRate: Number(tenant.tax_rate),
-      timezone: tenant.timezone,
-      showPaisa: tenant.show_paisa,
-      pricesIncludeTax: tenant.prices_include_tax,
-      allowInternationalPhones: tenant.allow_international_phones,
-      clockStyle: tenant.clock_style === "analog" ? "analog" : "digital",
-      showClock: tenant.show_clock,
-      clock24Hour: tenant.clock_24_hour,
-      weekStart: tenant.week_start === 6 || tenant.week_start === 7 ? tenant.week_start : 1,
-      quoteTerms: tenant.quote_footer_notes,
-      quoteValidityDays: tenant.quote_validity_days,
-      phone: tenant.phone,
-      email: tenant.email,
-      address: tenant.address,
-      ntn: tenant.ntn,
-      strn: tenant.strn,
-      logoUrl: tenant.logo_url,
-      money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
-      printFormat: tenant.print_format === "pos" ? "pos" : "a4",
-    },
+    tenant: mapTenant(tenant),
+    isSuperadmin: profile.is_superadmin,
+    impersonating: null,
   };
 });

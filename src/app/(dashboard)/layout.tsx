@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import { AppSidebar } from "@/components/shared/app-sidebar";
 import { TopNavbar } from "@/components/shared/top-navbar";
 
@@ -12,6 +13,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <AppSidebar />
       <div className="main-shell">
+        {/* Superadmin acting as this shop ("Login As"): who, until when, and Exit. */}
+        <Suspense>
+          <ImpersonationBanner />
+        </Suspense>
         <TopNavbar />
         <main>{children}</main>
       </div>

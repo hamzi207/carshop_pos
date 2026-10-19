@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   loginSchema,
+  newPasswordSchema,
   registerSchema,
   type LoginInput,
+  type NewPasswordInput,
   type RegisterInput,
 } from "@/lib/validations/auth.schema";
 
@@ -84,7 +86,38 @@ export async function signIn(input: LoginInput, next?: string): Promise<AuthActi
     return { status: "error", message: "Incorrect email or password." };
   }
 
+  // Suspended shops (Phase 13, set by a superadmin) can't sign in.
+  const { data: shopStatus } = await supabase.rpc("my_shop_status");
+  if (shopStatus === "suspended") {
+    await supabase.auth.signOut({ scope: "local" });
+    return {
+      status: "error",
+      message: "This shop's account is paused, so signing in isn't possible right now. Please contact CarShop POS support to reactivate it.",
+    };
+  }
+
   redirect(safeNext(next));
+}
+
+/** /reset-password: sets the signed-in user's new password (after a one-time email link). */
+export async function setNewPassword(input: NewPasswordInput): Promise<{ status: "error"; message: string }> {
+  const parsed = newPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the password." };
+  }
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  if (!claims?.claims) {
+    return { status: "error", message: "This link has expired. Ask for a new one." };
+  }
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    if (error.code === "same_password") return { status: "error", message: "Choose a password different from your old one." };
+    if (error.code === "weak_password") return { status: "error", message: error.message };
+    console.error("setNewPassword failed:", error);
+    return { status: "error", message: "We couldn't save your password. Please try again." };
+  }
+  redirect("/dashboard");
 }
 
 export async function signOut() {

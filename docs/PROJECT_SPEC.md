@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–12): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–13): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-19)**: Phases 1–11 are built and committed; Phase 12 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-19)**: Phases 1–12 are built and committed; Phase 13 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1063,7 +1063,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 12: Superadmin Schema, Shop Settings Columns & Resend Email [COMPLETED]
-**Commit**: pending (`Phase 12 - superadmin schema, shop settings columns and resend email`).
+**Commit**: `193cfb5` (`Phase 12 - superadmin schema, shop settings columns and resend email`).
 
 **What was built**:
 1. **Migration** `supabase/migrations/20261019154032_superadmin_and_scaling.sql` (applied remotely under the same version):
@@ -1078,30 +1078,36 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 5. **Email to customer** (server action `emailDocument({ id, to, kind })` in `src/lib/actions/email.ts`: session check, document loaded through RLS so only the shop's own; cancelled / void documents refused). UI: Share menu (`share-menu.tsx`) → "Email to customer" on shareable documents → `src/components/quotes/email-dialog.tsx` (`ModalSheet`; recipient prefilled with the customer's email — `email` added to `CustomerOption` and its three selects; walk-ins start empty). The address can be changed for this send only; a hint under the field says the customer's profile isn't updated (edit the customer to change it for good; `.form-grid label > small` = muted helper text). Invoices with payments choose "Invoice" (A4 PDF attached + link) or "Payment receipt" (latest payment) with the Phase 3 `.radio-cards`. Toast on success; "logged" says email isn't set up on this server.
 6. **Verified end to end**: INV-1001 sent as a document email (PDF attached) and as a payment receipt (sample payment, not saved) through the real pipeline; Resend reports both **delivered**, both rows in `email_logs` with status `sent`.
 
+### PHASE 13: Superadmin Control Plane (`/admin`), Impersonation & Suspended Shops [COMPLETED]
+**Commit**: pending (`Phase 13 - superadmin control plane, tenants, users and impersonation`).
+
+**What was built**:
+1. **Migration** `supabase/migrations/20261019160720_superadmin_control_plane.sql` (applied remotely under the same version):
+   - **Impersonation design (decided first, per the directive)**: a verified per-request claim honoured by `current_tenant_id()`, not service-role reads (which would mean rewriting every query). `public.impersonation_sessions` (token_hash = SHA-256 of a random token, admin, shop, started/expires/ended, IP; service role only). `private.impersonated_tenant_id()` reads the `x-carshop-impersonation` request header (PostgREST `request.headers`) and returns the shop only when the token's session belongs to `auth.uid()`, that user is still `is_superadmin`, and it hasn't ended or expired (2 h). Without the header it returns at once.
+   - `private.current_tenant_id()` = impersonated shop, else the caller's own shop **unless it is suspended** (then null: a suspended shop's users see and change nothing).
+   - `private.is_shop_admin()` (impersonating superadmin counts as the shop's admin, else own `role = 'admin'`) replaces the profiles lookups in the 5 admin policies (tenants update, categories insert/update/delete, email_logs select), which can't see a superadmin's own profile while impersonating.
+   - `public.my_shop_status()` (caller's own shop status, for the login check). Service-role-only RPCs for the pages: `admin_platform_metrics()` (shops by status / new this month, users and sign-ins in 30 days, sales per currency incl. this month and collected, quotation / draft / invoice counts, sign-ups per month for 12 months), `admin_tenants(p_search, p_status, p_limit, p_offset)` (search name / handle / phone / email / any member's email; owner, users, invoices, sales, last sign-in, window total), `admin_users(p_search, p_limit, p_offset)`.
+   - Verified in SQL (rolled back): token works only for its own superadmin (not a stolen-token user, not after superadmin is revoked, not after expiry), wrong token → own shop, suspended user → no shop and 0 rows, clients can't write sessions or call the admin RPCs.
+2. **Request plumbing**: `src/lib/supabase/impersonation-header.ts` (cookie `carshop_impersonation`, header, 2 h TTL). `createClient()` (`src/lib/supabase/server.ts`) forwards the httpOnly cookie as the header, so all existing pages/actions/RLS work unchanged while impersonating. `src/lib/impersonation.ts` (`getImpersonation(userId)`, token helpers). `getShopSession()` (`src/lib/auth.ts`): impersonating → target shop's tenant + superadmin's own name (service role), role admin; adds `isSuperadmin` and `impersonating`; a suspended user is sent to `/auth/suspended` (route handler: sign out → `/login?error=suspended`).
+3. **Guard & audit**: `src/lib/superadmin.ts` (`requireSuperadmin()` cached per request, reads `is_superadmin` with the service role; `isSuperadmin()`, `requestIp()`, `audit()`). Proxy (`src/lib/supabase/middleware.ts`): `/admin` → `/dashboard` for non-superadmins; while impersonating, every non-GET request (Server Actions post to the page and carry `next-action`) is logged as `impersonation.request` (method, path, action id, session); an ended/expired cookie is deleted.
+4. **Actions** `src/lib/actions/admin.ts` (each `requireSuperadmin()` + service role + audit row): `startImpersonation` (ends the admin's earlier sessions, sets the cookie, → `/dashboard`), `endImpersonation` (banner Exit → `/admin/tenants`, logs minutes), `createOrganization` (`auth.admin.generateLink({ type: "invite", data: { shop_name, full_name } })` so the normal sign-up trigger provisions tenant, admin profile, categories and walk-in; then phone/status; welcome email with a "Choose your password" link), `setTenantStatus` (active / trial / suspended), `sendPasswordReset` (recovery link email), `setTemporaryPassword` (12 readable characters, shown once, never stored/logged), `setUserRole` (refuses to demote a shop's last admin). One-time links are built from `hashed_token` → `/auth/confirm?token_hash&type&next=/reset-password` (route handler: `verifyOtp`, no redirect allow-list needed) → `(auth)/reset-password` (new password twice, `setNewPassword` in `src/lib/actions/auth.ts` → dashboard). `signIn` refuses suspended shops with a polite message (`my_shop_status`); login page also explains `link_expired` / `suspended`. `welcomeEmail` gained `setPasswordUrl`.
+5. **Company details reuse**: `updateShopProfile(values, tenantId?)` / `setShopLogo(url, tenantId?)` (`shopTarget()` in `src/lib/actions/settings.ts`: own shop via RLS, or any shop for a superadmin via service role with a before/after `tenant.update` audit) and `/api/shop/logo` (`tenantId` form field, superadmin only) — `ShopProfileForm` takes `tenantId` (title "Company details").
+6. **UI** (`src/app/admin/`, `src/components/admin/`): layout with `admin-navbar.tsx` (dark slate, 3px racing-red rule, SUPERADMIN tag, Overview / Shops / Users links in Suspense, "My shop", user menu). **Overview**: KPI stat cards (shops, active users, platform GMV + this month + collected, open quotations + drafts), sign-ups bar chart (reuses `charts.tsx` `BarChart`), newest shops, recent activity (audit log in words, `format.ts describeAction`). **Shops** (`/admin/tenants`): search + status pills (`admin-filters.tsx`), table / phone cards, Create Organization dialog (`create-organization.tsx`, ModalSheet), per-row `tenant-actions.tsx` (Login As, Edit, Activate / Mark as trial / Suspend with ConfirmDialog). **Shop page** (`/admin/tenants/[id]`): status + totals, ShopProfileForm with the save bar, users with role select + password menu, this shop's activity. **Users** (`/admin/users`): cross-shop search, role select, password menu (`user-actions.tsx`: email reset link / temporary password dialog with Copy). `impersonation-banner.tsx` (shop name, end time, Exit) on every dashboard and admin page; user menu shows "Superadmin console" for superadmins. Styles: `.admin-*`, `.impersonation-banner`, `.temp-password` in globals.css (phones: icon-only nav).
+7. **Verified**: typecheck + lint; browser test with temporary shops (34 checks): non-superadmin bounced from /admin, KPIs + chart, search by name / owner email, status filter, Create Organization (trial, phone, 157 categories, walk-in, welcome email logged), edit details + audit before/after, Login As banner on every page, settings show and save the target shop only, request audit rows, Exit (session ended, own shop back), temporary password sign-in, last admin can't be demoted, reset email logged, suspend signs a signed-in user out with the message and blocks sign-in, activate, recovery link → choose password → dashboard (new password works), no sideways scroll at 390px on all 4 admin pages, no browser console errors. Test data and audit rows removed.
+
 ---
 
-## 8. ROADMAP (PHASES 13–15): STILL TO BUILD
+---
+
+## 8. ROADMAP (PHASES 14–15): STILL TO BUILD
 
 > **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
-> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17; Phase 12 moved to §7 on 2026-10-19). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
+> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17; Phases 12–13 moved to §7 on 2026-10-19). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
 > 
 > 🛑 **CRITICAL EXECUTION RULE**:  
 > Build **strictly one phase at a time**. **DO NOT** combine phases, skip steps, or build future phases early.  
 > After each phase: **STOP AND PAUSE**, describe what you built, ask the developer to test in the browser and commit, then move the phase into §7 as "What was built" and update the phases after it.  
 > Commit messages always start with `Phase <N> - `.
-
----
-
-### PHASE 13: Superadmin Control Plane (`/admin`)
-**Agent Directive**:
-1. **Guard**: `requireSuperadmin()` in `src/lib/superadmin.ts`; `/admin` redirects non-superadmins to `/dashboard` in `src/proxy.ts`.
-2. **Layout & KPIs** (`src/app/admin/`, `src/components/admin/admin-navbar.tsx`, dark slate / racing red): total shops, active users, platform GMV, invoice/quote totals, signups chart (reuse `src/components/dashboard/charts.tsx`), recent activity.
-3. **Tenants** (`src/app/admin/tenants/`): search/filter (name, slug, phone, owner email, status); Create Organization (through the existing sign-up provisioning, + welcome email); Edit Company Details (reuse `shop-profile-form.tsx` and `/api/shop/logo`); Suspend / Activate (suspended shops blocked at login with a polite message).
-4. **Users** (`src/app/admin/users/`): cross-tenant search, Reset Password (Resend email or temporary password), change role.
-5. **Impersonation ("Login As")**: signed cookie `carshop_impersonation`, warning banner with Exit on every page, all actions logged to `superadmin_audit_logs`. Decide first how tenant isolation works while impersonating (RLS uses `private.current_tenant_id()` from the caller's profile): service-role reads with explicit `tenant_id` filters, or a verified superadmin claim honoured by `current_tenant_id()`.
-
-🛑 **PAUSE & CHECKPOINT**:  
-> "Phase 13 complete! Please test: 1) set `is_superadmin = true` on your profile, 2) `/admin` shows KPIs, 3) create a test shop, 4) edit its details, 5) Impersonate Shop shows the exit banner, 6) trigger a password reset. Then run `git add . && git commit -m 'Phase 13 - superadmin control plane, tenants, users and impersonation'` and tell me to begin Phase 14."
 
 ---
 

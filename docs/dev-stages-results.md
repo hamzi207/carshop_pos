@@ -668,3 +668,39 @@ Test steps:
   3. Supabase → Table editor → email_logs: one row per send.
   4. Create a new invoice: its number continues the series.
   5. Commit: git add . && git commit -m "Phase 12 - superadmin schema, shop settings columns and resend email"
+
+Phase 13 (superadmin control plane, shops, users, Login As), 2026-10-19:
+  - New /admin console for platform superadmins (dark bar with the red line): Overview, Shops, Users. Anyone else
+    who opens /admin goes to their dashboard. The user menu shows "Superadmin console" for superadmins.
+  - Overview: number of shops (active / trial / suspended / new this month), users who signed in in the last 30
+    days, total sales across all shops (this month and collected), open quotations and drafts, a chart of new
+    shops per month, the newest shops and recent superadmin activity.
+  - Shops: search by name, handle, phone or owner email; filter Active / Trial / Suspended. Create Organization
+    (shop name, owner, email, phone, Active or Trial) sets the shop up like a normal sign-up and emails the owner
+    a "Choose your password" link. Each shop has Login As, Edit company details (same form as Settings, with the
+    logo) and Activate / Mark as trial / Suspend.
+  - Suspended shops: their users are signed out at the next click and see "This shop's account is paused ...
+    contact CarShop POS support"; they can't sign in until the shop is activated. Nothing is deleted.
+  - Users (all shops): search, change Admin / Staff (a shop always keeps one admin), and reset a password by
+    email (one-time link, 1 hour) or with a temporary password shown once.
+  - Login As: you see and work in that shop as its admin, with a red banner on every page ("you're acting as
+    ...", when it ends, Exit). It lasts at most 2 hours. Starting, leaving and every change you make while inside
+    are written to the audit log.
+  - Choose a password page (/reset-password) for the email links.
+Typecheck and lint pass. Database checks for Login As isolation (only the superadmin who started it, not after
+expiry or losing superadmin, suspended shops see nothing). Browser test with temporary shops: 34 checks passed
+(see PROJECT_SPEC.md §7 Phase 13). Test shops, users and log rows were deleted.
+
+Test steps:
+  1. Make yourself superadmin (Supabase SQL editor):
+       update profiles set is_superadmin = true where email = 'hamzi207@gmail.com';
+     Then open the user menu → Superadmin console (or go to /admin).
+  2. Overview shows your shop's figures.
+  3. Shops → Create Organization: e.g. "Test Shop", owner name, an email you can receive (until a domain is
+     verified in Resend, only hamzi207@gmail.com gets emails; another address still creates the shop but the
+     email fails — use Users → Set a temporary password to sign in as that owner).
+  4. Open the shop → change the address → Save Settings.
+  5. Login As → the red banner appears on every page; Exit takes you back to Shops.
+  6. Users → the ⋯ menu → Email a password reset link (to your own address) or Set a temporary password.
+  7. Optional: Suspend the test shop and try signing in as its owner; then Activate it.
+  8. Commit: git add . && git commit -m "Phase 13 - superadmin control plane, tenants, users and impersonation"

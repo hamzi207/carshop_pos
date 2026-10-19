@@ -177,6 +177,47 @@ export type Database = {
           },
         ]
       }
+      impersonation_sessions: {
+        Row: {
+          admin_id: string
+          ended_at: string | null
+          expires_at: string
+          id: string
+          ip_address: unknown
+          started_at: string
+          tenant_id: string
+          token_hash: string
+        }
+        Insert: {
+          admin_id: string
+          ended_at?: string | null
+          expires_at: string
+          id?: string
+          ip_address?: unknown
+          started_at?: string
+          tenant_id: string
+          token_hash: string
+        }
+        Update: {
+          admin_id?: string
+          ended_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: unknown
+          started_at?: string
+          tenant_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impersonation_sessions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           available_quantity: number
@@ -926,6 +967,49 @@ export type Database = {
           year: number
         }[]
       }
+      admin_platform_metrics: { Args: never; Returns: Json }
+      admin_tenants: {
+        Args: {
+          p_limit: number
+          p_offset: number
+          p_search: string
+          p_status: string
+        }
+        Returns: {
+          created_at: string
+          currency: string
+          email: string
+          id: string
+          invoices: number
+          last_sign_in_at: string
+          logo_url: string
+          name: string
+          owner_email: string
+          owner_name: string
+          phone: string
+          sales: number
+          slug: string
+          status: string
+          total: number
+          users: number
+        }[]
+      }
+      admin_users: {
+        Args: { p_limit: number; p_offset: number; p_search: string }
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_superadmin: boolean
+          last_sign_in_at: string
+          role: string
+          tenant_id: string
+          tenant_name: string
+          tenant_status: string
+          total: number
+        }[]
+      }
       convert_quote: {
         Args: { p_quote_id: string; p_target: string }
         Returns: {
@@ -1012,6 +1096,7 @@ export type Database = {
         Returns: Json
       }
       is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
+      my_shop_status: { Args: never; Returns: string }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
       shop_alerts: { Args: never; Returns: Json }
       record_payment: {

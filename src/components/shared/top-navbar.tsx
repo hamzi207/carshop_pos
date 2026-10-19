@@ -21,7 +21,8 @@ async function ProfileSection() {
       initials={initials(session.fullName)}
       fullName={session.fullName}
       email={session.email}
-      roleLabel={session.role === "admin" ? "Shop Administrator" : "Staff"}
+      roleLabel={session.impersonating ? "Superadmin (acting)" : session.role === "admin" ? "Shop Administrator" : "Staff"}
+      isSuperadmin={session.isSuperadmin}
     />
   );
 }

@@ -23,5 +23,14 @@ export const registerSchema = z.object({
     .max(72, "Password must be 72 characters or fewer."),
 });
 
+/** /reset-password: a new password, typed twice. */
+export const newPasswordSchema = z
+  .object({
+    password: z.string().min(8, "Password must be at least 8 characters.").max(72, "Password must be 72 characters or fewer."),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, { message: "The passwords don't match.", path: ["confirm"] });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type NewPasswordInput = z.infer<typeof newPasswordSchema>;

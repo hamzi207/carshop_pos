@@ -18,6 +18,8 @@ type Props = {
   /** Read-only facts shown above the fields. */
   facts: { label: string; value: string; mono?: boolean }[];
   canEdit: boolean;
+  /** Superadmin (/admin/tenants/[id]): edit this shop instead of the signed-in user's own. */
+  tenantId?: string;
 };
 
 /** "Shop details saved" names each changed field ("Address updated."), in form order; untouched ones aren't mentioned. */
@@ -36,7 +38,7 @@ const LOGO_TYPES = ["image/png", "image/jpeg"];
 const LOGO_MAX_BYTES = 1024 * 1024;
 
 /** Settings → Your shop: the details and logo printed on quotations and invoices. */
-export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
+export function ShopProfileForm({ initial, logoUrl, facts, canEdit, tenantId }: Props) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [logo, setLogo] = useState(logoUrl);
@@ -54,7 +56,7 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
 
   const persist = async (values: z.output<typeof shopProfileSchema>) => {
     setServerError(null);
-    const result = await updateShopProfile(values);
+    const result = await updateShopProfile(values, tenantId);
     if (result.status === "error") {
       setServerError(result.message);
       notify.error("Shop details not saved", result.message);
@@ -85,6 +87,7 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
     setUploading(true);
     const body = new FormData();
     body.append("logo", file);
+    if (tenantId) body.append("tenantId", tenantId);
     // Through the app server (checked there, stored in this shop's own folder).
     const res = await fetch("/api/shop/logo", { method: "POST", body }).catch(() => null);
     const result = (await res?.json().catch(() => null)) as { url?: string; error?: string } | null;
@@ -97,7 +100,7 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
 
   const removeLogo = async () => {
     setUploading(true);
-    const result = await setShopLogo(null);
+    const result = await setShopLogo(null, tenantId);
     setUploading(false);
     if (result.status === "error") return notify.error("Logo not removed", result.message);
     setLogo(null);
@@ -125,8 +128,8 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit }: Props) {
       <div className="settings-card-head">
         <span className="header-icon blue"><Store size={18} /></span>
         <div>
-          <h2>Your shop</h2>
-          <p>These details and your logo are printed on quotations and invoices.</p>
+          <h2>{tenantId ? "Company details" : "Your shop"}</h2>
+          <p>{tenantId ? "Printed on this shop's quotations and invoices. Changes are audit-logged." : "These details and your logo are printed on quotations and invoices."}</p>
         </div>
       </div>
       {facts.map((f) => (
