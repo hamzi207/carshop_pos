@@ -896,7 +896,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ## 7. COMPLETED PHASES (1–15): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-19)**: All phases (1–15) are built; Phases 1–14 are committed and Phase 15 is awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-19)**: All phases (1–15) are built and committed: this is **Version 1** (git tag `v1.0.0`). This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1112,7 +1112,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 15: Inventory CSV Import/Export, Chart Labels, 4K Containment & Final Build [COMPLETED]
-**Commit**: pending (`Phase 15 - inventory csv import/export, chart labels and 4k containment`).
+**Commit**: `dafe024` (`Phase 15 - inventory csv import/export, chart labels and 4k containment`).
 
 **What was built**:
 1. **Migration** `supabase/migrations/20261019182238_inventory_csv_vehicle_match.sql`: `public.match_vehicles(p_specs jsonb)` (authenticated, invoker so the vehicles RLS applies): `[{label: "suzuki alto", from, to}]` → `(spec_index, vehicle_id)` rows, matching `lower(make || ' ' || model)` exactly ("Alto" ≠ "Alto Lapin") within the years.
