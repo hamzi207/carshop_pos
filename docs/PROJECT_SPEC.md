@@ -5,7 +5,7 @@
 > **Target Audience**: AI Coding Agents (Claude Code, Antigravity) & Lead Engineers  
 > **Application Type**: Multi-Tenant B2B SaaS (Cloud POS & Quoting Engine)  
 > **Release Target**: Phase 1 MVP (Inventory, Quoting, Customer Directory, YMM Engine)
-> **Current Standing (2026-10-17)**: Phases 1–8 are built and committed (latest: `60e619a` "Phase 8"); Phase 9 is built, awaiting commit; Phases 10–15 (§8) are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
+> **Current Standing (2026-10-17)**: Phases 1–9 are built and committed (latest: `5eee764` "Phase 9"); Phase 10 is built, awaiting commit; Phases 11–15 (§8) are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
 
 ---
 
@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–9): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–10): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-17)**: Phases 1–8 are built and committed; Phase 9 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-17)**: Phases 1–9 are built and committed; Phase 10 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1016,7 +1016,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 9: Server-Side Pagination & Mobile Table Cards [COMPLETED]
-**Commit**: pending (`Phase 9 - …`).
+**Commit**: `5eee764` "Phase 9 - server-side pagination and mobile table cards".
 
 **What was built**:
 1. **Migration** `20261017100000_phase9_pagination.sql`:
@@ -1031,7 +1031,21 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 8. ROADMAP (PHASES 10–15): STILL TO BUILD
+### PHASE 10: Mobile Document Builder & Sticky Cashier Bar [COMPLETED]
+**Commit**: pending (`Phase 10 - mobile document builder and sticky cashier bar`).
+
+**What was built** (extends the Phase 5 builder; everything below applies at ≤ 768px, desktop is unchanged):
+1. **Sheet component** `src/components/quotes/mobile-sheet.tsx` (Radix Dialog): `variant="full"` covers the screen, `variant="bottom"` rises from the bottom edge (16px top corners, drag handle, `max-height: 90dvh`); slide-up animation, safe-area padding, 44px close button, optional pinned footer, `initialFocus` ref. CSS `.sheet*` in `globals.css`. Phase 11's bottom-sheets can reuse it.
+2. **Full-screen part search** (`line-search.tsx`): on phones the inline box is replaced by a "Search parts to add…" button + "Custom"; the sheet auto-focuses its field, shows **category chips** (All + the shop's main categories, passed from `document-pages.tsx` via `buildCategoryIndex(...).roots`), and each tap adds a part (again = +1) while the sheet stays open ("Done · N added"). `GET /api/quote-items?category=<uuid>` filters to that category and everything below it (`descendantIds`). Fetching shared through `usePartSearch`.
+3. **Full-screen customer search** (`customer-picker.tsx`): "Choose a customer…" button + Walk-in / Cash; the sheet lists Walk-in first, search results, and "Register a new customer". "Change customer" (✕) opens the sheet on phones. Fetching shared through `useCustomerSearch`.
+4. **Line cards** (`line-items.tsx`, `.mobile-lines` / `.mobile-line-card`; the table is hidden): description, SKU or "Custom item", unit price and discount (e.g. `−10%`), line total, stock warnings; 44px `+/−` (`.touch-stepper`, same `stepQuantity` logic as the desktop stepper) and 44px delete. Tapping a card opens a **bottom edit sheet**: description (custom), quantity, unit price (custom only), discount % / Rs., sale price, line total, Remove / Done; edits apply as typed.
+5. **Delete with Undo** (desktop rows and phone cards): the line goes at once and a toast offers **Undo** for 6s, which puts it back in its old position (`notify.undo` in `src/lib/notify.ts`). `LineItems.onChange` is now a state setter (functional updates).
+6. **Header accordion** (`quote-builder.tsx`, `.doc-header[data-open]`, `.doc-header-toggle`): a summary row (customer or "Choose a customer", number · due date, status badge, chevron) folds the customer panel and the details table. Open on new documents without a customer; folds after picking a (non walk-in) customer and on saved documents.
+7. **Cashier bar** `src/components/quotes/mobile-action-bar.tsx`: `position: sticky; bottom: 0; z-index: 40`, full width (cancels the page padding), safe-area inset, translucent blurred background. Shows "Total · N lines" (or "Balance due" on a part-paid, unchanged invoice) and the stage's main action: Save when there are unsaved edits, otherwise the toolbar's primary action (Save Draft / Create Invoice / Convert to Invoice / Record Payment…); none on paid invoices.
+
+---
+
+## 8. ROADMAP (PHASES 11–15): STILL TO BUILD
 
 > **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
 > Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
@@ -1043,21 +1057,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-### PHASE 10: Mobile Document Builder & Sticky Cashier Bar
-**Agent Directive** (extends the Phase 5 builder):
-1. **Sticky cashier bar** `src/components/quotes/mobile-action-bar.tsx`: bottom of the screen on phones (`position: sticky; bottom: 0; z-index: 40` + safe-area inset), live grand total, line count, primary action (Save / Record Payment), translucent blurred background.
-2. **Line cards below 768px** (`.mobile-line-card`): ≥ 44px +/− buttons (reusing the existing stepper logic), unit price and discount in a tap-to-edit sheet, one-tap delete with an undo toast.
-3. **Full-screen search sheets on phones** for `line-search.tsx` and `customer-picker.tsx`: slide-up, auto-focused, category filter chips, tap to add.
-4. **Header accordion on phones**: customer, document details, dates, due date and status in a collapsible touch card.
-
-🛑 **PAUSE & CHECKPOINT**:  
-> "Phase 10 complete! Please test `/invoices/new` in mobile emulation: 1) the full-screen part search adds items, 2) the large +/− buttons work, 3) the bottom bar shows the live total and main button, 4) save the invoice. Then run `git add . && git commit -m 'Phase 10 - mobile document builder and sticky cashier bar'` and tell me to begin Phase 11."
-
----
-
 ### PHASE 11: Bottom-Sheets, Quick Cash & 80mm Thermal Receipts
 **Agent Directive**:
-1. **Bottom-sheets below 768px** for the app's Radix `.modal*` dialogs (16px top corners, drag handle, `max-height: 90vh`, actions pinned above the keyboard): part dialog (`inventory-item-dialog.tsx`), customer dialog (`customer-dialog.tsx`), payment dialog (`payment-dialog.tsx`).
+1. **Bottom-sheets below 768px** for the app's Radix `.modal*` dialogs (reuse the Phase 10 `.sheet-bottom` styles from `mobile-sheet.tsx`; 16px top corners, drag handle, `max-height: 90vh`, actions pinned above the keyboard): part dialog (`inventory-item-dialog.tsx`), customer dialog (`customer-dialog.tsx`), payment dialog (`payment-dialog.tsx`).
 2. **Dashboard date range picker on phones** (`date-range-picker.tsx`): a one-month calendar in a bottom sheet instead of the two-month popover.
 3. **80mm thermal receipt** `src/components/pdf/thermal-receipt.tsx`: continuous roll (Epson, Xprinter, Sunmi), compact shop header, number, date, customer, condensed items, tax/discount summary, payment method, balance, QR code to the share link; "Print POS Slip (80mm)" in the Phase 6 Share menu and document actions.
 4. **Quick cash & change** in `payment-dialog.tsx`: `+Rs. 500`, `+Rs. 1,000`, `+Rs. 5,000`, `Exact Amount`, and "Received: Rs. 5,000 → Change Due: Rs. 350" (cash above the balance is change, not a payment).

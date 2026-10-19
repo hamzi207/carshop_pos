@@ -4,6 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { ChevronRight, FilePen, FileText, Plus, ReceiptText } from "lucide-react";
 import { getDocuments, getQuote } from "@/lib/actions/quotes";
 import { getShopSession } from "@/lib/auth";
+import { buildCategoryIndex } from "@/lib/categories";
+import { getCategories } from "@/lib/category-data";
 import {
   customerLabel,
   documentHref,
@@ -248,10 +250,15 @@ function BuilderSkeleton() {
   );
 }
 
+/** Main categories, for the filter chips in the phone part search. */
+async function mainCategories() {
+  return buildCategoryIndex(await getCategories()).roots.map(({ id, name }) => ({ id, name }));
+}
+
 async function NewDocument({ section, searchParams }: { section: DocumentSection; searchParams: SearchParams }) {
   const raw = await searchParams;
   const customerId = first(raw.customer);
-  const [{ tenant }, walkIn] = await Promise.all([getShopSession(), getWalkIn()]);
+  const [{ tenant }, walkIn, categories] = await Promise.all([getShopSession(), getWalkIn(), mainCategories()]);
 
   // ?customer=<id> pre-selects a customer (from their profile page).
   let initialCustomer: CustomerOption | null = null;
@@ -290,6 +297,7 @@ async function NewDocument({ section, searchParams }: { section: DocumentSection
       shopName={tenant.name}
       initialCustomer={initialCustomer}
       walkIn={walkIn}
+      categories={categories}
     />
   );
 }
@@ -304,7 +312,7 @@ export function NewDocumentPage({ section, searchParams }: { section: DocumentSe
 
 async function EditDocument({ section, params }: { section: DocumentSection; params: Params }) {
   const { id } = await params;
-  const [doc, { tenant }, walkIn] = await Promise.all([getQuote(id), getShopSession(), getWalkIn()]);
+  const [doc, { tenant }, walkIn, categories] = await Promise.all([getQuote(id), getShopSession(), getWalkIn(), mainCategories()]);
   if (!doc) notFound();
 
   // A converted document lives in its new section: /drafts/x → /invoices/x.
@@ -345,6 +353,7 @@ async function EditDocument({ section, params }: { section: DocumentSection; par
       shopName={tenant.name}
       initialCustomer={null}
       walkIn={walkIn}
+      categories={categories}
     />
   );
 }

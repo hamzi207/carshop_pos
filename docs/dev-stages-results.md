@@ -571,3 +571,26 @@ Test steps:
   2. Invoices: try each status filter and the search; check the footer totals.
   3. Phone size (DevTools): Inventory, Customers and Invoices show cards; tap a part for details, a customer's WhatsApp icon.
   4. Commit: git add . && git commit -m "Phase 9 - server-side pagination and mobile table cards"
+
+Phase 10 (phone document builder + cashier bar), 2026-10-17:
+  - Phones (768px and narrower) on new/open drafts, quotations and invoices:
+    - Bottom cashier bar: live total (or balance due on a part-paid invoice), number of lines, and the main button
+      (Save when there are unsaved changes, otherwise Create Invoice / Convert to Invoice / Record Payment…).
+    - Line items become cards with big +/− buttons and a delete button; tap a card to change quantity, price (custom
+      items), discount or sale price in a sheet from the bottom.
+    - "Search parts to add…" opens a full-screen search: the keyboard comes up at once, category chips (Audio,
+      Lighting…) filter the list, each tap adds a part and the search stays open ("Done · 3 added").
+    - "Choose a customer…" opens a full-screen customer search (Walk-in first, Register a new customer at the end).
+    - The customer / number / dates box folds into one row (customer, number, due date, status); tap to open it.
+  - Everywhere (desktop too): deleting a line shows an "Undo" toast that puts it back where it was.
+Typecheck and lint pass; browser test with a temporary test shop (4 parts in 2 categories, 1 customer) passed 29 checks:
+sheets open full-screen with the field focused, Audio chip shows only the 2 audio parts, two taps = quantity 2, 44px
+buttons, +/−, bar total = document total, 10% discount in the edit sheet (Rs. 21,600), delete + Undo, bar pinned to the
+bottom at the top and end of the page, no sideways scroll, invoice created from the bar, desktop unchanged. Test shop deleted.
+
+Test steps (Chrome DevTools → device toolbar → iPhone 14 Pro, then /invoices/new):
+  1. Tap "Choose a customer…", search, pick one: the top box folds into one row.
+  2. Tap "Search parts to add…", try a category chip, tap a few parts, then Done.
+  3. Use the big +/− on a card; tap a card and give it a discount; delete a line and press Undo.
+  4. Check the bottom bar's total and button, then Create Invoice from the bar.
+  5. Commit: git add . && git commit -m "Phase 10 - mobile document builder and sticky cashier bar"

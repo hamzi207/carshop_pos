@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -51,6 +51,8 @@ import { LeaveDialog } from "./leave-dialog";
 import { ConfirmDialog, type ConfirmRequest } from "./confirm-dialog";
 import { CustomerPicker } from "./customer-picker";
 import { LineItems, type BuilderLine } from "./line-items";
+import type { CategoryChip } from "./line-search";
+import { MobileActionBar } from "./mobile-action-bar";
 import { PaymentDialog } from "./payment-dialog";
 import { ShareMenu } from "./share-menu";
 import { allocationSummary, lineBalances } from "@/lib/payments";
@@ -85,6 +87,8 @@ type Props = {
   initialCustomer: CustomerOption | null;
   /** The shop's walk-in / cash customer. */
   walkIn: CustomerOption | null;
+  /** Main categories, for the phone part search's filter chips. */
+  categories: CategoryChip[];
 };
 
 type Action = {
@@ -164,6 +168,7 @@ function BuilderForm({
   shopName,
   initialCustomer,
   walkIn,
+  categories,
   onCreated,
 }: Props & { onCreated: () => void }) {
   const router = useRouter();
@@ -191,6 +196,9 @@ function BuilderForm({
   const [pending, setPending] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const [paying, setPaying] = useState(false);
+  // Phones: the header folds into one summary row once a customer is chosen.
+  const headerId = useId();
+  const [headerOpen, setHeaderOpen] = useState(() => !(doc?.customer ?? initialCustomer));
 
   const nextKey = useRef(0);
   const newKey = () => `new-${nextKey.current++}`;
@@ -201,6 +209,8 @@ function BuilderForm({
    */
   const chooseCustomer = (next: CustomerOption | null) => {
     setCustomer(next);
+    // Walk-ins stay open for the buyer's name and phone.
+    if (next && !next.is_walk_in) setHeaderOpen(false);
     if (isInvoice && editable && next) setDueDate(addDays(invoiceDate, next.credit_days));
     if (!next?.is_walk_in) {
       setWalkInName("");
@@ -622,6 +632,17 @@ function BuilderForm({
   const shownStatus = displayStatus ? statusDisplay(displayStatus) : null;
   const showTerms = !isInvoice && Boolean(terms);
 
+  // Phone cashier bar: unsaved edits put Save first, otherwise the stage's main action.
+  const barAction = (dirty ? actions.find((a) => a.key === "save") : undefined) ?? actions.find((a) => a.tone === "primary") ?? null;
+  const showBalance = isInvoice && doc !== null && paid > 0 && !dirty;
+  const headerCustomer = customer
+    ? isWalkIn ? walkInName || "Walk-in / Cash customer" : customer.name
+    : "Choose a customer";
+  const headerFacts = [
+    meta.find((m) => m.label === "Number")?.value,
+    isInvoice && dueDate ? `Due ${formatDay(dueDate)}` : null,
+  ].filter(Boolean).join(" · ");
+
   return (
     <div className="page quote-page doc-page">
       <div className="quote-toolbar">
@@ -703,8 +724,22 @@ function BuilderForm({
       )}
 
       {/* ---- Header: customer (left), document details (right) ---- */}
-      <section className="card doc-header">
-        <div className="doc-customer">
+      <section className="card doc-header" data-open={headerOpen}>
+        <button
+          type="button"
+          className="doc-header-toggle"
+          aria-expanded={headerOpen}
+          aria-controls={`${headerId}-customer ${headerId}-meta`}
+          onClick={() => setHeaderOpen((o) => !o)}
+        >
+          <span>
+            <strong className={customer ? "" : "doc-header-empty"}>{headerCustomer}</strong>
+            <small>{headerFacts}</small>
+          </span>
+          {shownStatus && <span className={`badge ${shownStatus.tone}`}>{shownStatus.label}</span>}
+          <ChevronDown size={18} className="doc-header-chevron" />
+        </button>
+        <div className="doc-customer" id={`${headerId}-customer`}>
           <span className="field-label">CUSTOMER</span>
           <CustomerPicker
             value={customer}
@@ -767,7 +802,7 @@ function BuilderForm({
           )}
         </div>
 
-        <dl className="doc-meta">
+        <dl className="doc-meta" id={`${headerId}-meta`}>
           {meta.map((m) => (
             <div key={m.label}>
               <dt>{m.label}</dt>
@@ -805,7 +840,15 @@ function BuilderForm({
       </section>
 
       {/* ---- Line items ---- */}
-      <LineItems lines={lines} onChange={setLines} onAdd={addItem} onAddCustom={addCustom} money={money} readOnly={!editable} />
+      <LineItems
+        lines={lines}
+        onChange={setLines}
+        onAdd={addItem}
+        onAddCustom={addCustom}
+        money={money}
+        readOnly={!editable}
+        categories={categories}
+      />
 
       {/* ---- Footer: notes / terms (left), totals / payments (right) ---- */}
       <div className="doc-footer">
@@ -942,6 +985,14 @@ function BuilderForm({
           )}
         </section>
       </div>
+
+      <MobileActionBar
+        label={showBalance ? "Balance due" : "Total"}
+        amount={formatMoney(showBalance ? balance : totals.total, money)}
+        lineCount={lines.length}
+        action={barAction}
+        pending={pending}
+      />
 
       {doc && isInvoice && (
         <PaymentDialog

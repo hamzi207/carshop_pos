@@ -8,4 +8,7 @@ export const notify = {
   success: (title: string, description?: string) => toast.success(title, { description }),
   info: (title: string, description?: string) => toast.info(title, { description }),
   error: (title: string, description?: string) => toast.error(title, { description }),
+  /** Something was removed; the toast offers an Undo button for a few seconds. */
+  undo: (title: string, onUndo: () => void, description?: string) =>
+    toast(title, { description, duration: 6000, action: { label: "Undo", onClick: onUndo } }),
 };

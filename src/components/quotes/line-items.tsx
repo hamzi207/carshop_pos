@@ -1,10 +1,13 @@
 "use client";
 
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { ArrowDown, ArrowUp, Minus, Plus, Trash2 } from "lucide-react";
 import { formatMoney, type MoneyFormat } from "@/lib/format";
+import { notify } from "@/lib/notify";
 import { lineAmounts, round2, unitDiscount, type DiscountType } from "@/lib/quote-math";
 import type { PickerItem } from "@/lib/types/quote";
-import { LineSearch } from "./line-search";
+import { LineSearch, type CategoryChip } from "./line-search";
+import { MobileSheet } from "./mobile-sheet";
 
 /** One line in the builder. `key` is local only (React list key). */
 export type BuilderLine = {
@@ -28,31 +31,60 @@ export type BuilderLine = {
 
 type Props = {
   lines: BuilderLine[];
-  onChange: (lines: BuilderLine[]) => void;
+  onChange: Dispatch<SetStateAction<BuilderLine[]>>;
   onAdd: (item: PickerItem) => void;
   onAddCustom: (description: string) => void;
   money: MoneyFormat;
   readOnly: boolean;
+  /** Main categories, for the phone search's filter chips. */
+  categories: CategoryChip[];
 };
 
 const numberValue = (n: number) => (Number.isFinite(n) ? n : "");
+
+/** Quantity after a +/− tap: parts count whole units; custom items keep their fraction. */
+function stepQuantity(line: BuilderLine, by: 1 | -1) {
+  const qty = Number.isFinite(line.quantity) ? line.quantity : 0;
+  const base = line.itemId === null ? qty : Math.floor(qty);
+  return Math.max(1, base + by);
+}
+
+/** A typed sale price always becomes a flat discount. */
+function salePricePatch(line: BuilderLine, next: number): Partial<BuilderLine> {
+  return { discountType: "amount", discountValue: Number.isFinite(next) ? round2((line.unitPrice || 0) - next) : Number.NaN };
+}
+
+const salePrice = (line: BuilderLine) => round2(line.unitPrice - unitDiscount(line));
 
 /**
  * Line items with the search box on top. Columns: qty, unit price (fixed for
  * inventory parts), discount (% or Rs.), sale price, line total. Editing the
  * discount updates the sale price; editing the sale price sets a flat
  * (Rs.) discount. Line total = qty × sale price.
+ * Below 768px the table becomes touch cards; tapping one opens an edit sheet.
  */
-export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly }: Props) {
+export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly, categories }: Props) {
+  const [editing, setEditing] = useState<string | null>(null);
   const update = (key: string, patch: Partial<BuilderLine>) =>
-    onChange(lines.map((l) => (l.key === key ? { ...l, ...patch } : l)));
-  const remove = (key: string) => onChange(lines.filter((l) => l.key !== key));
+    onChange((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  /** Removes at once; the toast's Undo puts the line back where it was. */
+  const remove = (key: string) => {
+    const index = lines.findIndex((l) => l.key === key);
+    const line = lines[index];
+    if (!line) return;
+    onChange((prev) => prev.filter((l) => l.key !== key));
+    setEditing(null);
+    notify.undo(`Removed ${line.description || "custom item"}`, () =>
+      onChange((prev) => (prev.some((l) => l.key === key) ? prev : [...prev.slice(0, index), line, ...prev.slice(index)])),
+    );
+  };
   const move = (index: number, by: -1 | 1) => {
     const next = [...lines];
     [next[index], next[index + by]] = [next[index + by], next[index]];
     onChange(next);
   };
   const addedIds = new Set(lines.flatMap((l) => (l.itemId ? [l.itemId] : [])));
+  const editLine = lines.find((l) => l.key === editing) ?? null;
 
   return (
     <section className="card doc-lines">
@@ -66,7 +98,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
           </p>
         </div>
       </div>
-      {!readOnly && <LineSearch money={money} addedIds={addedIds} onAdd={onAdd} onAddCustom={onAddCustom} />}
+      {!readOnly && <LineSearch money={money} addedIds={addedIds} onAdd={onAdd} onAddCustom={onAddCustom} categories={categories} />}
 
       {lines.length > 0 && (
         <div className="doc-table" role="table" aria-label="Line items">
@@ -83,7 +115,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
           {lines.map((line, i) => {
             const custom = line.itemId === null;
             const amounts = lineAmounts(line);
-            const sale = round2(line.unitPrice - unitDiscount(line));
+            const sale = salePrice(line);
             const short = !custom && line.stock !== null && line.quantity > line.stock;
             return (
               <div className="doc-row" role="row" key={line.key}>
@@ -144,7 +176,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
                       type="button"
                       aria-label="Decrease quantity"
                       disabled={readOnly || line.quantity <= 1}
-                      onClick={() => update(line.key, { quantity: Math.max(1, Math.floor(line.quantity) - 1) })}
+                      onClick={() => update(line.key, { quantity: stepQuantity(line, -1) })}
                     >
                       <Minus size={11} />
                     </button>
@@ -162,7 +194,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
                       type="button"
                       aria-label="Increase quantity"
                       disabled={readOnly}
-                      onClick={() => update(line.key, { quantity: Math.floor(line.quantity || 0) + 1 })}
+                      onClick={() => update(line.key, { quantity: stepQuantity(line, 1) })}
                     >
                       <Plus size={11} />
                     </button>
@@ -216,14 +248,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
                   min="0"
                   step="0.01"
                   value={Number.isFinite(sale) && Number.isFinite(line.discountValue) ? sale : ""}
-                  onChange={(e) => {
-                    const next = e.target.valueAsNumber;
-                    // A typed sale price always becomes a flat discount.
-                    update(line.key, {
-                      discountType: "amount",
-                      discountValue: Number.isFinite(next) ? round2((line.unitPrice || 0) - next) : Number.NaN,
-                    });
-                  }}
+                  onChange={(e) => update(line.key, salePricePatch(line, e.target.valueAsNumber))}
                   aria-label="Sale price"
                   aria-invalid={amounts.invalid || undefined}
                   readOnly={readOnly}
@@ -243,6 +268,250 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
           })}
         </div>
       )}
+
+      {/* ---- Phones: one touch card per line ---- */}
+      {lines.length > 0 && (
+        <ul className="mobile-lines" aria-label="Line items">
+          {lines.map((line) => (
+            <MobileLineCard
+              key={line.key}
+              line={line}
+              money={money}
+              readOnly={readOnly}
+              onStep={(by) => update(line.key, { quantity: stepQuantity(line, by) })}
+              onEdit={() => setEditing(line.key)}
+              onRemove={() => remove(line.key)}
+            />
+          ))}
+        </ul>
+      )}
+
+      {editLine && (
+        <LineEditSheet
+          line={editLine}
+          money={money}
+          onClose={() => setEditing(null)}
+          onUpdate={(patch) => update(editLine.key, patch)}
+          onRemove={() => remove(editLine.key)}
+        />
+      )}
     </section>
+  );
+}
+
+/** "−10%" / "−Rs. 50 each" for the card's price line. */
+function discountLabel(line: BuilderLine, money: MoneyFormat) {
+  const value = Number.isFinite(line.discountValue) ? line.discountValue : 0;
+  if (value === 0) return null;
+  return line.discountType === "percent" ? `−${value}%` : `−${formatMoney(value, money)} each`;
+}
+
+function MobileLineCard({
+  line,
+  money,
+  readOnly,
+  onStep,
+  onEdit,
+  onRemove,
+}: {
+  line: BuilderLine;
+  money: MoneyFormat;
+  readOnly: boolean;
+  onStep: (by: 1 | -1) => void;
+  onEdit: () => void;
+  onRemove: () => void;
+}) {
+  const custom = line.itemId === null;
+  const amounts = lineAmounts(line);
+  const short = !custom && line.stock !== null && line.quantity > line.stock;
+  const discount = discountLabel(line, money);
+  const details = (
+    <>
+      <span className="mobile-card-top">
+        <strong className="mobile-card-title">{line.description || (custom ? "Custom item (tap to describe)" : "Part")}</strong>
+        <strong className="amount">{formatMoney(amounts.net, money)}</strong>
+      </span>
+      <span className="mobile-line-meta">
+        {custom ? <span className="line-tag">Custom item</span> : <span className="mono">{line.sku ?? "Removed from inventory"}</span>}
+        <span>
+          {formatMoney(line.unitPrice || 0, money)}
+          {discount && <span className="discount-amount"> {discount}</span>}
+        </span>
+        {amounts.invalid && <span className="stock-out">Discount too large</span>}
+        {short && <span className="stock-low">{line.stock! <= 0 ? "None available" : `Only ${line.stock} available`}</span>}
+      </span>
+    </>
+  );
+
+  return (
+    <li className={`mobile-line-card${amounts.invalid ? " invalid" : ""}`}>
+      {readOnly ? (
+        <div className="mobile-line-main">{details}</div>
+      ) : (
+        <button type="button" className="mobile-line-main" onClick={onEdit} aria-label={`Edit ${line.description || "custom item"}`}>
+          {details}
+        </button>
+      )}
+      <div className="mobile-line-controls">
+        <div className="touch-stepper" role="group" aria-label="Quantity">
+          <button type="button" aria-label="Decrease quantity" disabled={readOnly || line.quantity <= 1} onClick={() => onStep(-1)}>
+            <Minus size={18} />
+          </button>
+          <span aria-live="polite">{Number.isFinite(line.quantity) ? line.quantity : "—"}</span>
+          <button type="button" aria-label="Increase quantity" disabled={readOnly} onClick={() => onStep(1)}>
+            <Plus size={18} />
+          </button>
+        </div>
+        {!readOnly && (
+          <button type="button" className="icon-button danger touch-delete" aria-label={`Remove ${line.description || "line"}`} onClick={onRemove}>
+            <Trash2 size={18} />
+          </button>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Bottom sheet for one line on phones: quantity, price (custom items), discount, sale price. Changes apply as typed. */
+function LineEditSheet({
+  line,
+  money,
+  onClose,
+  onUpdate,
+  onRemove,
+}: {
+  line: BuilderLine;
+  money: MoneyFormat;
+  onClose: () => void;
+  onUpdate: (patch: Partial<BuilderLine>) => void;
+  onRemove: () => void;
+}) {
+  const custom = line.itemId === null;
+  const amounts = lineAmounts(line);
+  const sale = salePrice(line);
+
+  return (
+    <MobileSheet
+      open
+      onOpenChange={(open) => !open && onClose()}
+      variant="bottom"
+      title={custom ? "Custom item" : line.description}
+      description="Change the quantity, price or discount for this line."
+      footer={
+        <>
+          <button type="button" className="button button-ghost danger" onClick={onRemove}>
+            <Trash2 size={16} /> Remove
+          </button>
+          <button type="button" className="button button-primary sheet-done" onClick={onClose}>
+            Done
+          </button>
+        </>
+      }
+    >
+      <div className="line-edit">
+        {custom && (
+          <label className="field">
+            <span className="field-label">DESCRIPTION</span>
+            <input
+              className="field-input"
+              value={line.description}
+              onChange={(e) => onUpdate({ description: e.target.value })}
+              placeholder="Describe the item or service"
+              maxLength={300}
+            />
+          </label>
+        )}
+        {!custom && <p className="line-edit-sku mono">{line.sku ?? "Removed from inventory"}</p>}
+
+        <div className="line-edit-row">
+          <span className="field-label">QUANTITY</span>
+          <div className="touch-stepper">
+            <button type="button" aria-label="Decrease quantity" disabled={line.quantity <= 1} onClick={() => onUpdate({ quantity: stepQuantity(line, -1) })}>
+              <Minus size={18} />
+            </button>
+            <input
+              type="number"
+              inputMode={custom ? "decimal" : "numeric"}
+              min={custom ? "0.01" : "1"}
+              step={custom ? "any" : "1"}
+              value={numberValue(line.quantity)}
+              onChange={(e) => onUpdate({ quantity: e.target.valueAsNumber })}
+              aria-label="Quantity"
+            />
+            <button type="button" aria-label="Increase quantity" onClick={() => onUpdate({ quantity: stepQuantity(line, 1) })}>
+              <Plus size={18} />
+            </button>
+          </div>
+        </div>
+
+        <label className="line-edit-row">
+          <span className="field-label">UNIT PRICE</span>
+          {custom ? (
+            <input
+              className="field-input number"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={numberValue(line.unitPrice)}
+              onChange={(e) => onUpdate({ unitPrice: e.target.valueAsNumber })}
+            />
+          ) : (
+            <strong title="Price from inventory">{formatMoney(line.unitPrice, money)}</strong>
+          )}
+        </label>
+
+        <div className="line-edit-row">
+          <span className="field-label">DISCOUNT PER UNIT</span>
+          <div className="line-edit-discount">
+            <div className="segmented">
+              {(["percent", "amount"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  className={line.discountType === type ? "active" : ""}
+                  aria-pressed={line.discountType === type}
+                  onClick={() => line.discountType !== type && onUpdate({ discountType: type, discountValue: 0 })}
+                >
+                  {type === "percent" ? "%" : money.currency}
+                </button>
+              ))}
+            </div>
+            <input
+              className="field-input number"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              max={line.discountType === "percent" ? 100 : line.unitPrice}
+              step="0.01"
+              value={numberValue(line.discountValue)}
+              onChange={(e) => onUpdate({ discountValue: e.target.valueAsNumber })}
+              aria-label="Discount per unit"
+              aria-invalid={amounts.invalid || undefined}
+            />
+          </div>
+        </div>
+
+        <label className="line-edit-row">
+          <span className="field-label">SALE PRICE</span>
+          <input
+            className={`field-input number${amounts.invalid ? " invalid" : ""}`}
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={Number.isFinite(sale) && Number.isFinite(line.discountValue) ? sale : ""}
+            onChange={(e) => onUpdate(salePricePatch(line, e.target.valueAsNumber))}
+            aria-invalid={amounts.invalid || undefined}
+          />
+        </label>
+        {amounts.invalid && <p className="field-error">The discount is more than the unit price.</p>}
+
+        <div className="line-edit-total">
+          <span>Line total</span>
+          <strong>{formatMoney(amounts.net, money)}</strong>
+        </div>
+      </div>
+    </MobileSheet>
   );
 }

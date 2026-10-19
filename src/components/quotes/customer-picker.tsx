@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Banknote, Loader2, Search, UserPlus, Users, X } from "lucide-react";
+import { Banknote, ChevronRight, Loader2, Search, UserPlus, Users, X } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
 import type { CustomerOption, CustomerOptionsResponse } from "@/lib/types/quote";
 import { CustomerAvatar, CustomerTypeBadge } from "@/components/customers/customer-badges";
 import { CustomerDialog } from "@/components/customers/customer-dialog";
+import { MobileSheet } from "./mobile-sheet";
 
 type Props = {
   value: CustomerOption | null;
@@ -22,20 +23,15 @@ async function fetchCustomers(params: string, signal?: AbortSignal) {
   return ((await res.json()) as CustomerOptionsResponse).customers;
 }
 
-/** Searchable customer combobox, with "register new customer" in a modal. */
-export function CustomerPicker({ value, onChange, allowInternationalPhones, walkIn, disabled }: Props) {
-  const listId = useId();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+/** Customers matching the query, fetched while `enabled`, 200ms after the last keystroke. */
+function useCustomerSearch(enabled: boolean, query: string) {
   const [results, setResults] = useState<CustomerOption[]>([]);
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [registering, setRegistering] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!enabled) return;
     const ctrl = new AbortController();
     const timer = setTimeout(() => {
       setLoading(true);
@@ -53,12 +49,35 @@ export function CustomerPicker({ value, onChange, allowInternationalPhones, walk
       clearTimeout(timer);
       ctrl.abort();
     };
-  }, [open, query]);
+  }, [enabled, query]);
+
+  return { results, active, setActive, loading, error, setError };
+}
+
+/**
+ * Searchable customer combobox, with "register new customer" in a modal.
+ * On phones the search opens as a full-screen sheet.
+ */
+export function CustomerPicker({ value, onChange, allowInternationalPhones, walkIn, disabled }: Props) {
+  const listId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const sheetInputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const { results, active, setActive, loading, error, setError } = useCustomerSearch(open || sheetOpen, query);
 
   const choose = (customer: CustomerOption) => {
     onChange(customer);
     setOpen(false);
+    setSheetOpen(false);
     setQuery("");
+  };
+  const register = () => {
+    setOpen(false);
+    setSheetOpen(false);
+    setRegistering(true);
   };
 
   const onRegistered = async (id: string) => {
@@ -95,7 +114,11 @@ export function CustomerPicker({ value, onChange, allowInternationalPhones, walk
             title="Change customer"
             onClick={() => {
               onChange(null);
-              requestAnimationFrame(() => inputRef.current?.focus());
+              // Phones (inline field hidden) get the search sheet instead.
+              requestAnimationFrame(() => {
+                if (inputRef.current?.offsetParent) inputRef.current.focus();
+                else setSheetOpen(true);
+              });
             }}
           >
             <X size={15} />
@@ -186,20 +209,80 @@ export function CustomerPicker({ value, onChange, allowInternationalPhones, walk
               <Users size={15} /> {error ?? (query.trim() ? "No customers match." : "No customers yet.")}
             </div>
           )}
-          <button
-            type="button"
-            className="combobox-add"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setOpen(false);
-              setRegistering(true);
-            }}
-          >
+          <button type="button" className="combobox-add" onMouseDown={(e) => e.preventDefault()} onClick={register}>
             <UserPlus size={14} /> Register a new customer
           </button>
         </div>
       )}
-      {error && !open && <span className="field-error">{error}</span>}
+
+      {/* Phones: the field is a button that opens the full-screen search */}
+      <div className="customer-phone">
+        <button type="button" className="line-search-trigger" disabled={disabled} onClick={() => setSheetOpen(true)}>
+          <Search size={18} /> <span>Choose a customer…</span> <ChevronRight size={18} />
+        </button>
+        {walkIn && (
+          <button type="button" className="button walk-in-button" disabled={disabled} onClick={() => choose(walkIn)}>
+            <Banknote size={16} /> Walk-in / Cash
+          </button>
+        )}
+      </div>
+      <MobileSheet
+        open={sheetOpen}
+        onOpenChange={(next) => {
+          setSheetOpen(next);
+          if (!next) setQuery("");
+        }}
+        title="Choose a customer"
+        description="Search by name, phone or NTN, or bill a walk-in customer."
+        initialFocus={sheetInputRef}
+      >
+        <div className="sheet-search">
+          {loading ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+          <input
+            ref={sheetInputRef}
+            type="search"
+            enterKeyHint="search"
+            aria-label="Search customers"
+            placeholder="Name, phone or NTN…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            maxLength={100}
+          />
+        </div>
+        <ul className="sheet-results" aria-label="Customers" aria-busy={loading}>
+          {walkIn && (
+            <li>
+              <button type="button" className="sheet-result" onClick={() => choose(walkIn)}>
+                <span className="product-thumbnail"><Banknote size={16} /></span>
+                <span className="line-search-info">
+                  <strong>Walk-in / Cash customer</strong>
+                  <span>Bill without creating a profile</span>
+                </span>
+              </button>
+            </li>
+          )}
+          {results.filter((c) => c.id !== walkIn?.id).map((c) => (
+            <li key={c.id}>
+              <button type="button" className="sheet-result" onClick={() => choose(c)}>
+                <CustomerAvatar name={c.name} />
+                <span className="line-search-info">
+                  <strong>{c.name}</strong>
+                  <span>{c.customer_type} · {formatPhone(c.whatsapp_number)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+          {!loading && results.length === 0 && (
+            <li className="sheet-empty">{error ?? (query.trim() ? "No customers match." : "No customers yet.")}</li>
+          )}
+          <li>
+            <button type="button" className="sheet-result sheet-custom" onClick={register}>
+              <UserPlus size={16} /> Register a new customer
+            </button>
+          </li>
+        </ul>
+      </MobileSheet>
+      {error && !open && !sheetOpen && <span className="field-error">{error}</span>}
       <CustomerDialog
         open={registering}
         onOpenChange={setRegistering}
