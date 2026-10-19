@@ -637,7 +637,7 @@ function BuilderForm({
     `button${a.tone === "primary" ? " button-primary" : a.tone === "danger" ? " button-ghost danger" : ""}`;
   const isWalkIn = Boolean(customer?.is_walk_in);
   const shownStatus = displayStatus ? statusDisplay(displayStatus) : null;
-  const showTerms = !isInvoice && Boolean(terms);
+  const showTerms = Boolean(terms);
 
   // Phone cashier bar: unsaved edits put Save first, otherwise the stage's main action.
   const barAction = (dirty ? actions.find((a) => a.key === "save") : undefined) ?? actions.find((a) => a.tone === "primary") ?? null;
@@ -881,7 +881,7 @@ function BuilderForm({
           </label>
           {showTerms && (
             <div className="disclaimer">
-              <strong>Quote terms</strong>
+              <strong>{isInvoice ? "Payment terms" : "Quote terms"}</strong>
               <p>{terms}</p>
             </div>
           )}

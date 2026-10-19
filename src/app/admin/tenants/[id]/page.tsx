@@ -62,7 +62,6 @@ async function TenantDetail({ params }: { params: Params }) {
               address: tenant.address ?? "",
               ntn: tenant.ntn ?? "",
               strn: formatStrn(tenant.strn),
-              terms: tenant.quote_footer_notes ?? "",
             }}
           />
         </UnsavedSettings>

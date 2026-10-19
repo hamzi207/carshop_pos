@@ -704,3 +704,31 @@ Test steps:
   6. Users → the ⋯ menu → Email a password reset link (to your own address) or Set a temporary password.
   7. Optional: Suspend the test shop and try signing in as its owner; then Activate it.
   8. Commit: git add . && git commit -m "Phase 13 - superadmin control plane, tenants, users and impersonation"
+
+Phase 14 (settings sections, team, numbering and bank details), 2026-10-19:
+  - Settings now has tabs: Profile, Localization, Categories, Team, Documents, Printing, POS. The existing cards
+    moved into them; each tab saves only its own settings with its own Save Settings bar.
+  - Documents: prefix and "start from" for quotations, invoices and drafts, with a live "Next number" (e.g.
+    INV-5001; numbers never go back or repeat). Separate quotation terms and invoice payment terms, each printed
+    on its own documents. Bank details: bank, account title, account number, IBAN (checked), Raast ID and up to 5
+    mobile wallets (JazzCash, EasyPaisa, SadaPay, NayaPay).
+  - Invoices that still have a balance show a "Bank Remittance" box below the totals on the PDF and on the
+    customer link (with Copy IBAN). Quotations and paid invoices don't.
+  - Team: everyone in the shop with role and status (Active / Invited / Deactivated). Invite Team Member (name,
+    email, Staff or Admin) emails a link to choose a password (1 hour). Change role (a shop always keeps an admin),
+    Resend invite, Cancel invitation, Deactivate (signed out straight away, can't sign in, their documents stay)
+    and Reactivate. Staff can see the team but not change it.
+Typecheck, lint and production build pass. Browser test on the production build: 53 checks passed (see
+PROJECT_SPEC.md §7 Phase 14); Phase 13 checks re-run: 34/34. Test data deleted.
+
+Test steps:
+  0. Restart `npm run dev` first (it was serving an old copy of the PDF/share-page loader during testing).
+  1. Settings → Documents: set prefixes (e.g. invoices "HAA-INV", start from 5001) and bank details (an IBAN,
+     a JazzCash number), then Save Settings.
+  2. Create an invoice (leave it unpaid) → Share → View PDF: Bank Remittance below the totals.
+  3. Share → Copy customer link → open it: the bank card with Copy IBAN.
+  4. Settings → Team → Invite Team Member with a test address (e.g. staff@test.local). Until a sending domain is
+     verified in Resend only hamzi207@gmail.com receives email, so the toast says the email didn't go out, but the
+     member appears as Invited. To sign in as them: /admin → Users → ⋯ → Set a temporary password. After they
+     sign in they show as Active; try Deactivate / Reactivate.
+  5. Commit: git add . && git commit -m "Phase 14 - settings sections, team, numbering and bank details"

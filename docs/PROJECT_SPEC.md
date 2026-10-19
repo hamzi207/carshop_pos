@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–13): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–14): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-19)**: Phases 1–12 are built and committed; Phase 13 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-19)**: Phases 1–13 are built and committed; Phase 14 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1079,7 +1079,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 6. **Verified end to end**: INV-1001 sent as a document email (PDF attached) and as a payment receipt (sample payment, not saved) through the real pipeline; Resend reports both **delivered**, both rows in `email_logs` with status `sent`.
 
 ### PHASE 13: Superadmin Control Plane (`/admin`), Impersonation & Suspended Shops [COMPLETED]
-**Commit**: pending (`Phase 13 - superadmin control plane, tenants, users and impersonation`).
+**Commit**: `652c4ee` (`Phase 13 - superadmin control plane, tenants, users and impersonation`).
 
 **What was built**:
 1. **Migration** `supabase/migrations/20261019160720_superadmin_control_plane.sql` (applied remotely under the same version):
@@ -1097,29 +1097,31 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
+### PHASE 14: Settings Sections, Team, Document Numbering & Bank Details [COMPLETED]
+**Commit**: pending (`Phase 14 - settings sections, team, numbering and bank details`).
+
+**What was built**:
+1. **Migration** `supabase/migrations/20261019173257_team_and_documents.sql` (applied remotely under the same version): `profiles.deactivated_at`; `private.current_tenant_id()` also returns null for a deactivated member (cut off at their next request) and `private.is_shop_admin()` ignores deactivated admins; `public.my_shop_status()` returns `'deactivated'` for them; `public.document_number_floors()` (authenticated, invoker: highest number used per series in the caller's shop, for the "next number" preview; same rule as `next_document_number`); `tenants_bank_wallets_size_check` (≤ 5 wallets). Verified in SQL (rolled back): deactivated → no shop, status `deactivated`, 0 quotes.
+2. **Settings sections** (`src/app/(dashboard)/settings/layout.tsx` + one page per tab, `src/components/settings/settings-tabs.tsx`, scrolls the current tab into view on phones): **Profile** `/settings` (shop details + logo; terms moved out), **Localization** `/settings/localization` (currency, phone numbers, timezone & week, dashboard clock), **Categories** `/settings/categories`, **Team** `/settings/team`, **Documents** `/settings/documents` (numbering, terms, bank details, quotation validity), **Printing** `/settings/printing` (print format), **POS** `/settings/pos` (tax). The existing cards were moved, not rebuilt: `ShopSettingsForm` takes `sections` (`SettingsSection`) and saves **only those fields** (`updateShopSettings` accepts a partial; Next keeps other tabs mounted with older values, so sending everything would undo another tab's change). Each tab has its own Save Settings bar (`UnsavedSettings`); `shop-settings-section.tsx` renders a cards-only tab.
+3. **Documents** (`src/components/settings/document-settings-form.tsx`, `updateDocumentSettings` in `src/lib/actions/settings.ts`, `src/lib/validations/document-settings.schema.ts`): prefix (typed lowercase is uppercased; capitals/digits, optional hyphens, ≤ 10) and "start from" per series (quotations, invoices, drafts) with a live **Next number** preview ("Already at 5001" when start-from is behind numbers already used; numbering never goes back). **Quotation terms** (`quote_footer_notes`) and **invoice payment terms** (`invoice_terms`): `loadPrintable` picks by document (`doc.shop.terms`), the PDF / share page label invoices "PAYMENT TERMS", the document screen shows "Payment terms" on invoices (`ShopSession.tenant.invoiceTerms`). **Bank details**: bank name, account title, account number, IBAN (Pakistani format + mod-97 checksum, stored without spaces, shown in groups of 4), Raast ID, up to 5 mobile wallets (JazzCash / EasyPaisa / SadaPay / NayaPay, mobile number, optional account name; `bank_wallets` jsonb).
+4. **Bank Remittance**: `PrintableDocument.bank` is set only for invoices with a balance (not quotations, paid, void or cancelled invoices) when any bank detail exists. A4 PDF (`document-pdf.tsx` `BankRemittance`: red-ruled box below the totals, "Pay <balance> · reference <number>", two-column details) and `/share/[token]` (`.share-bank` card; `src/components/share/copy-button.tsx` **Copy IBAN** copies it without spaces, plus Copy for the account number). Thermal receipt / POS slip unchanged.
+5. **Team** (`/settings/team`; `src/components/settings/team-manager.tsx`, `src/lib/actions/team.ts`, `src/lib/team-data.ts`, `src/lib/validations/team.schema.ts`): members with avatar, role, status (**Active** / **Invited** = never signed in / **Deactivated**) and last sign-in. **Invite Team Member** (name, email, Staff/Admin): refuses an email that already has an account; `auth.admin.createUser` without `shop_name` (so the sign-up trigger creates no shop) + profile in this shop (service role, pinned to the caller's tenant from `getShopSession()`); emails `staffInviteEmail` with a one-time link (`generateLink` recovery → `/auth/confirm` → `/reset-password`, 1 hour). Per member: role select (the shop always keeps an active admin), **Resend invite** / **Cancel invitation** (removes the account) for invited members, **Deactivate** (confirm; bans the auth user and sets `deactivated_at`; their documents stay) / **Reactivate**. You can't deactivate yourself. Staff see the list read-only. Deactivated users: next page → `/auth/suspended?reason=deactivated` → `/login?error=deactivated`; sign-in refused (`user_banned` / `my_shop_status`) with "Your access to this shop has been turned off…". Account-link helpers moved to `src/lib/account-links.ts` (shared with `src/lib/actions/admin.ts`).
+6. Notification bell and global search ignore a non-JSON reply (a signed-out request redirected to the login page) instead of throwing.
+7. **Verified**: typecheck, lint, `next build`; browser test against the production build with a temporary shop (53 checks): 7 tabs and their cards, a POS save keeps Localization's change, numbering preview + saved prefix/start, bad IBAN refused, IBAN/wallet normalised, invoice numbered ZZ-INV-5001 / quotation Q-1001, invoice PDF has Bank Remittance + payment terms (pdftotext) and the quotation PDF has quotation terms and no bank box, share page bank card + Copy IBAN, paid invoice has no bank card, invite (duplicate refused, Invited, staff_invite logged, no extra shop), invitee signs in → Active, staff read-only, roles + only-admin guard, deactivate signs the member out and blocks sign-in and API reads, reactivate, cancel invitation removes the account, no sideways scroll at 390px, only the success toast after a good save, no browser console errors. Phase 13 suite re-run on the same build: 34/34. Test data removed. Note: the running `next dev` served a stale `printable.ts` to the share page during testing (restart it if the share page shows no bank card).
+
 ---
 
-## 8. ROADMAP (PHASES 14–15): STILL TO BUILD
+---
+
+## 8. ROADMAP (PHASE 15): STILL TO BUILD
 
 > **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
-> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17; Phases 12–13 moved to §7 on 2026-10-19). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
+> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17; Phases 12–14 moved to §7 on 2026-10-19). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
 > 
 > 🛑 **CRITICAL EXECUTION RULE**:  
 > Build **strictly one phase at a time**. **DO NOT** combine phases, skip steps, or build future phases early.  
 > After each phase: **STOP AND PAUSE**, describe what you built, ask the developer to test in the browser and commit, then move the phase into §7 as "What was built" and update the phases after it.  
 > Commit messages always start with `Phase <N> - `.
-
----
-
-### PHASE 14: Settings Sections, Team, Document Numbering & Bank Details
-**Agent Directive** (uses the Phase 12 columns):
-1. **Settings sections/tabs**: Profile, Localization, Categories, Team, Documents, Printing, POS, moving the existing Settings cards (Phases 4, 6, 7) rather than rebuilding them.
-2. **Team** (`/settings/team`): members with role and status (Active / Invited); Invite Team Member (name, email, role → token + Resend email); change role, deactivate, resend invite.
-3. **Documents** (`/settings/documents`): prefixes and "start from" numbers (e.g. continue from 5001); quotation terms (`quote_footer_notes`) vs invoice payment terms (`invoice_terms`) printed on the matching documents.
-4. **Bank details**: bank name, account title, account number, IBAN, Raast ID, mobile wallets (JazzCash/EasyPaisa); Bank Remittance card on invoice PDFs (`document-pdf.tsx`) and on `/share/[token]` with Copy IBAN.
-
-🛑 **PAUSE & CHECKPOINT**:  
-> "Phase 14 complete! Please test: 1) Settings → Documents: set prefixes and bank details, 2) an invoice PDF shows Bank Remittance below the totals, 3) `/share/<token>` shows the bank card with Copy IBAN, 4) Settings → Team: invite a test staff member. Then run `git add . && git commit -m 'Phase 14 - settings sections, team, numbering and bank details'` and tell me to begin Phase 15."
 
 ---
 

@@ -293,7 +293,7 @@ async function NewDocument({ section, searchParams }: { section: DocumentSection
       taxRate={tenant.taxRate}
       customIncludesTax={tenant.pricesIncludeTax}
       allowInternationalPhones={tenant.allowInternationalPhones}
-      terms={tenant.quoteTerms}
+      terms={section === "invoices" ? tenant.invoiceTerms : tenant.quoteTerms}
       shopName={tenant.name}
       printFormat={tenant.printFormat}
       initialCustomer={initialCustomer}
@@ -350,7 +350,7 @@ async function EditDocument({ section, params }: { section: DocumentSection; par
       taxRate={doc.status === "draft" ? tenant.taxRate : Number(doc.tax_rate)}
       customIncludesTax={tenant.pricesIncludeTax}
       allowInternationalPhones={tenant.allowInternationalPhones}
-      terms={tenant.quoteTerms}
+      terms={actual === "invoices" ? tenant.invoiceTerms : tenant.quoteTerms}
       shopName={tenant.name}
       printFormat={tenant.printFormat}
       initialCustomer={null}

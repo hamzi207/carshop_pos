@@ -75,6 +75,5 @@ export const shopProfileSchema = z.object({
   address: optionalText(300, "Address"),
   ntn: shopNtn,
   strn: shopStrn,
-  terms: optionalText(2000, "Terms"),
 });
 export type ShopProfileValues = z.input<typeof shopProfileSchema>;

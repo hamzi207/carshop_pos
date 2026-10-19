@@ -80,14 +80,22 @@ export async function signIn(input: LoginInput, next?: string): Promise<AuthActi
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
+    // Deactivated in Settings → Team (the account is banned in Supabase Auth).
+    if (error.code === "user_banned") {
+      return { status: "error", message: "Your access to this shop has been turned off. Please ask your shop admin if you think this is a mistake." };
+    }
     if (error.code === "email_not_confirmed") {
       return { status: "error", message: "Please confirm your email first — check your inbox for the link." };
     }
     return { status: "error", message: "Incorrect email or password." };
   }
 
-  // Suspended shops (Phase 13, set by a superadmin) can't sign in.
+  // Suspended shops (Phase 13, set by a superadmin) and deactivated members can't sign in.
   const { data: shopStatus } = await supabase.rpc("my_shop_status");
+  if (shopStatus === "deactivated") {
+    await supabase.auth.signOut({ scope: "local" });
+    return { status: "error", message: "Your access to this shop has been turned off. Please ask your shop admin if you think this is a mistake." };
+  }
   if (shopStatus === "suspended") {
     await supabase.auth.signOut({ scope: "local" });
     return {

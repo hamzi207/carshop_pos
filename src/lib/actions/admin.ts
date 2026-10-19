@@ -1,10 +1,11 @@
 "use server";
 
 import { randomInt } from "node:crypto";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { z } from "zod";
+import { appOrigin, isResendSandboxError, passwordLink } from "@/lib/account-links";
 import { sendTransactionalEmail } from "@/lib/email/send";
 import { passwordResetEmail, welcomeEmail } from "@/lib/email/templates/account";
 import { hashToken, newToken } from "@/lib/impersonation";
@@ -23,21 +24,6 @@ import {
 // service role (cross-shop by design) and writes superadmin_audit_logs.
 
 export type AdminActionResult = { status: "success"; message?: string } | { status: "error"; message: string };
-
-async function appOrigin() {
-  return (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-}
-
-/**
- * A one-time sign-in link that lands on "Choose a password" (/reset-password). Built from the
- * hashed token rather than Supabase's own link so it goes through our /auth/confirm route
- * (server-side verifyOtp) and needs no redirect allow-list. Valid for the project's email-link
- * expiry (1 hour by default).
- */
-function passwordLink(origin: string, hashedToken: string, type: "recovery" | "invite") {
-  const q = new URLSearchParams({ token_hash: hashedToken, type, next: "/reset-password" });
-  return `${origin}/auth/confirm?${q}`;
-}
 
 // ---------------------------------------------------------------------------
 // Impersonation ("Login As")
@@ -226,7 +212,7 @@ export async function sendPasswordReset(userId: string): Promise<AdminActionResu
   if (sent.status === "failed") {
     return {
       status: "error",
-      message: /only send testing emails|verify a domain/i.test(sent.error)
+      message: isResendSandboxError(sent.error)
         ? "Email can only go to the account owner's address until a domain is verified in Resend. Set a temporary password instead."
         : "We couldn't send the email. Set a temporary password instead.",
     };

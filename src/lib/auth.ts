@@ -31,8 +31,10 @@ export type ShopSession = {
     clock24Hour: boolean;
     /** First day of the week: 1 Monday, 6 Saturday, 7 Sunday. */
     weekStart: WeekStart;
-    /** Terms printed on quotes and invoices (tenants.quote_footer_notes). */
+    /** Printed on quotations and drafts (tenants.quote_footer_notes). */
     quoteTerms: string | null;
+    /** Payment terms printed on invoices (tenants.invoice_terms). */
+    invoiceTerms: string | null;
     /** Printed on quotations and invoices (Settings → Your shop). */
     phone: string | null;
     email: string | null;
@@ -55,13 +57,13 @@ export type ShopSession = {
 };
 
 const TENANT_COLUMNS =
-  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, quote_validity_days, phone, email, address, ntn, strn, logo_url";
+  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, invoice_terms, quote_validity_days, phone, email, address, ntn, strn, logo_url";
 
 type TenantRow = Pick<
   Tables<"tenants">,
   | "id" | "name" | "slug" | "currency" | "tax_rate" | "timezone" | "show_paisa" | "prices_include_tax"
   | "allow_international_phones" | "clock_style" | "show_clock" | "clock_24_hour" | "week_start" | "print_format"
-  | "quote_footer_notes" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url"
+  | "quote_footer_notes" | "invoice_terms" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url"
 >;
 
 function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
@@ -80,6 +82,7 @@ function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
     clock24Hour: tenant.clock_24_hour,
     weekStart: tenant.week_start === 6 || tenant.week_start === 7 ? tenant.week_start : 1,
     quoteTerms: tenant.quote_footer_notes,
+    invoiceTerms: tenant.invoice_terms,
     quoteValidityDays: tenant.quote_validity_days,
     phone: tenant.phone,
     email: tenant.email,
@@ -137,6 +140,8 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
     // A suspended shop is hidden from its own users by RLS: sign them out with a polite message.
     const { data: status } = await supabase.rpc("my_shop_status");
     if (status === "suspended") redirect("/auth/suspended");
+    // Turned off by a shop admin (Settings → Team).
+    if (status === "deactivated") redirect("/auth/suspended?reason=deactivated");
     // Signed in but not attached to any shop: shouldn't happen after registration.
     redirect("/login?error=no_shop");
   }

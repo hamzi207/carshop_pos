@@ -482,6 +482,7 @@ export type Database = {
         Row: {
           created_at: string
           dashboard_prefs: Json
+          deactivated_at: string | null
           email: string
           full_name: string
           id: string
@@ -493,6 +494,7 @@ export type Database = {
         Insert: {
           created_at?: string
           dashboard_prefs?: Json
+          deactivated_at?: string | null
           email: string
           full_name: string
           id: string
@@ -504,6 +506,7 @@ export type Database = {
         Update: {
           created_at?: string
           dashboard_prefs?: Json
+          deactivated_at?: string | null
           email?: string
           full_name?: string
           id?: string
@@ -1096,6 +1099,7 @@ export type Database = {
         Returns: Json
       }
       is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
+      document_number_floors: { Args: never; Returns: Json }
       my_shop_status: { Args: never; Returns: string }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
       shop_alerts: { Args: never; Returns: Json }

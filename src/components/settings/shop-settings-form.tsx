@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlarmClock, Clock, Coins, FileText, Phone, Receipt } from "lucide-react";
+import { AlarmClock, Clock, Coins, FileText, Phone, Printer, Receipt } from "lucide-react";
 import { updateShopSettings } from "@/lib/actions/settings";
 import { useUnsavedSettings } from "./unsaved-settings";
 import { formatMoney } from "@/lib/format";
@@ -42,22 +42,46 @@ const CHANGE_TEXT: Record<keyof ShopSettingsInput, [label: string, value: (v: Sh
 };
 
 /** One line per changed setting, e.g. "Print format updated to 80mm POS slip."; empty when nothing changed. */
-function describeChanges(before: ShopSettingsInput, after: ShopSettingsInput) {
+function describeChanges(before: ShopSettingsInput, after: ShopSettingsInput, fields: (keyof ShopSettingsInput)[]) {
   return (Object.keys(CHANGE_TEXT) as (keyof ShopSettingsInput)[])
-    .filter((k) => before[k] !== after[k])
+    .filter((k) => fields.includes(k) && before[k] !== after[k])
     .map((k) => `${CHANGE_TEXT[k][0]} updated to ${CHANGE_TEXT[k][1](after)}.`)
     .join("\n");
 }
 
+/** The cards, by Settings tab (Localization, POS, Documents, Printing). */
+export type SettingsSection = "currency" | "tax" | "validity" | "printFormat" | "phones" | "timezone" | "clock";
+
+const SECTION_FIELDS: Record<SettingsSection, (keyof ShopSettingsInput)[]> = {
+  currency: ["currency", "showPaisa"],
+  tax: ["taxRate", "pricesIncludeTax"],
+  validity: ["quoteValidityDays"],
+  printFormat: ["printFormat"],
+  phones: ["allowInternationalPhones"],
+  timezone: ["timezone", "weekStart"],
+  clock: ["showClock", "clockStyle", "clock24Hour"],
+};
+
 type Props = {
+  /** Cards shown, in this order of the form; only their settings are saved. */
+  sections: SettingsSection[];
+  /** Named in the save bar, e.g. "Localization". */
+  label: string;
   initial: ShopSettingsInput;
   /** Built on the server so labels match between SSR and hydration. */
   timeZoneGroups: TimeZoneGroup[];
   /** Staff can see the settings but not change them. */
   canEdit: boolean;
+  /** False when the page already says so (Settings → Documents). */
+  readOnlyNote?: boolean;
 };
 
-export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
+export function ShopSettingsForm({ sections, label, initial, timeZoneGroups, canEdit, readOnlyNote = true }: Props) {
+  const has = (section: SettingsSection) => sections.includes(section);
+  // Other tabs may stay mounted with older values: only this tab's own settings are sent.
+  const fields = sections.flatMap((section) => SECTION_FIELDS[section]);
+  const pick = (values: ShopSettingsInput) =>
+    Object.fromEntries(fields.map((k) => [k, values[k]])) as Partial<ShopSettingsInput>;
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -78,7 +102,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
 
   const persist = async (values: ShopSettingsInput) => {
     setServerError(null);
-    const result = await updateShopSettings(values);
+    const result = await updateShopSettings(pick(values));
     if (result.status === "error") {
       setServerError(result.message);
       notify.error("Settings not saved", result.message);
@@ -86,7 +110,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
     }
     // Compared with the last saved values, so a setting changed and then changed back isn't listed.
     // `saved` = defaultValues, which reset() moves to the values just saved.
-    const changes = describeChanges({ ...initial, ...saved } as ShopSettingsInput, values);
+    const changes = describeChanges({ ...initial, ...saved } as ShopSettingsInput, values, fields);
     reset(values);
     notify.success("Settings saved", changes || "Nothing was changed.");
     return true;
@@ -94,8 +118,8 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
   const onSubmit = handleSubmit(persist);
   // Saved only from the page's save bar (or Enter in a field); see unsaved-settings.tsx.
   useUnsavedSettings(
-    "shop-settings",
-    "Shop settings",
+    `shop-settings-${sections.join("-")}`,
+    label,
     isDirty,
     () => new Promise<boolean>((resolve) => void handleSubmit(async (v) => resolve(await persist(v)), () => resolve(false))()),
     () => {
@@ -106,7 +130,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
 
   return (
     <form className="settings-form" onSubmit={onSubmit} noValidate>
-      {!canEdit && (
+      {!canEdit && readOnlyNote && (
         <div className="form-alert form-alert-info" role="status">
           Only shop admins can change these settings.
         </div>
@@ -114,6 +138,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
       {serverError && <div className="form-alert form-alert-error" role="alert">{serverError}</div>}
 
       <fieldset disabled={!canEdit || isSubmitting}>
+        {has("currency") && (
         <section className="card settings-card">
           <div className="settings-card-head">
             <span className="header-icon blue"><Coins size={18} /></span>
@@ -154,7 +179,9 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
           </label>
           <div className="settings-preview">Preview: <strong>{preview}</strong></div>
         </section>
+        )}
 
+        {has("tax") && (
         <section className="card settings-card">
           <div className="settings-card-head">
             <span className="header-icon blue"><Receipt size={18} /></span>
@@ -187,12 +214,14 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             <input type="checkbox" className="switch" {...register("pricesIncludeTax")} />
           </label>
         </section>
+        )}
 
+        {has("validity") && (
         <section className="card settings-card">
           <div className="settings-card-head">
             <span className="header-icon blue"><FileText size={18} /></span>
             <div>
-              <h2>Quotations &amp; invoices</h2>
+              <h2>Quotations</h2>
               <p>Parts on an open quotation are reserved until it is cancelled, deleted or invoiced.</p>
             </div>
           </div>
@@ -215,6 +244,18 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             </span>
           </label>
           {errors.quoteValidityDays && <span className="field-error settings-error">{errors.quoteValidityDays.message}</span>}
+        </section>
+        )}
+
+        {has("printFormat") && (
+        <section className="card settings-card">
+          <div className="settings-card-head">
+            <span className="header-icon blue"><Printer size={18} /></span>
+            <div>
+              <h2>Print format</h2>
+              <p>Used by the print button and the Share menu on drafts, quotations and invoices.</p>
+            </div>
+          </div>
           <div className="settings-row">
             <span className="settings-label">
               Print format
@@ -244,9 +285,10 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
               )}
             />
           </div>
-
         </section>
+        )}
 
+        {has("phones") && (
         <section className="card settings-card">
           <div className="settings-card-head">
             <span className="header-icon blue"><Phone size={18} /></span>
@@ -263,7 +305,9 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             <input type="checkbox" className="switch" {...register("allowInternationalPhones")} />
           </label>
         </section>
+        )}
 
+        {has("timezone") && (
         <section className="card settings-card">
           <div className="settings-card-head">
             <span className="header-icon blue"><Clock size={18} /></span>
@@ -319,7 +363,9 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             />
           </div>
         </section>
+        )}
 
+        {has("clock") && (
         <section className="card settings-card">
           <div className="settings-card-head">
             <span className="header-icon blue"><AlarmClock size={18} /></span>
@@ -387,6 +433,7 @@ export function ShopSettingsForm({ initial, timeZoneGroups, canEdit }: Props) {
             </div>
           )}
         </section>
+        )}
       </fieldset>
     </form>
   );

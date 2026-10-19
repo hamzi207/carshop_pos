@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Landmark } from "lucide-react";
+import { CopyButton } from "@/components/share/copy-button";
 import { formatMoney } from "@/lib/format";
 import { loadPrintable } from "@/lib/printable";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -86,9 +87,41 @@ async function SharedDocument({ params }: { params: Params }) {
         )}
       </dl>
 
+      {doc.bank && (
+        <section className="share-bank" aria-label="Bank remittance">
+          <div className="share-bank-head">
+            <span className="share-label"><Landmark size={13} /> BANK REMITTANCE</span>
+            <span>Pay {money(doc.balance)} · reference <b>{doc.number}</b></span>
+          </div>
+          <dl>
+            {doc.bank.bankName && <div><dt>Bank</dt><dd>{doc.bank.bankName}</dd></div>}
+            {doc.bank.accountTitle && <div><dt>Account title</dt><dd>{doc.bank.accountTitle}</dd></div>}
+            {doc.bank.accountNumber && (
+              <div>
+                <dt>Account number</dt>
+                <dd className="mono">{doc.bank.accountNumber}<CopyButton value={doc.bank.accountNumber.replace(/[\s-]/g, "")} label="Copy" /></dd>
+              </div>
+            )}
+            {doc.bank.iban && doc.bank.ibanRaw && (
+              <div>
+                <dt>IBAN</dt>
+                <dd className="mono">{doc.bank.iban}<CopyButton value={doc.bank.ibanRaw} label="Copy IBAN" /></dd>
+              </div>
+            )}
+            {doc.bank.raastId && <div><dt>Raast ID</dt><dd className="mono">{doc.bank.raastId}</dd></div>}
+            {doc.bank.wallets.map((w) => (
+              <div key={`${w.provider}-${w.number}`}>
+                <dt>{w.provider}</dt>
+                <dd>{w.number}{w.title ? ` · ${w.title}` : ""}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       {doc.shop.terms && (
         <section className="share-terms">
-          <span className="share-label">TERMS &amp; NOTES</span>
+          <span className="share-label">{isInvoice ? "PAYMENT TERMS" : "TERMS & NOTES"}</span>
           <p>{doc.shop.terms}</p>
         </section>
       )}

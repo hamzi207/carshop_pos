@@ -1832,4 +1832,77 @@
     .admin-activity li { flex-direction: column; gap: 3px; }
     .admin-row-actions .button { height: 40px; }
   }
+
+  /* ---- Phase 14: Settings tabs, numbering, wallets, team; bank card on the share page ---- */
+  .settings-tabs { display: flex; gap: 4px; margin: -4px 0 14px; padding: 4px; border-radius: 10px; background: var(--white); border: 1px solid var(--slate-200); overflow-x: auto; scrollbar-width: none; }
+  .settings-tabs::-webkit-scrollbar { display: none; }
+  .settings-tabs a { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 7px; color: var(--slate-600); font-size: 12px; font-weight: 600; white-space: nowrap; text-decoration: none; }
+  .settings-tabs a:hover { background: var(--slate-50); color: var(--slate-900); }
+  .settings-tabs a.active { background: var(--slate-900); color: var(--white); }
+  .settings-tabs a.active svg { color: var(--blue); }
+
+  .numbering-grid { display: grid; padding: 6px 0 4px; }
+  .numbering-row { display: grid; grid-template-columns: minmax(120px, 1.2fr) 110px 120px minmax(120px, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--slate-100); }
+  .numbering-headrow { padding: 4px 0; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--slate-500); }
+  .numbering-name { font-size: 12px; font-weight: 600; color: var(--slate-800); }
+  .numbering-row .settings-input { max-width: none; width: 100%; }
+  .numbering-prefix { text-transform: uppercase; }
+  .numbering-next { display: grid; gap: 2px; }
+  .numbering-next strong { font-size: 13px; color: var(--slate-900); }
+  .numbering-next small { font-size: 10px; color: var(--slate-500); }
+
+  .wallets-head { border-bottom: 0; }
+  .wallet-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+  .wallet-list li { display: grid; grid-template-columns: 130px 150px minmax(0, 1fr) 36px; gap: 8px; align-items: center; }
+  .wallet-list .settings-input { max-width: none; width: 100%; }
+  .wallet-list .field-error { grid-column: 1 / -1; }
+
+  .team-head { align-items: center; }
+  .team-head > div { flex: 1; }
+  .team-alert { margin: 4px 0 10px; }
+  .team-list { list-style: none; margin: 0; padding: 0; }
+  .team-row { display: grid; grid-template-columns: 36px minmax(0, 1.6fr) minmax(0, 1fr) 96px 36px; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--slate-100); }
+  .team-row:last-child { border-bottom: 0; }
+  .team-row.is-off { opacity: .6; }
+  .team-avatar { width: 34px; height: 34px; font-size: 11px; }
+  .team-who { display: grid; gap: 2px; min-width: 0; }
+  .team-who strong { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--slate-900); }
+  .team-who > span { font-size: 11px; color: var(--slate-500); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team-you { font-style: normal; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 10px; background: var(--slate-100); color: var(--slate-600); }
+  .team-meta { display: grid; gap: 4px; justify-items: start; }
+  .team-last { font-size: 10px; color: var(--slate-500); }
+  .team-role .admin-role-select { width: 100%; }
+  .team-role-text { font-size: 12px; font-weight: 600; color: var(--slate-700); }
+  .team-role-pick > span { display: block; font-size: 9px; font-weight: 700; letter-spacing: .08em; color: var(--slate-500); }
+  .team-role-pick .radio-cards { margin-top: 6px; }
+
+  .share-bank { margin-top: 20px; padding: 14px 16px; border: 1px solid var(--slate-200); border-left: 3px solid var(--blue); border-radius: 8px; background: var(--slate-50); }
+  .share-bank-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 11px; color: var(--slate-600); }
+  .share-bank-head .share-label { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); }
+  .share-bank dl { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .share-bank dt { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--slate-500); }
+  .share-bank dd { margin: 2px 0 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; font-weight: 600; color: var(--slate-900); overflow-wrap: anywhere; }
+  .share-copy { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border: 1px solid var(--slate-200); border-radius: 6px; background: var(--white); color: var(--slate-700); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+  .share-copy:hover { border-color: var(--slate-300); }
+  .share-copy.copied { border-color: var(--green); color: var(--green-dark); background: var(--green-soft); }
+
+  @media (max-width: 640px) {
+    .numbering-headrow { display: none; }
+    .numbering-row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
+    .numbering-name, .numbering-next { grid-column: 1 / -1; }
+    .numbering-next { grid-template-columns: auto auto 1fr; align-items: baseline; gap: 8px; }
+    .numbering-row [data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--slate-500); }
+    .numbering-next[data-label]::before { margin-bottom: 0; }
+    .wallet-list li { grid-template-columns: minmax(0, 1fr) 36px; padding-bottom: 8px; border-bottom: 1px solid var(--slate-100); }
+    .wallet-list li > :nth-child(2), .wallet-list li > :nth-child(3) { grid-column: 1 / 2; }
+    .wallet-list li > .icon-button { grid-column: 2; grid-row: 1; }
+    .team-head { flex-wrap: wrap; }
+    .team-head .button { width: 100%; justify-content: center; }
+    .team-row { grid-template-columns: 34px minmax(0, 1fr) 36px; row-gap: 8px; }
+    .team-who { grid-column: 2; }
+    .team-actions { grid-column: 3; grid-row: 1; }
+    .team-meta { grid-column: 2 / 4; grid-auto-flow: column; justify-content: start; align-items: center; gap: 8px; }
+    .team-role { grid-column: 2 / 4; }
+    .share-bank dl { grid-template-columns: 1fr; }
+  }
 }

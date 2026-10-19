@@ -5,6 +5,7 @@ import { localDate, sectionForStatus, statusDisplay, statusKey, type DocumentSec
 import { formatDate, type MoneyFormat } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { formatStrn } from "@/lib/tax-id";
+import { formatIban, formatWalletNumber, parseWallets } from "@/lib/validations/document-settings.schema";
 
 // Everything a quotation / invoice needs to be printed or shown to the customer.
 // Loaded the same way for the signed-in PDF route (RLS client) and the public
@@ -22,6 +23,18 @@ export type PrintableLine = {
 };
 
 export type PrintablePayment = { paidOn: string; method: string; amount: number; notes: string | null; forItems: string | null };
+
+/** Settings → Documents → Bank details: the "Bank Remittance" card on invoices. Display-formatted. */
+export type PrintableBank = {
+  bankName: string | null;
+  accountTitle: string | null;
+  accountNumber: string | null;
+  /** Grouped in 4s, e.g. "PK36 SCBL 0000 …"; `ibanRaw` (no spaces) is what Copy IBAN copies. */
+  iban: string | null;
+  ibanRaw: string | null;
+  raastId: string | null;
+  wallets: { provider: string; number: string; title: string | null }[];
+};
 
 export type PrintableDocument = {
   id: string;
@@ -43,8 +56,11 @@ export type PrintableDocument = {
     ntn: string | null;
     strn: string | null;
     logoUrl: string | null;
+    /** Quotation terms on quotations / estimates, payment terms on invoices. */
     terms: string | null;
   };
+  /** Invoices that still have a balance to pay, when the shop has entered bank details; else null. */
+  bank: PrintableBank | null;
   customer: {
     name: string;
     contact: string | null;
@@ -73,7 +89,7 @@ export type PrintableDocument = {
 };
 
 const SELECT =
-  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(name, address, phone, email, ntn, strn, logo_url, quote_footer_notes, currency, show_paisa, timezone)";
+  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(name, address, phone, email, ntn, strn, logo_url, quote_footer_notes, invoice_terms, bank_name, bank_account_title, bank_account_number, bank_iban, bank_raast_id, bank_wallets, currency, show_paisa, timezone)";
 
 const TITLE: Record<DocumentSection, string> = { drafts: "Estimate", quotations: "Quotation", invoices: "Invoice" };
 
@@ -131,6 +147,23 @@ export async function loadPrintable(
     : [];
   const total = Number(q.total_amount);
   const paid = Number(q.amount_paid);
+  const balance = Math.max(Math.round((total - paid) * 100) / 100, 0);
+
+  const wallets = parseWallets(t.bank_wallets).map((w) => ({ provider: w.provider, number: formatWalletNumber(w.number), title: w.title || null }));
+  const hasBank = Boolean(t.bank_name || t.bank_account_number || t.bank_iban || t.bank_raast_id || wallets.length);
+  // Only where there is something left to pay: not on quotations, paid or void invoices.
+  const bank: PrintableBank | null =
+    section === "invoices" && hasBank && balance > 0 && key !== "void" && key !== "cancelled"
+      ? {
+          bankName: t.bank_name,
+          accountTitle: t.bank_account_title,
+          accountNumber: t.bank_account_number,
+          iban: t.bank_iban ? formatIban(t.bank_iban) : null,
+          ibanRaw: t.bank_iban,
+          raastId: t.bank_raast_id,
+          wallets,
+        }
+      : null;
 
   return {
     id: q.id,
@@ -150,8 +183,9 @@ export async function loadPrintable(
       ntn: t.ntn,
       strn: t.strn ? formatStrn(t.strn) : null,
       logoUrl: t.logo_url,
-      terms: t.quote_footer_notes,
+      terms: section === "invoices" ? t.invoice_terms : t.quote_footer_notes,
     },
+    bank,
     customer: {
       name: walkIn ? (q.walk_in_name || "Walk-in customer") : (c?.name ?? "Customer"),
       contact: walkIn ? null : (c?.contact_person ?? null),
@@ -178,6 +212,6 @@ export async function loadPrintable(
     },
     payments,
     paid,
-    balance: Math.max(Math.round((total - paid) * 100) / 100, 0),
+    balance,
   };
 }

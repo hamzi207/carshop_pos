@@ -60,7 +60,7 @@ export function staffInviteEmail(p: {
     `Hi ${p.inviteeName},`,
     `${p.inviterName} has invited you to join ${p.shopName} on ${PLATFORM} as ${role}. Accept the invitation to set your password and sign in.`,
   ];
-  const note = "If you weren't expecting this, you can ignore this email.";
+  const note = `The link works for 1 hour and can be used once. If it has expired, ask ${p.inviterName} to resend the invitation. If you weren't expecting this, you can ignore this email.`;
   return {
     subject,
     html: layout({

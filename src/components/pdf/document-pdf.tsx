@@ -44,11 +44,45 @@ const s = StyleSheet.create({
   grandText: { fontSize: 11.5, fontFamily: "Helvetica-Bold" },
   payRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
   balance: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingVertical: 6, paddingHorizontal: 8, borderWidth: 1.5, borderColor: RED, borderRadius: 3 },
+  bank: { marginTop: 16, padding: 10, borderWidth: 1, borderColor: LINE, borderLeftWidth: 3, borderLeftColor: RED, borderRadius: 4, backgroundColor: SOFT },
+  bankHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 },
+  bankGrid: { flexDirection: "row", flexWrap: "wrap" },
+  bankItem: { width: "50%", paddingVertical: 3, paddingRight: 8 },
+  bankValue: { fontSize: 9.5, fontFamily: "Helvetica-Bold", marginTop: 1 },
+  bankMono: { fontSize: 9.5, fontFamily: "Courier-Bold", marginTop: 1 },
   terms: { marginTop: 18, paddingTop: 10, borderTopWidth: 1, borderTopColor: LINE },
   footer: { position: "absolute", left: 36, right: 36, bottom: 24, flexDirection: "row", justifyContent: "space-between", fontSize: 7, color: MUTED },
 });
 
 type Props = { doc: PrintableDocument; logo: { data: Buffer; format: "png" | "jpg" } | null };
+
+/** Invoices with a balance: where to send the money (Settings → Documents → Bank details). */
+function BankRemittance({ bank, balance, reference }: { bank: NonNullable<PrintableDocument["bank"]>; balance: string; reference: string }) {
+  const items = [
+    { label: "BANK", value: bank.bankName },
+    { label: "ACCOUNT TITLE", value: bank.accountTitle },
+    { label: "ACCOUNT NUMBER", value: bank.accountNumber, mono: true },
+    { label: "IBAN", value: bank.iban, mono: true },
+    { label: "RAAST ID", value: bank.raastId, mono: true },
+    ...bank.wallets.map((w) => ({ label: w.provider.toUpperCase(), value: w.title ? `${w.number} · ${w.title}` : w.number, mono: false })),
+  ].filter((i): i is { label: string; value: string; mono?: boolean } => Boolean(i.value));
+  return (
+    <View style={s.bank} wrap={false}>
+      <View style={s.bankHead}>
+        <Text style={[s.label, { color: RED, marginBottom: 0 }]}>BANK REMITTANCE</Text>
+        <Text style={s.small}>Pay {balance} · reference {reference}</Text>
+      </View>
+      <View style={s.bankGrid}>
+        {items.map((i) => (
+          <View key={i.label} style={s.bankItem}>
+            <Text style={[s.label, { marginBottom: 0 }]}>{i.label}</Text>
+            <Text style={i.mono ? s.bankMono : s.bankValue}>{i.value}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export function DocumentPdf({ doc, logo }: Props) {
   const money = (n: number) => formatMoney(n, doc.money);
@@ -179,9 +213,11 @@ export function DocumentPdf({ doc, logo }: Props) {
           </View>
         </View>
 
+        {doc.bank && <BankRemittance bank={doc.bank} balance={money(doc.balance)} reference={doc.number} />}
+
         {doc.shop.terms && (
           <View style={s.terms} wrap={false}>
-            <Text style={s.label}>TERMS &amp; NOTES</Text>
+            <Text style={s.label}>{isInvoice ? "PAYMENT TERMS" : "TERMS & NOTES"}</Text>
             <Text style={s.small}>{doc.shop.terms}</Text>
           </View>
         )}

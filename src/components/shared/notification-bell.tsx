@@ -31,7 +31,9 @@ export function NotificationBell() {
   const load = useCallback(async () => {
     const res = await fetch("/api/notifications").catch(() => null);
     if (!res?.ok) return;
-    const body = (await res.json()) as AlertsResponse;
+    // Signed out meanwhile (e.g. deactivated): the request was redirected to the login page, not JSON.
+    const body = (await res.json().catch(() => null)) as AlertsResponse | null;
+    if (!body) return;
     setAlerts(body.alerts);
     setSeen((prev) => prev ?? readSeen());
   }, []);

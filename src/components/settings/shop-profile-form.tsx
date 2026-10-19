@@ -30,7 +30,6 @@ const FIELD_NAME: Record<keyof ShopProfileValues, string> = {
   address: "Address",
   ntn: "NTN",
   strn: "STRN",
-  terms: "Terms & notes",
 };
 
 // The PDF library draws PNG and JPEG only (checked again on the server by the file's bytes).
@@ -184,13 +183,6 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit, tenantId }: 
         {field("address", "Address", "Printed under your shop name.", { placeholder: "Shop 12, Montgomery Road, Lahore" })}
         {field("ntn", "NTN", "Your shop's FBR National Tax Number (optional).", { placeholder: "1234567-8" })}
         {field("strn", "STRN", "Sales Tax Registration Number, if registered (optional).", { placeholder: "32-77-8761-234-56" })}
-        <label className="settings-row settings-field settings-field-wide">
-          <span className="settings-label">
-            Terms &amp; notes
-            <small>Printed at the bottom of quotations and invoices (warranty, returns, bank details…).</small>
-          </span>
-          <textarea className="settings-input" rows={4} aria-invalid={errors.terms ? true : undefined} {...register("terms")} />
-        </label>
       </fieldset>
       {(Object.values(errors)[0] || serverError) && (
         <span className="field-error settings-error">{Object.values(errors)[0]?.message ?? serverError}</span>

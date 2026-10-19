@@ -65,7 +65,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
     const timer = setTimeout(async () => {
       setLoading(true);
       const res = await fetch(`/api/search?q=${encodeURIComponent(term)}`).catch(() => null);
-      const body = res?.ok ? ((await res.json()) as SearchResponse) : { customers: [], items: [], documents: [] };
+      const body = ((res?.ok ? await res.json().catch(() => null) : null) as SearchResponse | null) ?? { customers: [], items: [], documents: [] };
       if (id !== request.current) return;
       setResults(body);
       setActive(0);
