@@ -894,9 +894,9 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–11): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–12): WHAT WAS BUILT
 
-> **CURRENT STATUS (2026-10-19)**: Phases 1–10 are built and committed; Phase 11 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
+> **CURRENT STATUS (2026-10-19)**: Phases 1–11 are built and committed; Phase 12 is built and awaiting its commit. This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
 ---
 
@@ -1046,7 +1046,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 11: Bottom-Sheets, Quick Cash & 80mm Thermal Receipts [COMPLETED]
-**Commit**: pending (`Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts`).
+**Commit**: `3e26ac0` (`Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts`).
 
 **What was built**:
 1. **Form dialogs as bottom sheets** `src/components/shared/modal-sheet.tsx` (`ModalSheet`: portal + overlay + content inside a `Dialog.Root`), used by the part (`inventory-item-dialog.tsx`), customer (`customer-dialog.tsx`) and payment (`payment-dialog.tsx`) dialogs. Desktop: the same centred `.modal`. ≤ 768px (`.modal-sheet`): pinned to the bottom edge, full width, 16px top corners, drag handle (`.modal-handle`, reuses Phase 10 `.sheet-handle`), `max-height: 90dvh`, slide-up, the body scrolls and the footer (48px buttons) stays visible. **Keyboard**: `src/lib/hooks/use-keyboard-inset.ts` sets `--keyboard-inset` on `<html>` from `visualViewport` while a sheet is open; the sheet's `margin-bottom` lifts it (and its buttons) above the iOS keyboard (Android already resizes via `interactiveWidget`).
@@ -1062,33 +1062,33 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 8. ROADMAP (PHASES 12–15): STILL TO BUILD
+### PHASE 12: Superadmin Schema, Shop Settings Columns & Resend Email [COMPLETED]
+**Commit**: pending (`Phase 12 - superadmin schema, shop settings columns and resend email`).
+
+**What was built**:
+1. **Migration** `supabase/migrations/20261019154032_superadmin_and_scaling.sql` (applied remotely under the same version):
+   - `profiles.is_superadmin boolean not null default false` + partial index `profiles_superadmin_idx`; not in the `authenticated` column grants, so nobody can make themselves superadmin through the API.
+   - `public.superadmin_audit_logs` (admin id, target tenant/user, action, details JSONB, IP, created_at; RLS on, no client policies: written/read by Phase 13 server code only).
+   - `public.email_logs` (tenant id, recipient, template ∈ welcome / password_reset / staff_invite / document_share / payment_receipt, subject, resend id, status sent / logged / failed, error, metadata, sent_by, created_at). Shop admins can read their shop's rows; nobody can write them from the client (service role only).
+   - `tenants`: `status` ('active' | 'suspended' | 'trial', not admin-writable), `invoice_prefix` / `quote_prefix` / `draft_prefix` (defaults `INV` / `Q` / `D`, `A-Z0-9` with single dashes, ≤ 10), `invoice_start_number` / `quote_start_number` / `draft_start_number` (default 1001; a floor, not a counter), `bank_name`, `bank_account_title`, `bank_account_number`, `bank_iban`, `bank_raast_id`, `bank_wallets` (JSON array), `invoice_terms` (≤ 2000; quotations keep `quote_footer_notes`). Length/format check constraints; column-level `grant update` to `authenticated` for the prefix / start / bank / terms columns (the Phase 1 "admins update their own tenant" policy applies). UI for these comes in Phase 14.
+   - `next_document_number(p_prefix)` (Phase 5): `p_prefix` still names the series ('D' / 'Q' / 'INV', so `save_quote` / `convert_quote` are unchanged); returns `<shop prefix>-<greatest(highest number used in the series, start − 1) + 1>`, digits taken from existing documents whatever their old prefix; per-shop-and-series advisory lock. Verified: INV-1001 → INV-1002, a raised floor and a new prefix apply, admins can't set `is_superadmin` / `status` or write `email_logs`.
+2. **Resend** (`resend@6.34.1`): `src/lib/email/client.ts` `deliverEmail()` — sends through Resend when `RESEND_API_KEY` is set (from `RESEND_FROM_EMAIL`, default `CarShop POS <onboarding@resend.dev>`; reply-to the shop's email), otherwise prints the email to the server console and returns `logged`. Until a domain is verified in Resend, mail only reaches the Resend account owner's address; the action turns that Resend error into a readable message.
+3. **Templates** `src/lib/email/templates/`: `layout.ts` (shared HTML shell + text version, `escapeHtml`, button / facts helpers), `account.ts` (welcome, password reset with a 1-hour link, staff invite — used from Phase 13/14), `documents.ts` (document share: number, total, balance / valid-until, link to the customer page; payment receipt: amount, method, date, what is still owed).
+4. **`sendTransactionalEmail()`** in `src/lib/email/send.ts` — `server-only` and deliberately **not** a server action (a server action would let the browser email any address: open relay). Logs every attempt to `email_logs` via the service-role client (`src/lib/supabase/admin.ts` comment updated), and refuses more than 100 emails per shop per hour. `src/lib/pdf.tsx` gained `documentPdf()` (the Phase 6 A4 PDF as bytes + safe filename) for attachments.
+5. **Email to customer** (server action `emailDocument({ id, to, kind })` in `src/lib/actions/email.ts`: session check, document loaded through RLS so only the shop's own; cancelled / void documents refused). UI: Share menu (`share-menu.tsx`) → "Email to customer" on shareable documents → `src/components/quotes/email-dialog.tsx` (`ModalSheet`; recipient prefilled with the customer's email — `email` added to `CustomerOption` and its three selects; walk-ins start empty). The address can be changed for this send only; a hint under the field says the customer's profile isn't updated (edit the customer to change it for good; `.form-grid label > small` = muted helper text). Invoices with payments choose "Invoice" (A4 PDF attached + link) or "Payment receipt" (latest payment) with the Phase 3 `.radio-cards`. Toast on success; "logged" says email isn't set up on this server.
+6. **Verified end to end**: INV-1001 sent as a document email (PDF attached) and as a payment receipt (sample payment, not saved) through the real pipeline; Resend reports both **delivered**, both rows in `email_logs` with status `sent`.
+
+---
+
+## 8. ROADMAP (PHASES 13–15): STILL TO BUILD
 
 > **MANDATORY INSTRUCTION FOR CLAUDE CODE & ANTIGRAVITY**:  
-> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
+> Each phase below lists **only work that does not exist yet** (audited against the codebase on 2026-10-17; Phase 12 moved to §7 on 2026-10-19). Where a step extends something already built, it names the phase that built it (see §7); extend that code, don't replace it.  
 > 
 > 🛑 **CRITICAL EXECUTION RULE**:  
 > Build **strictly one phase at a time**. **DO NOT** combine phases, skip steps, or build future phases early.  
 > After each phase: **STOP AND PAUSE**, describe what you built, ask the developer to test in the browser and commit, then move the phase into §7 as "What was built" and update the phases after it.  
 > Commit messages always start with `Phase <N> - `.
-
----
-
-### PHASE 12: Superadmin Schema, Shop Settings Columns & Resend Email
-**Agent Directive**:
-1. **Migration** `supabase/migrations/<timestamp>_superadmin_and_scaling.sql`:
-   - `profiles.is_superadmin boolean not null default false` + partial index; not writable by `authenticated`.
-   - `public.superadmin_audit_logs` (admin id, target tenant/user id, action, details diff JSONB, IP, created_at).
-   - `public.email_logs` (tenant id, recipient, template type, subject, resend id, status, error, metadata, created_at).
-   - New `tenants` columns: `status` ('active' | 'suspended' | 'trial'), `invoice_prefix` / `quote_prefix` / `draft_prefix` (defaults `INV` / `Q` / `D`), `invoice_start_number` / `quote_start_number` / `draft_start_number` (a "start from" floor, not a counter), `bank_name`, `bank_account_title`, `bank_account_number`, `bank_iban`, `bank_raast_id`, `bank_wallets`, `invoice_terms` (`print_format` was added in Phase 11).
-   - Update the Phase 5 `next_document_number` to use the shop's prefix and `greatest(highest used, start − 1) + 1`, still derived from existing documents. `quote_footer_notes` stays as the quotation terms.
-   - RLS and grants for the new tables and columns.
-2. **Resend**: `npm install resend`; `src/lib/email/client.ts` with console fallback when `RESEND_API_KEY` is missing.
-3. **Templates** in `src/lib/email/templates/`: welcome, password reset (1-hour link), staff invite, document share (link + PDF from the Phase 6 renderer), payment receipt.
-4. **`sendTransactionalEmail()`** in `src/lib/actions/email.ts`, logging every send to `email_logs`.
-
-🛑 **PAUSE & CHECKPOINT**:  
-> "Phase 12 complete! Please verify: 1) `is_superadmin` on `profiles` and the `email_logs` table exist, 2) a test email is delivered (or logged to the console without a key) and appears in `email_logs`, 3) existing documents keep their numbers and new ones continue the series. Then run `git add . && git commit -m 'Phase 12 - superadmin schema, shop settings columns and resend email'` and tell me to begin Phase 13."
 
 ---
 

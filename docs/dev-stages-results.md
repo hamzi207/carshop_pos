@@ -640,3 +640,31 @@ Test steps (Chrome DevTools → device toolbar → iPhone 14 Pro):
      View / Download PDF.
   4. Dashboard → date range: a sheet with one month; pick two days and Apply.
   5. Commit: git add . && git commit -m "Phase 11 - bottom-sheets, quick cash and 80mm thermal receipts"
+
+Phase 12 (superadmin schema, shop settings columns, Resend email), 2026-10-19:
+  - Database: profiles.is_superadmin (nobody can set it from the app), superadmin_audit_logs (for Phase 13),
+    email_logs (every email sent, readable by shop admins, written by the server only). New shop columns for
+    Phase 14: status (active / suspended / trial), document prefixes (INV / Q / D) and "start from" numbers, bank
+    details (bank, account title, number, IBAN, Raast ID, wallets) and invoice terms.
+  - Document numbers use the shop's prefix and start-from number; existing documents keep their numbers and new ones
+    continue the series (INV-1001 → INV-1002).
+  - Email through Resend: welcome, password reset (1-hour link), staff invite, document share (PDF attached + link)
+    and payment receipt templates. Without RESEND_API_KEY emails are printed to the server console instead. At most
+    100 emails per shop per hour. Replies go to the shop's email address.
+  - New: Share → "Email to customer" on quotations and invoices. The customer's email is filled in; invoices with
+    payments can send the invoice (PDF attached) or a receipt for the latest payment. The address can be changed for
+    one send; that doesn't change the customer's profile (a hint under the field says so).
+  - Note: until a domain is verified in Resend, emails can only go to the Resend account's own address
+    (hamzi207@gmail.com); other addresses get a clear message. Verify a domain in Resend and set RESEND_FROM_EMAIL
+    before going live.
+Typecheck and lint pass. Database checks: numbering continues, floor and prefix apply, shop admins can't set
+is_superadmin / status or write email_logs. Real send test: INV-1001 as a document email (PDF attached) and as a
+payment receipt (sample payment, not saved) — Resend shows both delivered, both logged in email_logs as sent.
+
+Test steps:
+  1. Open INV-1001 → Share → Email to customer → enter hamzi207@gmail.com → Send Email. Check your inbox (and spam)
+     for the email with the PDF.
+  2. Try another address: you get "Email can only go to the account owner's address until a domain is verified".
+  3. Supabase → Table editor → email_logs: one row per send.
+  4. Create a new invoice: its number continues the series.
+  5. Commit: git add . && git commit -m "Phase 12 - superadmin schema, shop settings columns and resend email"

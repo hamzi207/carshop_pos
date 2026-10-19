@@ -20,10 +20,16 @@ async function fetchLogo(url: string | null) {
   }
 }
 
+/** The A4 PDF as a file: its bytes and a safe filename (also attached to emails). */
+export async function documentPdf(doc: PrintableDocument) {
+  const buffer = await renderToBuffer(<DocumentPdf doc={doc} logo={await fetchLogo(doc.shop.logoUrl)} />);
+  return { buffer, filename: safeFilename(`${doc.title}-${doc.number}.pdf`) };
+}
+
 /** The document as a PDF response: inline (opens in the browser) or as a download. */
 export async function pdfResponse(doc: PrintableDocument, download: boolean) {
-  const buffer = await renderToBuffer(<DocumentPdf doc={doc} logo={await fetchLogo(doc.shop.logoUrl)} />);
-  return pdfFile(buffer, `${doc.title}-${doc.number}.pdf`, download);
+  const { buffer, filename } = await documentPdf(doc);
+  return pdfFile(buffer, filename, download);
 }
 
 /** The 80mm POS slip as a PDF (inline or as a download), with a QR code to the customer link. */
@@ -32,8 +38,10 @@ export async function receiptResponse(doc: PrintableDocument, origin: string, do
   return pdfFile(buffer, `${doc.title}-${doc.number}-slip.pdf`, download);
 }
 
+const safeFilename = (name: string) => name.replace(/[^\w.-]+/g, "-");
+
 function pdfFile(buffer: Buffer, name: string, download: boolean) {
-  const filename = name.replace(/[^\w.-]+/g, "-");
+  const filename = safeFilename(name);
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",

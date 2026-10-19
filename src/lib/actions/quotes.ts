@@ -115,7 +115,7 @@ export async function getQuote(id: string): Promise<QuoteDocument | null> {
   const { data, error } = await supabase
     .from("quotes")
     .select(
-      "*, customers(id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days), quote_items(*, inventory_items(sku, quantity_on_hand, reserved_quantity)), invoice_payments(*, invoice_payment_items(*))",
+      "*, customers(id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days, email), quote_items(*, inventory_items(sku, quantity_on_hand, reserved_quantity)), invoice_payments(*, invoice_payment_items(*))",
     )
     .eq("id", id)
     .order("sort_order", { referencedTable: "quote_items" })

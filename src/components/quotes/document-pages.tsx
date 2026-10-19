@@ -41,7 +41,7 @@ const SECTION_ICON = { drafts: FilePen, quotations: FileText, invoices: ReceiptT
 const sectionDate = (section: DocumentSection, d: DocumentListItem) =>
   section === "invoices" ? d.invoiced_at ?? d.created_at : section === "quotations" ? d.quoted_at ?? d.created_at : d.updated_at;
 
-const CUSTOMER_COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days";
+const CUSTOMER_COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days, email";
 
 // ---- List -------------------------------------------------------------------
 

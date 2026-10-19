@@ -14,7 +14,7 @@ import type { CustomerOptionsResponse } from "@/lib/types/quote";
  */
 const querySchema = z.object({ q: z.string().trim().max(100).optional(), id: z.uuid().optional() });
 
-const COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days";
+const COLUMNS = "id, name, customer_type, whatsapp_number, is_walk_in, default_discount_percentage, billing_address, credit_days, email";
 
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));

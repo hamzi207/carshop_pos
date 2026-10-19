@@ -11,6 +11,7 @@ export type CustomerOption = Pick<
   | "default_discount_percentage"
   | "billing_address"
   | "credit_days"
+  | "email"
 >;
 
 /** One row on the Drafts / Quotations / Invoices lists. */

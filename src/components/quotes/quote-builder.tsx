@@ -676,6 +676,8 @@ function BuilderForm({
               shopName={shopName}
               customerName={customerLabel(doc, customer)}
               whatsapp={isWalkIn ? doc.walk_in_phone : (customer?.whatsapp_number ?? null)}
+              email={isWalkIn ? null : (customer?.email ?? null)}
+              hasPayments={isInvoice && doc.payments.length > 0}
               total={Number(doc.total_amount)}
               balance={isInvoice ? balance : null}
               validUntil={current === "quotations" ? (meta.find((m) => m.label === "Valid until")?.value ?? null) : null}

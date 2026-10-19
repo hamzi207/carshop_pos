@@ -4,8 +4,9 @@ import type { Database } from "@/lib/types/database.types";
 import { SUPABASE_URL } from "./env";
 
 /**
- * Service-role client: bypasses RLS. Server-only, and used for exactly one thing:
- * reading a single document by its unguessable share token for the public /share page.
+ * Service-role client: bypasses RLS. Server-only, and used for:
+ * - reading a single document by its unguessable share token for the public /share page;
+ * - writing email_logs (src/lib/email/send.ts), which shops can read but not write.
  * Never pass user-chosen filters to it.
  */
 export function createAdminClient() {

@@ -127,6 +127,56 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          metadata: Json
+          recipient: string
+          resend_id: string | null
+          sent_by: string | null
+          status: string
+          subject: string
+          template: string
+          tenant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          metadata?: Json
+          recipient: string
+          resend_id?: string | null
+          sent_by?: string | null
+          status: string
+          subject: string
+          template: string
+          tenant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          metadata?: Json
+          recipient?: string
+          resend_id?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string
+          template?: string
+          tenant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
           available_quantity: number
@@ -394,6 +444,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_superadmin: boolean
           role: string
           tenant_id: string
           updated_at: string
@@ -404,6 +455,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          is_superadmin?: boolean
           role?: string
           tenant_id: string
           updated_at?: string
@@ -414,6 +466,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          is_superadmin?: boolean
           role?: string
           tenant_id?: string
           updated_at?: string
@@ -656,16 +709,68 @@ export type Database = {
           },
         ]
       }
+      superadmin_audit_logs: {
+        Row: {
+          action: string
+          admin_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          ip_address: unknown
+          target_tenant_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          ip_address?: unknown
+          target_tenant_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          ip_address?: unknown
+          target_tenant_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "superadmin_audit_logs_target_tenant_id_fkey"
+            columns: ["target_tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           address: string | null
           allow_international_phones: boolean
+          bank_account_number: string | null
+          bank_account_title: string | null
+          bank_iban: string | null
+          bank_name: string | null
+          bank_raast_id: string | null
+          bank_wallets: Json
           clock_24_hour: boolean
           clock_style: string
           created_at: string
           currency: string
+          draft_prefix: string
+          draft_start_number: number
           email: string | null
           id: string
+          invoice_prefix: string
+          invoice_start_number: number
+          invoice_terms: string | null
           logo_url: string | null
           name: string
           ntn: string | null
@@ -673,25 +778,39 @@ export type Database = {
           prices_include_tax: boolean
           print_format: string
           quote_footer_notes: string | null
+          quote_prefix: string
+          quote_start_number: number
           quote_validity_days: number
           show_clock: boolean
           show_paisa: boolean
           slug: string
+          status: string
           strn: string | null
           tax_rate: number
           timezone: string
-          week_start: number
           updated_at: string
+          week_start: number
         }
         Insert: {
           address?: string | null
           allow_international_phones?: boolean
+          bank_account_number?: string | null
+          bank_account_title?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_raast_id?: string | null
+          bank_wallets?: Json
           clock_24_hour?: boolean
           clock_style?: string
           created_at?: string
           currency?: string
+          draft_prefix?: string
+          draft_start_number?: number
           email?: string | null
           id?: string
+          invoice_prefix?: string
+          invoice_start_number?: number
+          invoice_terms?: string | null
           logo_url?: string | null
           name: string
           ntn: string | null
@@ -699,25 +818,39 @@ export type Database = {
           prices_include_tax?: boolean
           print_format?: string
           quote_footer_notes?: string | null
+          quote_prefix?: string
+          quote_start_number?: number
           quote_validity_days?: number
           show_clock?: boolean
           show_paisa?: boolean
           slug: string
+          status?: string
           strn: string | null
           tax_rate?: number
           timezone?: string
-          week_start?: number
           updated_at?: string
+          week_start?: number
         }
         Update: {
           address?: string | null
           allow_international_phones?: boolean
+          bank_account_number?: string | null
+          bank_account_title?: string | null
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_raast_id?: string | null
+          bank_wallets?: Json
           clock_24_hour?: boolean
           clock_style?: string
           created_at?: string
           currency?: string
+          draft_prefix?: string
+          draft_start_number?: number
           email?: string | null
           id?: string
+          invoice_prefix?: string
+          invoice_start_number?: number
+          invoice_terms?: string | null
           logo_url?: string | null
           name?: string
           ntn?: string | null
@@ -725,15 +858,18 @@ export type Database = {
           prices_include_tax?: boolean
           print_format?: string
           quote_footer_notes?: string | null
+          quote_prefix?: string
+          quote_start_number?: number
           quote_validity_days?: number
           show_clock?: boolean
           show_paisa?: boolean
           slug?: string
+          status?: string
           strn?: string | null
           tax_rate?: number
           timezone?: string
-          week_start?: number
           updated_at?: string
+          week_start?: number
         }
         Relationships: []
       }
