@@ -305,7 +305,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 9. **Subscription plans & manual payments** (added in Rev 6; replaces RF-17.3). Organizations pay ProductLogik by **mobile wallet or bank transfer only**. There's no gateway, card or automatic charging. The superadmin decides each organization's plan.
    - **Plans** (`/admin/plans`, superadmin only). **Plans are data, not code**: the superadmin creates as many plans as needed from the console, at any time, with no developer or deploy involved (the product owner's requirement, 2026-10-20, because client needs in Pakistan vary a lot).
      - Create, edit, duplicate and retire plans. Each plan has a name (e.g. Starter, Business, Enterprise), an internal code, a short description and a display order.
-     - **Prices per billing cycle** in PKR: monthly, quarterly, half-yearly and yearly. The superadmin fills in only the cycles the plan offers (e.g. yearly at the price of 10 months).
+     - **Prices per billing cycle** in PKR: **monthly and yearly only** (the product owner's decision, 2026-10-20). The superadmin fills in either or both; a plan may offer just one.
      - **Limits**: max stores, max users (active members; deactivated ones don't count), max products (active inventory items), and the allowed modules (e.g. Vehicle Fitment, Phase 18). Any limit can be left empty for "unlimited".
      - **Trial days** (e.g. 14) used when the plan starts as a trial.
      - **Visibility**: *standard* plans can be chosen as the sign-up default and appear in lists; *custom* plans are for one negotiated deal and are hidden from the default list.
@@ -347,15 +347,15 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
      - **Payments to verify** queue.
      - Collected this month and last month, expected monthly revenue (MRR, from active subscriptions), and revenue per plan.
      - CSV export of invoices and payments.
-   - **Three starting plans** are seeded by the migration as *standard* plans. They're only a starting point: the superadmin can edit, duplicate or retire them from the console like any other plan. The yearly prices were set by the product owner on 2026-10-20 (PKR 12,000 / 18,000 / 26,000). The other cycles are derived from them (monthly = yearly ÷ 10, quarterly = 3 months, half-yearly ≈ 6 months less 5%). The limits are placeholders to confirm.
+   - **Three starting plans** are seeded by the migration as *standard* plans. They're only a starting point: the superadmin can edit, duplicate or retire them from the console like any other plan. The yearly prices were set by the product owner on 2026-10-20 (PKR 12,000 / 18,000 / 26,000). The monthly price is derived from it (yearly ÷ 10). The limits are placeholders to confirm.
 
-     | Plan | Monthly | Quarterly | Half-yearly | Yearly | Stores | Users | Products | Modules | Trial |
-     | :--- | ---: | ---: | ---: | ---: | :---: | :---: | :---: | :--- | :---: |
-     | **Starter** | PKR 1,200 | PKR 3,600 | PKR 6,800 | PKR 12,000 | 1 | 3 | 1,000 | all available | 14 days |
-     | **Business** | PKR 1,800 | PKR 5,400 | PKR 10,300 | PKR 18,000 | 3 | 10 | 10,000 | all available | 14 days |
-     | **Enterprise** | PKR 2,600 | PKR 7,800 | PKR 14,800 | PKR 26,000 | 10 | 30 | unlimited | all available | 14 days |
+     | Plan | Monthly | Yearly | Stores | Users | Products | Modules | Trial |
+     | :--- | ---: | ---: | :---: | :---: | :---: | :--- | :---: |
+     | **Starter** | PKR 1,200 | PKR 12,000 | 1 | 3 | 1,000 | all available | 14 days |
+     | **Business** | PKR 1,800 | PKR 18,000 | 3 | 10 | 10,000 | all available | 14 days |
+     | **Enterprise** | PKR 2,600 | PKR 26,000 | 10 | 30 | unlimited | all available | 14 days |
 
-     Half-yearly is about 5% off and yearly is 2 months free. **Starter** is the default plan for self-sign-ups (platform setting).
+     Yearly is 2 months free compared with paying monthly. **Starter** is the default plan for self-sign-ups (platform setting).
    - **Existing organizations**: the migration creates a **"Founding" custom plan** (price 0, no limits) and puts every existing organization on it as active with no due date, so nothing changes for them until the superadmin assigns a real plan.
    - **Enforcement in SQL**:
      - `private.tenant_limit(p_tenant, p_kind)` returns the effective limit (override, else plan).
@@ -366,8 +366,8 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 **Migration outline** — `…_phase17_superadmin_full_control.sql`:
 - `tenants`: `owner_id`, `archived_at`, `archived_by`, `archive_reason`, `status_reason`. `private.current_tenant_id()` returns null for an archived organization, like a suspended one. Not granted to `authenticated`.
 - **Subscriptions** (deliverable 9):
-  - `subscription_plans` (*global*, superadmin only): `name`, `code` unique, `description`, `visibility` ('standard' | 'custom'), `price_monthly`, `price_quarterly`, `price_half_yearly`, `price_yearly` (null = cycle not offered), `max_stores`, `max_users`, `max_products` (null = unlimited), `allowed_modules text[]`, `trial_days`, `sort_order`, `retired_at`.
-  - `tenant_subscriptions` (one current row per tenant, read-only to the tenant's admins): `plan_id`, `billing_cycle`, `status` ('trial' | 'active' | 'past_due' | 'grace' | 'suspended' | 'cancelled'), `agreed_price`, `discount_type`, `discount_value`, `price_note`, override columns `max_stores`, `max_users`, `max_products`, `allowed_modules`, `started_at`, `trial_ends_at`, `paid_until`, `next_due_date`, `grace_days`, `auto_suspend`, `cancel_at`.
+  - `subscription_plans` (*global*, superadmin only): `name`, `code` unique, `description`, `visibility` ('standard' | 'custom'), `price_monthly`, `price_yearly` (null = cycle not offered; at least one required), `max_stores`, `max_users`, `max_products` (null = unlimited), `allowed_modules text[]`, `trial_days`, `sort_order`, `retired_at`.
+  - `tenant_subscriptions` (one current row per tenant, read-only to the tenant's admins): `plan_id`, `billing_cycle` ('monthly' | 'yearly'), `status` ('trial' | 'active' | 'past_due' | 'grace' | 'suspended' | 'cancelled'), `agreed_price`, `discount_type`, `discount_value`, `price_note`, override columns `max_stores`, `max_users`, `max_products`, `allowed_modules`, `started_at`, `trial_ends_at`, `paid_until`, `next_due_date`, `grace_days`, `auto_suspend`, `cancel_at`.
   - `tenant_subscription_history` (append-only: before/after jsonb, reason, by, at).
   - `subscription_invoices` (+ `subscription_invoice_lines`): platform-wide number series, `tenant_id`, period from/to, amounts, `status`, `void_reason`; unique per tenant + period so the job can't double-bill.
   - `subscription_payments`: `invoice_id`, `amount`, `paid_on`, `method` ('jazzcash' | 'easypaisa' | 'other_wallet' | 'bank_transfer' | 'cash'), `reference`, `payer_name`, `proof_path`, `status` ('pending' | 'verified' | 'rejected' | 'reversed'), `submitted_by`, `verified_by`, `reason`.
