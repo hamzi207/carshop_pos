@@ -347,13 +347,13 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
      - **Payments to verify** queue.
      - Collected this month and last month, expected monthly revenue (MRR, from active subscriptions), and revenue per plan.
      - CSV export of invoices and payments.
-   - **Three starting plans** are seeded by the migration as *standard* plans. They're only a starting point: the superadmin can edit, duplicate or retire them from the console like any other plan. The yearly prices were set by the product owner on 2026-10-20 (PKR 12,000 / 24,000 / 36,000). The other cycles are derived from them (monthly = yearly ÷ 10, quarterly = 3 months, half-yearly ≈ 6 months less 5%). The limits are placeholders to confirm.
+   - **Three starting plans** are seeded by the migration as *standard* plans. They're only a starting point: the superadmin can edit, duplicate or retire them from the console like any other plan. The yearly prices were set by the product owner on 2026-10-20 (PKR 12,000 / 18,000 / 26,000). The other cycles are derived from them (monthly = yearly ÷ 10, quarterly = 3 months, half-yearly ≈ 6 months less 5%). The limits are placeholders to confirm.
 
      | Plan | Monthly | Quarterly | Half-yearly | Yearly | Stores | Users | Products | Modules | Trial |
      | :--- | ---: | ---: | ---: | ---: | :---: | :---: | :---: | :--- | :---: |
      | **Starter** | PKR 1,200 | PKR 3,600 | PKR 6,800 | PKR 12,000 | 1 | 3 | 1,000 | all available | 14 days |
-     | **Business** | PKR 2,400 | PKR 7,200 | PKR 13,700 | PKR 24,000 | 3 | 10 | 10,000 | all available | 14 days |
-     | **Enterprise** | PKR 3,600 | PKR 10,800 | PKR 20,500 | PKR 36,000 | 10 | 30 | unlimited | all available | 14 days |
+     | **Business** | PKR 1,800 | PKR 5,400 | PKR 10,300 | PKR 18,000 | 3 | 10 | 10,000 | all available | 14 days |
+     | **Enterprise** | PKR 2,600 | PKR 7,800 | PKR 14,800 | PKR 26,000 | 10 | 30 | unlimited | all available | 14 days |
 
      Half-yearly is about 5% off and yearly is 2 months free. **Starter** is the default plan for self-sign-ups (platform setting).
    - **Existing organizations**: the migration creates a **"Founding" custom plan** (price 0, no limits) and puts every existing organization on it as active with no due date, so nothing changes for them until the superadmin assigns a real plan.
