@@ -1,5 +1,6 @@
 import { Document, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import { formatMoney } from "@/lib/format";
+import { FONT, FONT_BOLD } from "./fonts";
 import type { PrintableDocument } from "@/lib/printable";
 import { qrPath } from "@/lib/qr";
 
@@ -10,22 +11,22 @@ const WIDTH = 226.77; // 80mm in points
 const MUTED = "#444444";
 
 const s = StyleSheet.create({
-  page: { paddingVertical: 14, paddingHorizontal: 12, fontSize: 8.5, fontFamily: "Helvetica", color: "#000000" },
+  page: { paddingVertical: 14, paddingHorizontal: 12, fontSize: 8.5, fontFamily: FONT, color: "#000000" },
   center: { alignItems: "center", textAlign: "center" },
-  shopName: { fontSize: 12.5, fontFamily: "Helvetica-Bold", textAlign: "center", marginBottom: 2 },
+  shopName: { fontSize: 12.5, fontFamily: FONT_BOLD, textAlign: "center", marginBottom: 2 },
   small: { fontSize: 7.5, color: MUTED, textAlign: "center", lineHeight: 1.35 },
   rule: { borderBottomWidth: 1, borderBottomColor: "#000000", borderBottomStyle: "dashed", marginVertical: 6 },
-  title: { fontSize: 10.5, fontFamily: "Helvetica-Bold", textAlign: "center", letterSpacing: 1 },
+  title: { fontSize: 10.5, fontFamily: FONT_BOLD, textAlign: "center", letterSpacing: 1 },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 1 },
   muted: { color: MUTED },
-  bold: { fontFamily: "Helvetica-Bold" },
+  bold: { fontFamily: FONT_BOLD },
   item: { paddingVertical: 2.5 },
-  itemName: { fontFamily: "Helvetica-Bold", fontSize: 8.5 },
+  itemName: { fontFamily: FONT_BOLD, fontSize: 8.5 },
   itemSub: { flexDirection: "row", justifyContent: "space-between", marginTop: 1 },
   grand: { flexDirection: "row", justifyContent: "space-between", marginTop: 3, paddingVertical: 4, borderTopWidth: 1.5, borderBottomWidth: 1.5, borderColor: "#000000" },
-  grandText: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+  grandText: { fontSize: 11, fontFamily: FONT_BOLD },
   qr: { width: 92, height: 92, marginTop: 4 },
-  thanks: { fontSize: 8.5, fontFamily: "Helvetica-Bold", textAlign: "center", marginTop: 6 },
+  thanks: { fontSize: 8.5, fontFamily: FONT_BOLD, textAlign: "center", marginTop: 6 },
 });
 
 function QrCode({ text }: { text: string }) {
@@ -54,7 +55,7 @@ export function ThermalReceipt({ doc, shareUrl }: Props) {
   const methods = [...new Set(doc.payments.map((p) => p.method))].join(", ");
 
   return (
-    <Document title={`${doc.title} ${doc.number} — POS slip`} author={doc.shop.name} creator="CarShop.Pk POS System">
+    <Document title={`${doc.title} ${doc.number} — POS slip`} author={doc.shop.name} creator="ProductLogik POS">
       {/* No wrapping: a roll has no page breaks, so the page grows to fit everything. */}
       <Page size={{ width: WIDTH }} style={s.page} wrap={false}>
         {/* ---- Shop ---- */}

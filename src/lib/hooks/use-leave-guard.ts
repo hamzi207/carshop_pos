@@ -13,8 +13,13 @@ let afterGuardPop: (() => void) | null = null;
 // The guard entry carries this mark, so we know whether it's the current entry: after a save
 // that stays on the page, `guardHref` still names the page, but once the user has left and
 // come back the entry on top is an ordinary one (going "back off the guard" would leave).
-const GUARD_MARK = "__carshopLeaveGuard";
-const onGuardEntry = () => Boolean((window.history.state as Record<string, unknown> | null)?.[GUARD_MARK]);
+const GUARD_MARK = "__productlogikLeaveGuard";
+/** Version 1 name: history entries made before the update still count (until Phase 33). */
+const OLD_GUARD_MARK = "__carshopLeaveGuard";
+const onGuardEntry = () => {
+  const state = window.history.state as Record<string, unknown> | null;
+  return Boolean(state?.[GUARD_MARK] || state?.[OLD_GUARD_MARK]);
+};
 
 const pushGuard = () => {
   window.history.pushState({ ...window.history.state, [GUARD_MARK]: true }, "", window.location.href);

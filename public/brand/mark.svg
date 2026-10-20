@@ -1,0 +1,37 @@
+<svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Gradient background with rounded corners (matching the div) -->
+  <defs>
+    <linearGradient id="brandGradient" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#34D399"/>
+    </linearGradient>
+    <!-- Shadow filter for depth -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.2"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background rounded rectangle with gradient -->
+  <rect width="200" height="200" rx="40" fill="url(#brandGradient)" filter="url(#shadow)"/>
+  
+  <!-- Lightning bolt icon centered (white stroke) -->
+  <!-- Original viewBox 0 0 24 24, scaled to fit centered in 200x200 -->
+  <!-- Icon size: ~125px (62.5% of 200), centered offset: 37.5px -->
+  <g transform="translate(37.5, 37.5) scale(5.208)">
+    <path 
+      d="M13 10V3L4 14h7v7l9-11h-7z" 
+      stroke="white" 
+      stroke-width="2.5" 
+      stroke-linecap="round" 
+      stroke-linejoin="round"
+      fill="none"/>
+  </g>
+</svg>

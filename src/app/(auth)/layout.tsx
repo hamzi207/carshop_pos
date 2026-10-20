@@ -1,40 +1,39 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
-import { Car, FileText, ShieldCheck } from "lucide-react";
-import { Brand } from "@/components/shared/brand";
+import { FileText, Boxes, ShieldCheck } from "lucide-react";
+import { BrandLockup } from "@/components/shared/brand";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="auth-shell">
       <aside className="auth-aside">
-        <Brand />
+        <BrandLockup />
         <div className="auth-pitch">
-          <span className="eyebrow">POS &amp; QUOTING ENGINE</span>
-          <h2>Quote the right part for the right vehicle, every time.</h2>
+          <span className="eyebrow">INVENTORY · INVOICING · BILLING</span>
+          <h2>Know your stock. Bill it right. Get paid on time.</h2>
           <p>
-            Built for tint, wrap, PPF, audio and styling shops. Match inventory to Year / Make /
-            Model, send quotes over WhatsApp, and keep stock in sync as you invoice.
+            For retailers, wholesalers and distributors in any trade. Track stock, send quotations and
+            invoices over WhatsApp, and keep every customer&apos;s balance up to date.
           </p>
           <ul className="auth-points">
             <li>
-              <span className="header-icon"><Car size={15} /></span>
-              Magic Fit filtering by Year, Make &amp; Model
+              <span className="header-icon"><Boxes size={15} /></span>
+              Live stock that updates as you invoice
             </li>
             <li>
               <span className="header-icon"><FileText size={15} /></span>
-              Professional PDF quotes with optional labor lines
+              Professional PDF invoices and POS slips with your logo
             </li>
             <li>
               <span className="header-icon"><ShieldCheck size={15} /></span>
-              Every shop&apos;s data isolated by row-level security
+              Every business&apos;s data isolated by row-level security
             </li>
           </ul>
         </div>
-        <div className="version">CarShop.Pk POS System</div>
+        <div className="version">ProductLogik POS</div>
       </aside>
       <main className="auth-main">
-        {/* Phones hide the dark side panel, so the black logo sits above the form instead. */}
-        <Image src="/brand/logo-black.png" alt="CarShop Auto Accessories" width={204} height={56} className="auth-mobile-logo" priority />
+        {/* Phones hide the dark side panel, so the logo sits above the form instead. */}
+        <BrandLockup tone="light" className="auth-mobile-logo" />
         {children}
       </main>
     </div>

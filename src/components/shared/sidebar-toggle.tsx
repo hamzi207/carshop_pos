@@ -3,7 +3,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 /** localStorage key; also read by the inline script in app/layout.tsx so a collapsed sidebar doesn't flash open. */
-export const SIDEBAR_KEY = "carshop.sidebar";
+export const SIDEBAR_KEY = "productlogik.sidebar";
 
 /**
  * Round button straddling the sidebar's right edge (rendered beside the sidebar, not inside it, so the

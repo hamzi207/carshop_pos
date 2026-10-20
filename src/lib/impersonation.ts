@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { IMPERSONATION_COOKIE } from "@/lib/supabase/impersonation-header";
+import { readImpersonationToken } from "@/lib/supabase/impersonation-header";
 
 /** Only the token's SHA-256 is stored (impersonation_sessions.token_hash); the database hashes the header the same way. */
 export const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -25,7 +25,7 @@ export type Impersonation = {
  * and for code that needs to know whose shop it is.)
  */
 export const getImpersonation = cache(async (userId: string): Promise<Impersonation | null> => {
-  const token = (await cookies()).get(IMPERSONATION_COOKIE)?.value;
+  const token = readImpersonationToken(await cookies());
   if (!token) return null;
   const { data } = await createAdminClient()
     .from("impersonation_sessions")

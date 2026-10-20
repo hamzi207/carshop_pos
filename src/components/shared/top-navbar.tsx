@@ -4,6 +4,7 @@ import { GlobalSearch } from "./global-search";
 import { MobileNavButton } from "./mobile-nav";
 import { NotificationBell } from "./notification-bell";
 import { UserMenu } from "./user-menu";
+import { WhatsNew } from "./whats-new";
 
 function initials(name: string) {
   return name
@@ -27,6 +28,11 @@ async function ProfileSection() {
   );
 }
 
+async function WhatsNewSection() {
+  const session = await getShopSession();
+  return <WhatsNew seen={session.whatsNewSeen} />;
+}
+
 /** Top bar ported from design/figma-ui/src/App.tsx: global search (Ctrl/⌘ K), notifications, profile. */
 export function TopNavbar() {
   return (
@@ -34,6 +40,9 @@ export function TopNavbar() {
       <MobileNavButton />
       <GlobalSearch />
       <div className="top-actions">
+        <Suspense fallback={null}>
+          <WhatsNewSection />
+        </Suspense>
         <NotificationBell />
         <Suspense fallback={<div className="profile"><div className="avatar" /></div>}>
           <ProfileSection />

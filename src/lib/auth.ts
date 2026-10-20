@@ -16,6 +16,8 @@ export type ShopSession = {
   role: "admin" | "staff";
   /** This user's dashboard widgets and periods. */
   dashboardPrefs: DashboardPrefs;
+  /** Newest "What's new" entry this user has opened (lib/changelog.ts). */
+  whatsNewSeen: string | null;
   tenant: {
     id: string;
     name: string;
@@ -43,6 +45,8 @@ export type ShopSession = {
     strn: string | null;
     /** Public URL in the shop-assets bucket. */
     logoUrl: string | null;
+    /** Document accent colour (#rrggbb) or null for the default (RF-16.1). */
+    accentColor: string | null;
     /** How long a quotation's offer is valid (its stock stays reserved regardless). */
     quoteValidityDays: number;
     /** Pass to formatMoney(). */
@@ -57,13 +61,13 @@ export type ShopSession = {
 };
 
 const TENANT_COLUMNS =
-  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, invoice_terms, quote_validity_days, phone, email, address, ntn, strn, logo_url";
+  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, invoice_terms, quote_validity_days, phone, email, address, ntn, strn, logo_url, accent_color";
 
 type TenantRow = Pick<
   Tables<"tenants">,
   | "id" | "name" | "slug" | "currency" | "tax_rate" | "timezone" | "show_paisa" | "prices_include_tax"
   | "allow_international_phones" | "clock_style" | "show_clock" | "clock_24_hour" | "week_start" | "print_format"
-  | "quote_footer_notes" | "invoice_terms" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url"
+  | "quote_footer_notes" | "invoice_terms" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url" | "accent_color"
 >;
 
 function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
@@ -90,6 +94,7 @@ function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
     ntn: tenant.ntn,
     strn: tenant.strn,
     logoUrl: tenant.logo_url,
+    accentColor: tenant.accent_color,
     money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     printFormat: tenant.print_format === "pos" ? "pos" : "a4",
   };
@@ -112,7 +117,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   const impersonation = await getImpersonation(userId);
   if (impersonation) {
     const [{ data: own }, { data: tenant }] = await Promise.all([
-      createAdminClient().from("profiles").select("full_name, email, dashboard_prefs").eq("id", userId).single(),
+      createAdminClient().from("profiles").select("full_name, email, dashboard_prefs, whats_new_seen").eq("id", userId).single(),
       supabase.from("tenants").select(TENANT_COLUMNS).eq("id", impersonation.tenantId).single(),
     ]);
     if (!own || !tenant) redirect("/admin/tenants");
@@ -122,6 +127,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       email: own.email,
       role: "admin",
       dashboardPrefs: parseDashboardPrefs(own.dashboard_prefs),
+      whatsNewSeen: own.whats_new_seen,
       tenant: mapTenant(tenant),
       isSuperadmin: true,
       impersonating: { tenantName: impersonation.tenantName, expiresAt: impersonation.expiresAt },
@@ -131,7 +137,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`full_name, email, role, is_superadmin, dashboard_prefs, tenants(${TENANT_COLUMNS})`)
+    .select(`full_name, email, role, is_superadmin, dashboard_prefs, whats_new_seen, tenants(${TENANT_COLUMNS})`)
     .eq("id", userId)
     .single();
 
@@ -153,6 +159,7 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
     // DB check constraint limits role to admin|staff; fail closed to staff.
     role: profile.role === "admin" ? "admin" : "staff",
     dashboardPrefs: parseDashboardPrefs(profile.dashboard_prefs),
+    whatsNewSeen: profile.whats_new_seen,
     tenant: mapTenant(tenant),
     isSuperadmin: profile.is_superadmin,
     impersonating: null,

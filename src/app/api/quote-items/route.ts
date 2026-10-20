@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query.order("name").limit(20);
   if (error) {
     console.error("Quote item lookup failed:", error.message);
-    return Response.json({ error: "Couldn't load parts." }, { status: 500 });
+    return Response.json({ error: "Couldn't load products." }, { status: 500 });
   }
 
   const body: PickerItemsResponse = {

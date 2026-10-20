@@ -32,7 +32,7 @@ export const inventoryItemSchema = z
       .string()
       .trim()
       .toUpperCase()
-      .min(1, "Enter a SKU / part code.")
+      .min(1, "Enter a SKU / product code.")
       .max(40, "SKU must be 40 characters or fewer.")
       .regex(/^[A-Z0-9][A-Z0-9._/-]*$/, "Use letters, numbers, dashes, dots or slashes only."),
     name: z

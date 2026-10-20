@@ -20,6 +20,7 @@
   - Organizations are **archived, never deleted**, and their rows in the superadmin view change colour every 30 days from light yellow to dark red over a year (Phase 17).
   - **Recommended features** are listed per phase (§10) and offered when that phase starts (§0.4).
   - Phase 18 says how categories for the other industries are drafted, reviewed, seeded and then maintained by the superadmin.
+- **Rev 5 (2026-10-20, during Phase 16)**: the product owner added **dark mode with a theme switcher** to Phase 16 (RF-16.4, deliverable 9). Version 1 had no dark theme, so deliverable 4 and the checkpoint, which already said "dark mode" and "light and dark", now point to a real deliverable. RF-16.1–16.3 were accepted when Phase 16 started.
 
 ---
 
@@ -176,18 +177,18 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 
 **Goal**: everything a user, customer or developer sees says ProductLogik POS, in the ProductLogik emerald identity. No behaviour changes.
 
-**Recommended features (offered when this phase starts, §10)**: RF-16.1 Organization accent colour on documents · RF-16.2 Urdu-ready fonts · RF-16.3 "What's new" panel.
+**Recommended features (offered when this phase starts, §10)**: RF-16.1 Organization accent colour on documents · RF-16.2 Urdu-ready fonts · RF-16.3 "What's new" panel · RF-16.4 Dark mode with a theme switcher (added by the product owner during the phase). **All four accepted.**
 
 **Deliverables**
 1. **Repository rename** (outward-facing — done only after explicit confirmation in this phase):
    - `gh repo rename productlogik-pos --yes` (GitHub redirects the old URL), then `git remote set-url origin https://github.com/hamzi207/productlogik-pos.git`, `git remote -v` + `git fetch` to confirm.
    - The local folder `D:\SpicedProjects\Projects\carshop_pos` is **not** renamed in this phase (it would break the Claude project memory path and any open terminals); offered as an optional manual step at the end.
 2. **Project metadata**: `package.json` / `package-lock.json` `"name": "productlogik-pos"`, `"version": "2.0.0-alpha.0"`; `src/app/layout.tsx` metadata (title template `%s · ProductLogik POS`, description, `applicationName`, `themeColor`), `manifest` (new `src/app/manifest.ts`: name, short name "ProductLogik", icons, emerald theme colour — makes the app installable on phones and tablets).
-3. **Logo & favicon suite** from `productlogik/assets/logo.svg` (emerald gradient rounded square + white lightning bolt `M13 10V3L4 14h7v7l9-11h-7z`):
+3. **Logo & favicon suite** from `productlogik/assets/logo.svg` (emerald gradient rounded square + white lightning bolt `M13 10V3L4 14h7v7l9-11h-7z`). The SVG and the 400px PNG are copied unchanged. The other sizes are straight resizes of that SVG, except the maskable icon, which is full-bleed with the bolt in the safe zone. The ProductLogik repo has no favicon set to take:
    - `public/brand/mark.svg` (the square mark), `mark-mono.svg` (single-colour bolt for thermal printing / dark surfaces), `logo-horizontal-light.svg` / `logo-horizontal-dark.svg` (mark + "ProductLogik POS" wordmark), PNG fallbacks for email (Resend) and react-pdf.
    - `src/app/icon.svg`, `src/app/apple-icon.png` (180), `public/icons/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `favicon.ico` (16/32/48).
    - Remove `public/brand/logo-black.png`, `logo-white.png`, `mark.png`, and the `carshop_logo/` folder (kept in git history and tag `v1.0.0`). Also delete unused Next starter SVGs in `public/` (`file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg`) if nothing references them.
-4. **Theme tokens** (`src/app/globals.css` `:root` and dark mode):
+4. **Theme tokens** (`src/app/globals.css` `:root`; the dark values are deliverable 9):
    - New brand ramp: `--brand-50 #ecfdf5`, `--brand-100 #d1fae5`, `--brand-200 #a7f3d0`, `--brand-300 #6ee7b7`, `--brand-400 #34d399`, `--brand-500 #10b981`, `--brand-600 #059669` (primary), `--brand-700 #047857` (hover / text on light), `--brand-800 #065f46`, `--brand-900 #064e3b`; `--brand-gradient: linear-gradient(135deg, #059669, #34d399)`.
    - The V1 accent aliases (`--blue`, `--blue-dark`, `--blue-soft`, `--brand-red`) are **replaced** by `--accent-brand*` names in one sweep across `globals.css` and components (they currently mean "brand red", which is now misleading). `accent-color`, focus rings, active nav, primary buttons, selected pills, the admin navbar's 3px rule and the PDF/share accents move to emerald.
    - Neutrals switch from the V1 zinc greys back to **slate** (`#0f172a … #f8fafc`) to match ProductLogik's slate surfaces.
@@ -197,12 +198,22 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 6. **Copy & names**: every "CarShop", "CarShop.Pk", "car shop", "parts", "auto shop" in UI, emails, PDFs and docs → "ProductLogik POS" / "shop" / "products" (19 source files reference carshop today, e.g. `brand.tsx`, `app-sidebar.tsx`, `login-form.tsx`, `(auth)/layout.tsx`, `admin-navbar.tsx`, `document-pdf.tsx`, `thermal-receipt.tsx`, `email/client.ts`, `email/templates/account.ts`, `actions/auth.ts`, `actions/team.ts`, `share/[token]/page.tsx`). "Part" wording in inventory/document screens → "Product/Item" (the automotive word "part" returns only when the fitment module is on, Phase 18). `RESEND_FROM_EMAIL` default → `ProductLogik POS <onboarding@resend.dev>`.
 7. **Internal identifiers** (decision 10): `x-productlogik-impersonation` header + `productlogik_impersonation` cookie, with the old names still accepted; `__productlogikLeaveGuard`. Migration updates `private.impersonated_tenant_id()` to read either header.
 8. **Docs**: `README.md` rewritten for ProductLogik POS (logo, features, setup), `PROJECT_SPEC.md` title/vision/§2.1 scope matrix updated for multi-industry inventory, invoicing and billing (Version 1 history in §7 untouched), `FOUNDER_SETUP_GUIDE.md` / `MAC_SETUP_CHECKLIST.md` repo URLs, `docs/regression-checklist.md` created.
+9. **Dark mode with a theme switcher** (RF-16.4):
+   - **Choice**: Light · Dark · System (follows the device). It's remembered per browser through `next-themes` (`attribute="class"`, no flash on load, no database column). The default is System.
+   - **Switcher** in the user menu (top bar), so it's on every app screen and in `/admin`. The sign-in pages follow the saved choice.
+   - **Tokens**: a `.dark` block in `globals.css` redefines the surface, text, border and slate tokens. The emerald brand, teal success, rose danger, amber warning and blue info get dark-surface variants. Hard-coded colours in rules (`#fff`, tints, shadows) move onto tokens so they flip too. Native controls get `color-scheme: dark`.
+   - **What stays light**: the A4 PDF, the POS slip (on screen and printed), the customer share page and emails. These are documents and print on white paper.
+   - **Contrast**: `scripts/check-contrast.mjs` checks the dark pairs to AA as well.
+   - **Superadmin parity**: the theme is a per-browser display preference, not an organization setting, so there's nothing for the superadmin to manage.
+10. **Document colour** (RF-16.1): `tenants.accent_color` (`#rrggbb`, null = ProductLogik emerald `#047857`) is set in Settings → Profile with 8 presets, a colour picker and a hex field. The superadmin edits it on the organization page (parity). The app rejects colours below 4.5:1 on white (`src/lib/accent.ts`). It's used for the A4 PDF's header rule, title and bank card, the share page accents, and the email top bar and buttons. Balance due stays rose and the POS slip stays black.
+11. **Urdu-ready fonts** (RF-16.2): on screens, Noto Sans Arabic is the fallback after Plus Jakarta Sans. It only downloads for Arabic-script text. Nastaliq was dropped because its tall line height breaks table rows and inputs. The A4 PDF and POS slip PDF register Noto Sans Arabic (`src/assets/fonts`, SIL OFL) as the fallback after Helvetica; react-pdf 4.9 was tested to join the letters and order them right to left. The browser-printed slip gets the same fallback.
+12. **What's new** (RF-16.3): `src/lib/changelog.ts` entries, a top-bar gift button with a dot until the latest entry is opened, and a panel (dialog on desktop, bottom sheet on phones). What each user has seen is stored in `profiles.whats_new_seen`.
 
-**Migration outline** — `…_phase16_brand_identifiers.sql`: `private.impersonated_tenant_id()` reads `x-productlogik-impersonation` then `x-carshop-impersonation`. Nothing else in the database changes.
+**Migration outline** — `20261019202258_phase16_brand_accent_whats_new.sql`: `private.impersonated_tenant_id()` reads `x-productlogik-impersonation` then `x-carshop-impersonation`. It adds `tenants.accent_color` (RF-16.1) and `profiles.whats_new_seen` (RF-16.3), each with a check constraint and a column-level update grant.
 
-**Affected files**: `package.json`, `package-lock.json`, `src/app/layout.tsx`, `src/app/manifest.ts` (new), `src/app/icon.svg` (new), `src/app/globals.css`, `src/components/shared/brand.tsx`, `app-sidebar.tsx`, `sidebar-toggle.tsx`, `notification-bell.tsx`, `src/components/auth/*`, `src/app/(auth)/layout.tsx`, `src/app/admin/*`, `src/components/admin/admin-navbar.tsx`, `src/components/pdf/*`, `src/app/share/[token]/page.tsx`, `src/lib/email/**`, `src/lib/actions/auth.ts`, `team.ts`, `src/lib/supabase/impersonation-header.ts`, `server.ts`, `middleware.ts`, `src/lib/hooks/use-leave-guard.ts`, `public/**`, `carshop_logo/` (deleted), `README.md`, `docs/*`.
+**Affected files**: `package.json`, `package-lock.json`, `src/app/layout.tsx`, `src/app/manifest.ts` (new), `src/app/icon.svg` (new), `src/app/globals.css`, `src/components/shared/brand.tsx`, `app-sidebar.tsx`, `sidebar-toggle.tsx`, `notification-bell.tsx`, `src/components/auth/*`, `src/app/(auth)/layout.tsx`, `src/app/admin/*`, `src/components/admin/admin-navbar.tsx`, `src/components/pdf/*`, `src/app/share/[token]/page.tsx`, `src/lib/email/**`, `src/lib/actions/auth.ts`, `team.ts`, `src/lib/supabase/impersonation-header.ts`, `server.ts`, `middleware.ts`, `src/lib/hooks/use-leave-guard.ts`, `src/components/shared/theme-*.tsx` + `user-menu.tsx` (dark mode), `public/**`, `carshop_logo/` (deleted), `README.md`, `docs/*`.
 
-**Checkpoint**: `grep -ri carshop src public` returns nothing but the dual-read fallbacks; contrast report passes AA; screenshots of login, dashboard, document, POS slip, A4 PDF, share page, admin, email template in light and dark; favicon/PWA install on Android Chrome; an impersonation session started before the deploy still works after it; GitHub shows `productlogik-pos` and `git push` works to the new URL.
+**Checkpoint**: `grep -ri carshop src public` returns nothing but the dual-read fallbacks; contrast report passes AA; screenshots of login, dashboard, document, POS slip, A4 PDF, share page, admin, email template; the app screens (dashboard, lists, document editor, settings, admin, dialogs and sheets on phones) in **light and dark**, with documents staying light; the dark-mode contrast pairs pass AA; the theme survives a reload with no flash; favicon/PWA install on Android Chrome; an impersonation session started before the deploy still works after it; GitHub shows `productlogik-pos` and `git push` works to the new URL.
 
 ---
 
@@ -1189,9 +1200,10 @@ Ideas are drawn from what comparable inventory/invoicing products offer: custome
 
 | ID | Phase | Feature | What it gives the user | Status |
 | :--- | :---: | :--- | :--- | :--- |
-| RF-16.1 | 16 | Organization accent colour on documents | Each organization can pick its own accent colour for its PDFs, slips (where printable), share pages and emails. The app itself stays ProductLogik emerald. | Not asked yet |
-| RF-16.2 | 16 | Urdu-ready fonts | Noto Nastaliq Urdu / Noto Sans Arabic fallbacks, so Urdu customer and product names show correctly on screens, PDFs and slips instead of empty boxes. | Not asked yet |
-| RF-16.3 | 16 | "What's new" panel | An in-app changelog after each release, so users discover V2 features (dismissible, per user). | Not asked yet |
+| RF-16.1 | 16 | Organization accent colour on documents | Each organization can pick its own accent colour for its PDFs, slips (where printable), share pages and emails. The app itself stays ProductLogik emerald. | Accepted (Phase 16) |
+| RF-16.2 | 16 | Urdu-ready fonts | Noto Nastaliq Urdu / Noto Sans Arabic fallbacks, so Urdu customer and product names show correctly on screens, PDFs and slips instead of empty boxes. | Accepted (Phase 16) |
+| RF-16.3 | 16 | "What's new" panel | An in-app changelog after each release, so users discover V2 features (dismissible, per user). | Accepted (Phase 16) |
+| RF-16.4 | 16 | Dark mode with a theme switcher | Light / Dark / System theme for the app screens, chosen in the user menu and remembered per browser. Documents (PDF, POS slip, share page, emails) stay light for printing. Requested by the product owner during Phase 16. | Accepted (Phase 16) |
 | RF-17.1 | 17 | Two-factor sign-in for superadmins | Authenticator-app (TOTP) codes through Supabase MFA, required for every superadmin account. This protects the most powerful accounts. | Not asked yet |
 | RF-17.2 | 17 | Organization notes, tags & follow-ups | Private superadmin notes, tags (VIP, onboarding, fees due) and follow-up dates per organization, filterable in the Shops list. | Not asked yet |
 | RF-17.3 | 17 | Subscription tracking (no gateway) | Plan name, fee, renewal date and manually recorded payments per organization, with renewal reminders and an optional auto-suspend after a grace period. | Not asked yet |

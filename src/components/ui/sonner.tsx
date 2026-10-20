@@ -1,14 +1,16 @@
 "use client"
 
+import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-// The app is light-only; following the OS dark mode turned every toast black.
+// Follows the app theme (RF-16.4), not the OS directly: a light app with a dark OS keeps light toasts.
 // Rich colours use the theme's status colours with white text.
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { resolvedTheme } = useTheme()
   return (
     <Sonner
-      theme="light"
+      theme={resolvedTheme === "dark" ? "dark" : "light"}
       richColors
       className="toaster group"
       icons={{
@@ -34,14 +36,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
-          "--success-bg": "var(--green-dark)",
-          "--success-border": "var(--green-dark)",
+          "--success-bg": "#0f766e",
+          "--success-border": "#0f766e",
           "--success-text": "#ffffff",
           "--error-bg": "#e11d48",
           "--error-border": "#e11d48",
           "--error-text": "#ffffff",
-          "--info-bg": "var(--info)",
-          "--info-border": "var(--info)",
+          "--info-bg": "#2563eb",
+          "--info-border": "#2563eb",
           "--info-text": "#ffffff",
           "--warning-bg": "#d97706",
           "--warning-border": "#d97706",

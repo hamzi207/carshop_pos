@@ -46,7 +46,7 @@ export function DeleteItemDialog({ item, onOpenChange }: Props) {
               <div>
                 <span className="header-icon danger"><Trash2 size={18} /></span>
                 <div>
-                  <Dialog.Title asChild><h2>Delete this part?</h2></Dialog.Title>
+                  <Dialog.Title asChild><h2>Delete this product?</h2></Dialog.Title>
                   <Dialog.Description asChild>
                     <p>This can&apos;t be undone.</p>
                   </Dialog.Description>
@@ -66,7 +66,7 @@ export function DeleteItemDialog({ item, onOpenChange }: Props) {
               </Dialog.Close>
               <button type="button" className="button button-danger" onClick={confirm} disabled={pending}>
                 {pending ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                {pending ? "Deleting…" : "Delete Part"}
+                {pending ? "Deleting…" : "Delete Product"}
               </button>
             </div>
           </Dialog.Content>

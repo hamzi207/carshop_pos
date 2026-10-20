@@ -23,7 +23,7 @@ export const quoteLineSchema = z
       .number({ error: "Enter a discount (0 for none)." })
       .min(0, "A sale price can't be more than the unit price."),
   })
-  .refine((l) => l.itemId === null || Number.isInteger(l.quantity), "Parts are sold in whole units.")
+  .refine((l) => l.itemId === null || Number.isInteger(l.quantity), "Products are sold in whole units.")
   .refine((l) => l.discountType !== "percent" || l.discountValue <= 100, "A discount can't be more than 100%.")
   .refine((l) => l.discountType !== "amount" || l.discountValue <= l.unitPrice, "A discount can't be more than the unit price.");
 

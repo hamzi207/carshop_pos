@@ -1,9 +1,16 @@
 import "server-only";
-import { renderToBuffer } from "@react-pdf/renderer";
+import path from "node:path";
+import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { DocumentPdf } from "@/components/pdf/document-pdf";
 import { ThermalReceipt } from "@/components/pdf/thermal-receipt";
 import { customerLink } from "@/lib/customer-link";
 import type { PrintableDocument } from "@/lib/printable";
+
+// Urdu / Arabic-script fallback for both PDFs (see components/pdf/fonts.ts). next.config.ts traces these
+// files into the server bundle.
+const FONT_DIR = path.join(process.cwd(), "src", "assets", "fonts");
+Font.register({ family: "NotoSansArabic", src: path.join(FONT_DIR, "NotoSansArabic-Regular.ttf") });
+Font.register({ family: "NotoSansArabic-Bold", src: path.join(FONT_DIR, "NotoSansArabic-Bold.ttf") });
 
 /** Downloads the shop logo for embedding; a missing or broken logo just leaves it out. */
 async function fetchLogo(url: string | null) {

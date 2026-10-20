@@ -490,6 +490,7 @@ export type Database = {
           role: string
           tenant_id: string
           updated_at: string
+          whats_new_seen: string | null
         }
         Insert: {
           created_at?: string
@@ -502,6 +503,7 @@ export type Database = {
           role?: string
           tenant_id: string
           updated_at?: string
+          whats_new_seen?: string | null
         }
         Update: {
           created_at?: string
@@ -514,6 +516,7 @@ export type Database = {
           role?: string
           tenant_id?: string
           updated_at?: string
+          whats_new_seen?: string | null
         }
         Relationships: [
           {
@@ -796,6 +799,7 @@ export type Database = {
       }
       tenants: {
         Row: {
+          accent_color: string | null
           address: string | null
           allow_international_phones: boolean
           bank_account_number: string | null
@@ -836,6 +840,7 @@ export type Database = {
           week_start: number
         }
         Insert: {
+          accent_color?: string | null
           address?: string | null
           allow_international_phones?: boolean
           bank_account_number?: string | null
@@ -876,6 +881,7 @@ export type Database = {
           week_start?: number
         }
         Update: {
+          accent_color?: string | null
           address?: string | null
           allow_international_phones?: boolean
           bank_account_number?: string | null

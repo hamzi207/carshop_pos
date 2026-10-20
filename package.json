@@ -1,12 +1,13 @@
 {
-  "name": "carshop-pos",
-  "version": "0.1.0",
+  "name": "productlogik-pos",
+  "version": "2.0.0-alpha.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:contrast": "node scripts/check-contrast.mjs",
     "db:push": "node --env-file=.env.local scripts/db.mjs push",
     "db:types": "node --env-file=.env.local scripts/db.mjs types",
     "seed:vehicles": "node --experimental-strip-types --disable-warning=ExperimentalWarning --env-file=.env.local scripts/seed-vehicles.mts",

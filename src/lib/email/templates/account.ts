@@ -1,7 +1,7 @@
 import "server-only";
 import { button, layout, muted, paragraph, type EmailContent } from "./layout";
 
-const PLATFORM = "CarShop POS";
+const PLATFORM = "ProductLogik POS";
 
 /**
  * A new shop's first email (Phase 13: shops created by a superadmin; also usable after sign-up).
@@ -11,7 +11,7 @@ export function welcomeEmail(p: { fullName: string; shopName: string; loginUrl: 
   const subject = `Welcome to ${PLATFORM}, ${p.shopName}`;
   const lines = [
     `Hi ${p.fullName},`,
-    `Your shop ${p.shopName} is ready on ${PLATFORM}. Add your parts, then send your first quotation or invoice.`,
+    `Your shop ${p.shopName} is ready on ${PLATFORM}. Add your products, then send your first quotation or invoice.`,
   ];
   const [label, href] = p.setPasswordUrl ? ["Choose your password", p.setPasswordUrl] : ["Sign in", p.loginUrl];
   const note = p.setPasswordUrl
@@ -21,7 +21,7 @@ export function welcomeEmail(p: { fullName: string; shopName: string; loginUrl: 
     subject,
     html: layout({
       heading: `Welcome, ${p.shopName}`,
-      preheader: "Your shop is ready. Sign in to add parts and send your first invoice.",
+      preheader: "Your shop is ready. Sign in to add products and send your first invoice.",
       body: lines.map(paragraph).join("") + button(label, href) + muted(note),
       footer: `${PLATFORM} · You're receiving this because a shop was created with this email address.`,
     }),

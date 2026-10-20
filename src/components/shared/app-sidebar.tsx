@@ -101,12 +101,12 @@ export function AppSidebar() {
               <Sparkles size={16} />
             </div>
             <strong>Need a hand?</strong>
-            <span>Visit the CarShop.Pk support center.</span>
+            <span>Visit the ProductLogik support center.</span>
             <button type="button">
               Get support <ChevronRight size={13} />
             </button>
           </div>
-          <div className="version">CarShop.Pk POS System</div>
+          <div className="version">ProductLogik POS</div>
         </div>
       </aside>
       <SidebarToggle />

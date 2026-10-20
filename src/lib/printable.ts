@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database.types";
 import { localDate, sectionForStatus, statusDisplay, statusKey, type DocumentSection } from "@/lib/documents";
+import { documentAccent } from "@/lib/accent";
 import { formatDate, type MoneyFormat } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { formatStrn } from "@/lib/tax-id";
@@ -56,6 +57,8 @@ export type PrintableDocument = {
     ntn: string | null;
     strn: string | null;
     logoUrl: string | null;
+    /** Accent colour for the A4 PDF, share page and emails (always readable on white). */
+    accent: string;
     /** Quotation terms on quotations / estimates, payment terms on invoices. */
     terms: string | null;
   };
@@ -89,7 +92,7 @@ export type PrintableDocument = {
 };
 
 const SELECT =
-  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(name, address, phone, email, ntn, strn, logo_url, quote_footer_notes, invoice_terms, bank_name, bank_account_title, bank_account_number, bank_iban, bank_raast_id, bank_wallets, currency, show_paisa, timezone)";
+  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(name, address, phone, email, ntn, strn, logo_url, accent_color, quote_footer_notes, invoice_terms, bank_name, bank_account_title, bank_account_number, bank_iban, bank_raast_id, bank_wallets, currency, show_paisa, timezone)";
 
 const TITLE: Record<DocumentSection, string> = { drafts: "Estimate", quotations: "Quotation", invoices: "Invoice" };
 
@@ -183,6 +186,7 @@ export async function loadPrintable(
       ntn: t.ntn,
       strn: t.strn ? formatStrn(t.strn) : null,
       logoUrl: t.logo_url,
+      accent: documentAccent(t.accent_color),
       terms: section === "invoices" ? t.invoice_terms : t.quote_footer_notes,
     },
     bank,

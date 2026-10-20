@@ -100,7 +100,7 @@ export async function signIn(input: LoginInput, next?: string): Promise<AuthActi
     await supabase.auth.signOut({ scope: "local" });
     return {
       status: "error",
-      message: "This shop's account is paused, so signing in isn't possible right now. Please contact CarShop POS support to reactivate it.",
+      message: "This shop's account is paused, so signing in isn't possible right now. Please contact ProductLogik POS support to reactivate it.",
     };
   }
 

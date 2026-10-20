@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImagePlus, Loader2, Store, Trash2 } from "lucide-react";
+import { Check, ImagePlus, Loader2, RotateCcw, Store, Trash2 } from "lucide-react";
+import { ACCENT_PRESETS, DEFAULT_ACCENT, HEX_COLOR } from "@/lib/accent";
 import { setShopLogo, updateShopProfile } from "@/lib/actions/settings";
 import { useUnsavedSettings } from "./unsaved-settings";
 import { notify } from "@/lib/notify";
@@ -30,6 +31,7 @@ const FIELD_NAME: Record<keyof ShopProfileValues, string> = {
   address: "Address",
   ntn: "NTN",
   strn: "STRN",
+  accentColor: "Document colour",
 };
 
 // The PDF library draws PNG and JPEG only (checked again on the server by the file's bytes).
@@ -47,11 +49,15 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit, tenantId }: 
     register,
     handleSubmit,
     reset,
+    setValue,
+    control,
     formState: { errors, isSubmitting, isDirty, dirtyFields },
   } = useForm<ShopProfileValues, unknown, z.output<typeof shopProfileSchema>>({
     resolver: zodResolver(shopProfileSchema),
     defaultValues: initial,
   });
+
+  const accentColor = useWatch({ control, name: "accentColor" });
 
   const persist = async (values: z.output<typeof shopProfileSchema>) => {
     setServerError(null);
@@ -183,10 +189,69 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit, tenantId }: 
         {field("address", "Address", "Printed under your shop name.", { placeholder: "Shop 12, Montgomery Road, Lahore" })}
         {field("ntn", "NTN", "Your shop's FBR National Tax Number (optional).", { placeholder: "1234567-8" })}
         {field("strn", "STRN", "Sales Tax Registration Number, if registered (optional).", { placeholder: "32-77-8761-234-56" })}
+        <AccentField
+          value={accentColor}
+          onChange={(hex) => setValue("accentColor", hex, { shouldDirty: true, shouldValidate: true })}
+          invalid={Boolean(errors.accentColor)}
+        />
       </fieldset>
       {(Object.values(errors)[0] || serverError) && (
         <span className="field-error settings-error">{Object.values(errors)[0]?.message ?? serverError}</span>
       )}
     </form>
+  );
+}
+
+/** RF-16.1: the colour of headings, lines and buttons on this business's PDFs, share pages and emails. */
+function AccentField({ value, onChange, invalid }: { value: string; onChange: (hex: string) => void; invalid: boolean }) {
+  const current = value || DEFAULT_ACCENT;
+  return (
+    <div className="settings-row settings-field">
+      <span className="settings-label">
+        Document colour
+        <small>Headings and lines on your A4 PDFs, share links and emails. POS slips stay black.</small>
+      </span>
+      <div className="accent-field">
+        <div className="accent-swatches" role="radiogroup" aria-label="Document colour">
+          {ACCENT_PRESETS.map((p) => {
+            const selected = current === p.hex;
+            return (
+              <button
+                key={p.hex}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={p.name}
+                title={p.name}
+                className="accent-swatch"
+                style={{ background: p.hex }}
+                onClick={() => onChange(p.hex === DEFAULT_ACCENT ? "" : p.hex)}
+              >
+                {selected && <Check size={13} strokeWidth={3} />}
+              </button>
+            );
+          })}
+        </div>
+        <label className="accent-custom">
+          <input type="color" value={HEX_COLOR.test(current) ? current : DEFAULT_ACCENT} onChange={(e) => onChange(e.target.value)} aria-label="Custom colour" />
+          <input
+            type="text"
+            className="settings-input mono"
+            value={value}
+            placeholder={DEFAULT_ACCENT}
+            maxLength={7}
+            spellCheck={false}
+            aria-invalid={invalid || undefined}
+            aria-label="Colour code"
+            onChange={(e) => onChange(e.target.value.trim().toLowerCase())}
+          />
+        </label>
+        {value && (
+          <button type="button" className="icon-button" onClick={() => onChange("")} aria-label="Use the default colour" title="Use the default colour">
+            <RotateCcw size={14} />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

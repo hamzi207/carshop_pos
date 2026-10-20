@@ -77,7 +77,7 @@ export function InventoryItemDetails({ item, money, categoryLabel, onOpenChange,
               </Dialog.Close>
               {item && (
                 <button type="button" className="button button-primary" onClick={() => onEdit(item)}>
-                  <Pencil size={14} /> Edit Part
+                  <Pencil size={14} /> Edit Product
                 </button>
               )}
             </div>

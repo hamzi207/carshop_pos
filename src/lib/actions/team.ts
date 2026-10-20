@@ -96,7 +96,7 @@ export async function inviteTeamMember(input: TeamInviteInput): Promise<TeamActi
   if (existing) {
     return {
       status: "error",
-      message: existing.tenant_id === session.tenant.id ? `${email} is already on your team.` : `${email} already has a CarShop POS account with another shop.`,
+      message: existing.tenant_id === session.tenant.id ? `${email} is already on your team.` : `${email} already has a ProductLogik POS account with another business.`,
     };
   }
 
@@ -104,7 +104,7 @@ export async function inviteTeamMember(input: TeamInviteInput): Promise<TeamActi
   // joins this one. Confirmed up front because the invitation link proves the address.
   const { data: created, error } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: fullName } });
   if (error || !created.user) {
-    if (error?.code === "email_exists") return { status: "error", message: `${email} already has a CarShop POS account.` };
+    if (error?.code === "email_exists") return { status: "error", message: `${email} already has a ProductLogik POS account.` };
     console.error("inviteTeamMember createUser failed:", error);
     return { status: "error", message: "We couldn't create the invitation. Please try again." };
   }

@@ -149,7 +149,7 @@ export async function DashboardMetrics({ searchParams }: { searchParams: Promise
                 note={net > 0 ? `${((profit / net) * 100).toFixed(1)}% margin` : "No sales in these dates"}
                 rows={[
                   ["Sales excl. tax", money(net)],
-                  ["Cost of parts", money(Math.max(net - profit, 0))],
+                  ["Cost of goods", money(Math.max(net - profit, 0))],
                 ]}
               />
             )}

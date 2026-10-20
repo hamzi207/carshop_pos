@@ -111,7 +111,7 @@ export default function AdminOverviewPage() {
         <div>
           <span className="eyebrow">PLATFORM</span>
           <h1>Overview</h1>
-          <p>Every shop on CarShop.Pk POS at a glance.</p>
+          <p>Every organization on ProductLogik POS at a glance.</p>
         </div>
       </div>
       <Suspense fallback={<section className="card"><div className="empty-state">Loading platform figures…</div></section>}>

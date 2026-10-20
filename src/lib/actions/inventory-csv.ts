@@ -168,7 +168,7 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
     if (isUniversal === null) isUniversal = current && update && !listed ? current.is_universal : !listed;
     let vehicles = [...ids];
     if (!listed && current && update && !isUniversal) vehicles = current.item_vehicle_compatibility.map((v) => v.vehicle_id);
-    if (isUniversal && listed) err("vehicles", "Universal parts fit every vehicle: leave Vehicles empty, or set Universal to No.");
+    if (isUniversal && listed) err("vehicles", "Universal products fit every vehicle: leave Vehicles empty, or set Universal to No.");
 
     const text = (k: CsvColumnKey, existingValue: string | null | undefined) => (c[k] !== undefined && (c[k] !== "" || !update) ? c[k]! : (existingValue ?? ""));
     const candidate = {
@@ -197,7 +197,7 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
         };
         for (const issue of parsed.error.issues) {
           const key = column[String(issue.path[0])];
-          const message = key === "vehicles" ? "Vehicle-specific parts need at least one vehicle in Vehicles (or set Universal to Yes)." : issue.message;
+          const message = key === "vehicles" ? "Vehicle-specific products need at least one vehicle in Vehicles (or set Universal to Yes)." : issue.message;
           if (key) err(key, message);
           else err("row", message);
         }

@@ -222,7 +222,7 @@ export function ShopSettingsForm({ sections, label, initial, timeZoneGroups, can
             <span className="header-icon blue"><FileText size={18} /></span>
             <div>
               <h2>Quotations</h2>
-              <p>Parts on an open quotation are reserved until it is cancelled, deleted or invoiced.</p>
+              <p>Products on an open quotation are reserved until it is cancelled, deleted or invoiced.</p>
             </div>
           </div>
           <label className="settings-row">

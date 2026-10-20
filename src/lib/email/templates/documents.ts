@@ -33,10 +33,11 @@ export function documentShareEmail(doc: PrintableDocument, shareUrl: string | nu
         paragraph(greeting(doc)) +
         paragraph(intro) +
         facts(rows) +
-        (shareUrl ? button(`View ${kind} online`, shareUrl) : "") +
+        (shareUrl ? button(`View ${kind} online`, shareUrl, doc.shop.accent) : "") +
         paragraph(thanks) +
         (doc.shop.terms ? muted(doc.shop.terms) : ""),
       footer: shopFooter(doc),
+      accent: doc.shop.accent,
     }),
     text: [greeting(doc), intro, factsText(rows), shareUrl ? `View online: ${shareUrl}` : null, thanks, doc.shop.terms]
       .filter(Boolean)
@@ -70,8 +71,9 @@ export function paymentReceiptEmail(doc: PrintableDocument, payment: PrintablePa
         paragraph(intro) +
         facts(rows) +
         paragraph(status) +
-        (shareUrl ? button("View invoice online", shareUrl) : ""),
+        (shareUrl ? button("View invoice online", shareUrl, doc.shop.accent) : ""),
       footer: shopFooter(doc),
+      accent: doc.shop.accent,
     }),
     text: [greeting(doc), intro, factsText(rows), status, shareUrl ? `View online: ${shareUrl}` : null].filter(Boolean).join("\n\n"),
   };

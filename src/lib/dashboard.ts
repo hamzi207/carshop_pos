@@ -58,7 +58,7 @@ export const WIDGET_LABEL: Record<Widget, string> = {
 
 export const WIDGET_HINT: Record<Widget, string> = {
   sales: "Invoiced totals, including tax.",
-  profit: "Sales excluding tax, minus the cost of parts sold.",
+  profit: "Sales excluding tax, minus the cost of goods sold.",
   pendingInvoices: "Invoices from these dates not yet fully paid.",
   pendingQuotations: "Quotations from these dates still open.",
   counts: "Customers and products in total; invoices and quotations in these dates.",
@@ -66,7 +66,7 @@ export const WIDGET_HINT: Record<Widget, string> = {
 
 /** What each chart form shows, per widget (shown in Customize). */
 export const CHART_HINT: Record<Widget, { bar: string; pie?: string }> = {
-  sales: { bar: "Sales over the chosen dates (by day, month or year).", pie: "Sales split into profit, cost of parts and tax." },
+  sales: { bar: "Sales over the chosen dates (by day, month or year).", pie: "Sales split into profit, cost of goods and tax." },
   profit: { bar: "Profit over the chosen dates (by day, month or year).", pie: "Profit against the cost of parts." },
   pendingInvoices: { bar: "Unpaid balances by age: not yet due, 1–30, 31–60, over 60 days overdue.", pie: "Unpaid balance: overdue vs not yet due." },
   pendingQuotations: { bar: "Open quotations: sent vs accepted.", pie: "Open quotations' value: sent vs accepted." },

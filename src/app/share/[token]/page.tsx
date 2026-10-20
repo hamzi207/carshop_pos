@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Download, FileText, Landmark } from "lucide-react";
@@ -23,7 +23,8 @@ async function SharedDocument({ params }: { params: Params }) {
   const isInvoice = doc.section === "invoices";
 
   return (
-    <div className="share-sheet">
+    // The organization's document colour (RF-16.1) replaces the brand accent inside the sheet.
+    <div className="share-sheet" style={{ "--accent-brand": doc.shop.accent } as CSSProperties}>
       <header className="share-head">
         <div>
           {doc.shop.logoUrl ? (
@@ -144,7 +145,7 @@ export default function SharePage({ params }: { params: Params }) {
       <Suspense fallback={<div className="share-sheet share-loading">Loading…</div>}>
         <SharedDocument params={params} />
       </Suspense>
-      <p className="share-foot">Sent with CarShop.Pk POS System</p>
+      <p className="share-foot">Sent with ProductLogik POS</p>
     </main>
   );
 }

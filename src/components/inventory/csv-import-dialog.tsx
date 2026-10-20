@@ -110,7 +110,7 @@ function CsvImport({ onClose }: { onClose: () => void }) {
           <div>
             <Dialog.Title asChild><h2>Import inventory from CSV</h2></Dialog.Title>
             <Dialog.Description asChild>
-              <p>Add many parts at once from Excel or Google Sheets. Nothing is saved until you press Import.</p>
+              <p>Add many products at once from Excel or Google Sheets. Nothing is saved until you press Import.</p>
             </Dialog.Description>
           </div>
         </div>

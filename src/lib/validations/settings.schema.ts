@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isReadableAccent } from "@/lib/accent";
 import { isValidTimeZone } from "@/lib/timezones";
 
 // PROJECT_SPEC.md §2.3: Pakistani shops price in Rs. or PKR only.
@@ -75,5 +76,11 @@ export const shopProfileSchema = z.object({
   address: optionalText(300, "Address"),
   ntn: shopNtn,
   strn: shopStrn,
+  // "" = the ProductLogik default (RF-16.1).
+  accentColor: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => v === "" || isReadableAccent(v), "Pick a darker document colour: it must be readable on white paper."),
 });
 export type ShopProfileValues = z.input<typeof shopProfileSchema>;

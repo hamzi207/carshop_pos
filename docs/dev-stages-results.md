@@ -754,3 +754,32 @@ Test steps:
   3. Change a price in the exported file, tick "Update items with the same SKU" and import it.
   4. Reports on a phone: the sales chart's dates don't overlap.
   5. Commit: git add . && git commit -m "Phase 15 - inventory csv import/export, chart labels and 4k containment"
+
+Phase 16 (Version 2: ProductLogik rebrand, accent colour, Urdu PDFs, What's new, dark mode), 2026-10-20:
+  - CarShop.Pk POS is now ProductLogik POS: new logo (copied unchanged from the ProductLogik brand files),
+    favicon and app icon, emerald/slate colours, Plus Jakarta Sans font, and "products" instead of "parts"
+    everywhere (app, PDFs, POS slip, share page, emails, admin). It can be installed like an app on phones.
+  - Nothing resets after the update: the old sidebar setting, seen alerts and a "Login As" session started
+    before the update keep working.
+  - Settings → Profile → Document colour: pick a preset or your own colour (too-light colours are refused).
+    A4 PDFs, share links and emails use it; the POS slip stays black. The superadmin can set it per organization.
+  - Urdu (and Arabic) names, addresses and notes print correctly on the A4 PDF and the POS slip.
+  - What's new: a gift icon in the top bar with a dot when there's news; opening it clears the dot.
+  - Dark mode: your name in the top bar → Light / Dark / System. Remembered per browser, no flash on reload.
+    Documents (A4 PDF, POS slip, share page, emails) always stay light.
+  - GitHub repo renamed to productlogik-pos (the old link redirects); the remote is updated.
+  - Docs: README rewritten, PROJECT_SPEC title/vision/scope updated, new docs/regression-checklist.md.
+Typecheck, lint, contrast check (48 pairs, all AA) and production build pass. Browser check: light and dark on
+7 pages at desktop and phone plus the add-product dialog (see PROJECT_SPEC.md §7 Phase 16). Test data deleted.
+
+Test steps:
+  0. Restart `npm run dev` (a production build ran during testing).
+  1. Log in: the ProductLogik logo, colours and font show; the browser tab has the new icon.
+  2. Top bar → gift icon: the "Welcome to ProductLogik POS" note; the dot goes away and stays away after a reload.
+  3. Your name → Dark: every page and dialog is readable. Reload: it stays dark with no white flash.
+     Open an invoice PDF and the customer link: they stay light. Switch back to Light or System.
+  4. Settings → Profile → pick a document colour → Save; the invoice PDF and customer link use it.
+  5. Add a product named in Urdu, put it on an invoice, open the PDF and the POS slip: the Urdu reads correctly.
+  6. On an Android phone in Chrome: menu → Install app.
+  7. Go through docs/regression-checklist.md.
+  8. Commit: git add . && git commit -m "Phase 16 - productlogik rebrand, accent colour, urdu pdfs, whats new and dark mode"

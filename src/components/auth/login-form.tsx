@@ -14,7 +14,7 @@ const QUERY_ERRORS: Record<string, string> = {
   no_shop: "Your account isn't linked to a shop yet. Please contact your shop admin.",
   link_expired: "That link is invalid or has expired. Ask for a new one.",
   deactivated: "Your access to this shop has been turned off. Please ask your shop admin if you think this is a mistake.",
-  suspended: "This shop's account is paused, so signing in isn't possible right now. Please contact CarShop POS support to reactivate it.",
+  suspended: "This shop's account is paused, so signing in isn't possible right now. Please contact ProductLogik POS support to reactivate it.",
 };
 
 export function LoginForm() {

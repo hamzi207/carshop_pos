@@ -19,10 +19,10 @@ export type DeliveryResult =
 
 /**
  * Who emails come from. Until a domain is verified in Resend, only onboarding@resend.dev works, and
- * only to the Resend account's own address; set RESEND_FROM_EMAIL (e.g. "CarShop POS <no-reply@yourdomain.pk>")
+ * only to the Resend account's own address; set RESEND_FROM_EMAIL (e.g. "ProductLogik POS <no-reply@yourdomain.pk>")
  * once the domain is verified.
  */
-const FROM = process.env.RESEND_FROM_EMAIL || "CarShop POS <onboarding@resend.dev>";
+const FROM = process.env.RESEND_FROM_EMAIL || "ProductLogik POS <onboarding@resend.dev>";
 
 let client: Resend | null = null;
 function resend() {

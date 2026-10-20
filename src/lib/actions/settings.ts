@@ -166,6 +166,7 @@ export async function updateShopProfile(input: ShopProfileValues, tenantId?: str
     address: s.address || null,
     ntn: s.ntn || null,
     strn: s.strn || null,
+    accent_color: s.accentColor || null,
   };
   const { data, error } = await target.client
     .from("tenants")

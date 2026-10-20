@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { UserMenu } from "@/components/shared/user-menu";
 import { requireSuperadmin } from "@/lib/superadmin";
+import { BrandLockup } from "@/components/shared/brand";
 import { AdminNavLinks } from "./admin-nav-links";
 
 const initials = (name: string) =>
@@ -14,12 +14,12 @@ async function AdminProfile() {
   return <UserMenu initials={initials(me.fullName)} fullName={me.fullName} email={me.email} roleLabel="Superadmin" />;
 }
 
-/** /admin top bar: dark slate with the racing-red accent, platform sections, back to the user's own shop. */
+/** /admin top bar: dark slate with the emerald accent, platform sections, back to the user's own shop. */
 export function AdminNavbar() {
   return (
     <header className="admin-navbar">
       <Link href="/admin" className="admin-brand" aria-label="Superadmin overview">
-        <Image src="/brand/logo-white.png" alt="CarShop.Pk" width={120} height={33} priority />
+        <BrandLockup className="admin-lockup" />
         <span className="admin-tag">SUPERADMIN</span>
       </Link>
       {/* usePathname() is request data: it streams in after the static shell. */}

@@ -115,16 +115,16 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
           <span className="header-icon blue"><Package size={18} /></span>
           {filtered ? (
             <>
-              <strong>No parts match these filters</strong>
+              <strong>No products match these filters</strong>
               Try a different search, category, stock level or fitment type.
             </>
           ) : (
             <>
               <strong>No inventory yet</strong>
-              Add your first part: a film roll, a speaker kit, or a vehicle-specific pre-cut.
+              Add your first product, or import your whole list from Excel with Import CSV.
               <div className="empty-state-action">
                 <button type="button" className="button button-primary" onClick={() => setAdding(true)}>
-                  <Plus size={14} /> Add New Part
+                  <Plus size={14} /> Add New Product
                 </button>
               </div>
             </>
@@ -197,8 +197,8 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
 
       {result.total > 0 && (
         <>
-          {/* Phones: one card per part instead of the wide table (CSS swaps them at 768px). */}
-          <ul className="mobile-cards" aria-label="Parts">
+          {/* Phones: one card per product instead of the wide table (CSS swaps them at 768px). */}
+          <ul className="mobile-cards" aria-label="Products">
             {items.map((item) => {
               const category = index.byId.get(item.category_id);
               const available = availableOf(item);

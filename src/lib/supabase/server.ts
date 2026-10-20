@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { connection } from "next/server";
 import type { Database } from "@/lib/types/database.types";
 import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from "./env";
-import { IMPERSONATION_COOKIE, IMPERSONATION_HEADER } from "./impersonation-header";
+import { IMPERSONATION_HEADER, readImpersonationToken } from "./impersonation-header";
 
 /**
  * Supabase client for Server Components, Server Actions and Route Handlers.
@@ -21,7 +21,7 @@ import { IMPERSONATION_COOKIE, IMPERSONATION_HEADER } from "./impersonation-head
 export async function createClient() {
   await connection();
   const cookieStore = await cookies();
-  const impersonation = cookieStore.get(IMPERSONATION_COOKIE)?.value;
+  const impersonation = readImpersonationToken(cookieStore);
 
   return createServerClient<Database>(SUPABASE_URL, SUPABASE_PUBLIC_KEY, {
     global: impersonation ? { headers: { [IMPERSONATION_HEADER]: impersonation } } : undefined,

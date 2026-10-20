@@ -47,7 +47,7 @@ function usePartSearch(enabled: boolean, query: string, category: string | null)
     const timer = setTimeout(() => {
       fetch(request, { signal: ctrl.signal })
         .then(async (res) => {
-          if (!res.ok) throw new Error("Couldn't load parts.");
+          if (!res.ok) throw new Error("Couldn't load products.");
           const body = (await res.json()) as PickerItemsResponse;
           setResult({ request, items: body.items, error: null });
           setActive(0);
@@ -118,8 +118,8 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: 
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={open ? `${listId}-${active}` : undefined}
-          aria-label="Search parts to add"
-          placeholder="Search parts by name or SKU, then click to add…"
+          aria-label="Search products to add"
+          placeholder="Search products by name or SKU, then click to add…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -138,7 +138,7 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: 
       {/* Phones: the box is a button that opens the full-screen search */}
       <div className="line-search-phone">
         <button type="button" className="line-search-trigger" onClick={() => setSheetOpen(true)}>
-          <Search size={18} /> <span>Search parts to add…</span>
+          <Search size={18} /> <span>Search products to add…</span>
         </button>
         <button type="button" className="button" onClick={() => onAddCustom("")} aria-label="Add a custom item">
           <PenLine size={16} /> Custom
@@ -155,7 +155,7 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: 
       />
 
       {open && (
-        <ul id={listId} role="listbox" aria-label="Parts" className="line-search-menu">
+        <ul id={listId} role="listbox" aria-label="Products" className="line-search-menu">
           {items.map((item, i) => (
             <li
               key={item.id}
@@ -179,7 +179,7 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: 
             </li>
           ))}
           {!loading && items.length === 0 && (
-            <li className="line-search-empty" role="presentation">{error ?? (q ? "No parts match." : "No parts in inventory yet.")}</li>
+            <li className="line-search-empty" role="presentation">{error ?? (q ? "No products match." : "No products in inventory yet.")}</li>
           )}
           <li
             id={`${listId}-${items.length}`}
@@ -235,8 +235,8 @@ function PartSearchSheet({
     <MobileSheet
       open={open}
       onOpenChange={close}
-      title="Add parts"
-      description="Search your inventory and tap a part to add it."
+      title="Add products"
+      description="Search your inventory and tap a product to add it."
       initialFocus={inputRef}
       footer={
         <button type="button" className="button button-primary sheet-done" onClick={() => close(false)}>
@@ -250,7 +250,7 @@ function PartSearchSheet({
           ref={inputRef}
           type="search"
           enterKeyHint="search"
-          aria-label="Search parts"
+          aria-label="Search products"
           placeholder="Name, SKU or vehicle…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -275,7 +275,7 @@ function PartSearchSheet({
           ))}
         </div>
       )}
-      <ul className="sheet-results" aria-label="Parts" aria-busy={loading}>
+      <ul className="sheet-results" aria-label="Products" aria-busy={loading}>
         {items.map((item) => (
           <li key={item.id}>
             <button
@@ -303,7 +303,7 @@ function PartSearchSheet({
           </li>
         ))}
         {!loading && items.length === 0 && (
-          <li className="sheet-empty">{error ?? (q || category ? "No parts match." : "No parts in inventory yet.")}</li>
+          <li className="sheet-empty">{error ?? (q || category ? "No products match." : "No products in inventory yet.")}</li>
         )}
         <li>
           <button type="button" className="sheet-result sheet-custom" onClick={addCustom}>

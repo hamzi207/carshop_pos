@@ -77,7 +77,7 @@ export function InventoryFilters({ categories, counts }: Props) {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search SKU, part name, category or vehicle (e.g. Corolla 2025)..."
+            placeholder="Search SKU, product name, category or vehicle (e.g. Corolla 2025)..."
             aria-label="Search inventory"
             maxLength={100}
           />

@@ -10,7 +10,7 @@ import { ShortcutHint } from "./shortcut-hint";
 const GROUPS: { key: keyof SearchResponse; label: string; icon: LucideIcon }[] = [
   { key: "documents", label: "Documents", icon: FileText },
   { key: "customers", label: "Customers", icon: Users },
-  { key: "items", label: "Parts", icon: Package },
+  { key: "items", label: "Products", icon: Package },
 ];
 
 /** Top-bar search: opens with a click or Ctrl/⌘ K; finds documents, customers and parts. */
@@ -104,7 +104,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search invoice numbers, customers, parts or SKUs…"
+          placeholder="Search invoice numbers, customers, products or SKUs…"
           aria-label="Search"
           maxLength={100}
           role="combobox"
@@ -115,7 +115,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
         <kbd>Esc</kbd>
       </div>
       <div className="search-results" id="search-results" role="listbox">
-        {!q.trim() && <p className="search-empty">Type a document number (INV-1001), a customer&apos;s name or phone, or a part name / SKU.</p>}
+        {!q.trim() && <p className="search-empty">Type a document number (INV-1001), a customer&apos;s name or phone, or a product name / SKU.</p>}
         {shown && flat.length === 0 && !loading && <p className="search-empty">Nothing found for &ldquo;{q.trim()}&rdquo;.</p>}
         {shown &&
           GROUPS.map(({ key, label, icon: Icon }) =>

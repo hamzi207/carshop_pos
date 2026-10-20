@@ -62,6 +62,7 @@ async function TenantDetail({ params }: { params: Params }) {
               address: tenant.address ?? "",
               ntn: tenant.ntn ?? "",
               strn: formatStrn(tenant.strn),
+              accentColor: tenant.accent_color ?? "",
             }}
           />
         </UnsavedSettings>

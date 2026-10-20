@@ -12,7 +12,7 @@ export function AddItemButton({ currency, pricesIncludeTax, categories }: Props)
   return (
     <>
       <button type="button" className="button button-primary" onClick={() => setOpen(true)}>
-        <Plus size={14} /> Add New Part
+        <Plus size={14} /> Add New Product
       </button>
       <InventoryItemDialog open={open} onOpenChange={setOpen} currency={currency} pricesIncludeTax={pricesIncludeTax} categories={categories} />
     </>

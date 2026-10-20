@@ -4,11 +4,12 @@ import { createHash } from "node:crypto";
 import type { Database } from "@/lib/types/database.types";
 import { createAdminClient } from "./admin";
 import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from "./env";
-import { IMPERSONATION_COOKIE } from "./impersonation-header";
+import { IMPERSONATION_COOKIE, OLD_IMPERSONATION_COOKIE, readImpersonationToken } from "./impersonation-header";
 
 const AUTH_PAGES = ["/login", "/register"];
 // /share/<token>: the customer's view-only link to a quotation or invoice.
-const PUBLIC_PATHS = ["/", "/auth", "/share/"];
+// /manifest.webmanifest: read by the browser before sign-in (Install app).
+const PUBLIC_PATHS = ["/", "/auth", "/share/", "/manifest.webmanifest"];
 
 function isPublic(pathname: string) {
   return PUBLIC_PATHS.some((p) => (p === "/" ? pathname === "/" : pathname.startsWith(p)));
@@ -67,7 +68,7 @@ export async function updateSession(request: NextRequest) {
     if (!me?.is_superadmin) return redirectTo("/dashboard");
   }
 
-  const token = request.cookies.get(IMPERSONATION_COOKIE)?.value;
+  const token = readImpersonationToken(request.cookies);
   if (token) {
     const admin = createAdminClient();
     const { data: session } = await admin
@@ -80,6 +81,7 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
     if (!session) {
       response.cookies.delete(IMPERSONATION_COOKIE);
+      response.cookies.delete(OLD_IMPERSONATION_COOKIE);
     } else if (request.method !== "GET" && request.method !== "HEAD" && !pathname.startsWith("/admin")) {
       const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
       const { error } = await admin.from("superadmin_audit_logs").insert({

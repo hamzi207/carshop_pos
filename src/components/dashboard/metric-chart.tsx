@@ -102,7 +102,7 @@ export function MetricChart({ widget, display, metrics: m, money }: Props) {
         centre={fmt(sales)}
         slices={[
           { label: "Profit", value: profit },
-          { label: "Cost of parts", value: cost },
+          { label: "Cost of goods", value: cost },
           { label: "Tax", value: tax },
         ]}
       />
@@ -113,7 +113,7 @@ export function MetricChart({ widget, display, metrics: m, money }: Props) {
         centre={fmt(profit)}
         slices={[
           { label: "Profit", value: profit },
-          { label: "Cost of parts", value: cost },
+          { label: "Cost of goods", value: cost },
         ]}
       />
     );

@@ -168,7 +168,7 @@ export function YmmCompatibilitySelector({ value, onChange, error }: Props) {
       <div className="vehicle-chips" aria-live="polite" aria-invalid={error ? true : undefined}>
         {value.length === 0 ? (
           <span className="vehicle-chips-empty">
-            <Car size={14} /> Pick a year, make and model to link this part.
+            <Car size={14} /> Pick a year, make and model to link this product.
           </span>
         ) : (
           value.map((v) => {

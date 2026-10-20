@@ -12,7 +12,12 @@ import { hashToken, newToken } from "@/lib/impersonation";
 import { parsePhone } from "@/lib/phone";
 import { audit, requestIp, requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { IMPERSONATION_COOKIE, IMPERSONATION_TTL_SECONDS } from "@/lib/supabase/impersonation-header";
+import {
+  IMPERSONATION_COOKIE,
+  IMPERSONATION_TTL_SECONDS,
+  OLD_IMPERSONATION_COOKIE,
+  readImpersonationToken,
+} from "@/lib/supabase/impersonation-header";
 import {
   createOrganizationSchema,
   TENANT_STATUSES,
@@ -58,7 +63,9 @@ export async function startImpersonation(tenantId: string): Promise<AdminActionR
   }
   await audit({ adminId: me.userId, action: "impersonation.start", tenantId: tenant.id, details: { sessionId: session.id, shop: tenant.name } });
 
-  (await cookies()).set(IMPERSONATION_COOKIE, token, {
+  const store = await cookies();
+  store.delete(OLD_IMPERSONATION_COOKIE);
+  store.set(IMPERSONATION_COOKIE, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -71,8 +78,9 @@ export async function startImpersonation(tenantId: string): Promise<AdminActionR
 /** Leaves the shop (the banner's Exit) and returns to the shops list. */
 export async function endImpersonation() {
   const store = await cookies();
-  const token = store.get(IMPERSONATION_COOKIE)?.value;
+  const token = readImpersonationToken(store);
   store.delete(IMPERSONATION_COOKIE);
+  store.delete(OLD_IMPERSONATION_COOKIE);
   if (token) {
     const admin = createAdminClient();
     const { data: session } = await admin

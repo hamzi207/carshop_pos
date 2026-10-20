@@ -32,6 +32,7 @@ async function ProfileContent() {
             address: tenant.address ?? "",
             ntn: tenant.ntn ?? "",
             strn: formatStrn(tenant.strn),
+            accentColor: tenant.accentColor ?? "",
           }}
         />
       </UnsavedSettings>

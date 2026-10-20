@@ -124,8 +124,8 @@ git config --global core.autocrlf input
 mkdir -p ~/Projects
 cd ~/Projects
 
-git clone <YOUR_GITHUB_REPO_URL> carshop_pos
-cd carshop_pos
+git clone https://github.com/hamzi207/productlogik-pos.git
+cd productlogik-pos
 ```
 
 ### 4.2 Place Your `.env.local`

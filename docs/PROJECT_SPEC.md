@@ -1,17 +1,22 @@
 # PROJECT_SPEC.md: Master Architecture & Implementation Specification
-## B2B SaaS POS & Quoting Engine for Automotive Accessory Sellers & Retailers (Wrap, Tint, Audio, Aftermarket Parts)
+## ProductLogik POS: Multi-Industry B2B SaaS for Inventory, Invoicing & Billing
+*(Version 1, Phases 1–15, was CarShop.Pk POS for automotive accessory sellers; tag `v1.0.0`.)*
 
 > **Document Status**: Production Blueprint / Master Instruction Manual  
 > **Target Audience**: AI Coding Agents (Claude Code, Antigravity) & Lead Engineers  
 > **Application Type**: Multi-Tenant B2B SaaS (Cloud POS & Quoting Engine)  
 > **Release Target**: Phase 1 MVP (Inventory, Quoting, Customer Directory, YMM Engine)
-> **Current Standing (2026-10-17)**: Phases 1–9 are built and committed (latest: `5eee764` "Phase 9"); Phase 10 is built, awaiting commit; Phases 11–15 (§8) are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
+> **Current Standing (2026-10-20)**: Version 1 (Phases 1–15) is built, committed and tagged `v1.0.0`. Version 2 (ProductLogik POS, Phases 16–33) follows `docs/upgrade-plan.md`; Phase 16 (rebrand, accent colour, Urdu/Arabic PDFs, What's new, dark mode) is built and awaiting commit (§7); Phases 17–33 are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
 
 ---
 
 ## 1. PROJECT OVERVIEW & ARCHITECTURE
 
 ### 1.1 Product Vision
+**Version 2 (ProductLogik POS)**: the product is a general-purpose inventory, invoicing, statements-of-account and billing system for retail and wholesale businesses across many industries (grocery, apparel, electronics, hardware, pharmacy, automotive and more; see `docs/upgrade-plan.md` §11). Each organization picks an industry and gets that industry's category tree, with every feature available to every industry. Automotive Year/Make/Model fitment stays available as an optional product attribute. The goal is accurate stock and fast, professional documents (A4 PDF and 80mm slip), not supermarket-style checkout; register, shift and loyalty features are unscheduled (upgrade plan Appendix A). Nothing from Version 1 is removed.
+
+The original Version 1 vision follows.
+
 Car accessory sellers and retailers (distributing window tint rolls, vehicle vinyl wraps, paint protection film [PPF], 12V audio electronics, lighting, and aftermarket styling accessories) operate in a fast-paced environment where parts, accessories, and film rolls are strictly vehicle-specific.
 
 While these businesses are primarily **sellers and retailers** (supplying walk-in retail customers, wholesale dealership accounts, and commercial fleet clients), some shops also offer optional on-site fitting or installation services from time to time. A standard general-purpose POS fails because it lacks **Year/Make/Model (YMM)** compatibility checks, product fitment filtering, and the flexibility to seamlessly quote physical products with or without optional service/labor charges.
@@ -107,10 +112,12 @@ AI agents implementing this project must adhere strictly to the boundaries defin
 | Category | IN SCOPE (Build This) | OUT OF SCOPE (DO NOT BUILD) |
 | :--- | :--- | :--- |
 | **Payments** | Manual payment logging (Cash, Bank Transfer, Card Terminal, Check), quick cash buttons, 80mm thermal POS receipt printing. | **NO** Stripe, PayPal, Square, or online payment gateways. |
-| **Inventory** | On-hand quantity, low-stock threshold alert, Cost price, Retail price, SKU, YMM fitment vs Universal Fit, CSV bulk import/export. | **NO** multi-warehouse bin/aisle tracking, RFID hardware, or serial number tracking. |
-| **Vehicle Data** | NHTSA vPIC Year, Make, Model selection (model years 1960–2026). | **NO** complex 17-digit VIN decoding, engine code lookups, or OBD-II diagnostics. |
+| **Industries** | Any retail/wholesale trade: superadmin-managed industries and category trees, org-specific categories, every feature for every industry. | **NO** industry-locked feature tiers. |
+| **Inventory** | On-hand quantity, low-stock threshold alert, Cost price, Retail price, SKU, optional YMM fitment vs Universal Fit, CSV bulk import/export; V2 adds variants, units of measure, barcodes, multiple stores per org, purchase orders and returns (see `docs/upgrade-plan.md`). | **NO** bin/aisle tracking, RFID hardware, or serial number tracking. |
+| **Vehicle Data** | Optional: NHTSA vPIC Year, Make, Model selection (model years 1960–2026) for organizations that use fitment. | **NO** complex 17-digit VIN decoding, engine code lookups, or OBD-II diagnostics. |
+| **Branding & Display** | ProductLogik brand, per-organization accent colour on documents, light and dark mode for the app (documents stay light), Urdu/Arabic text in PDFs, PWA install. | **NO** per-organization custom app themes beyond the accent colour. |
 | **Messaging & Email** | WhatsApp click-to-chat links with pre-composed text/PDF links + Resend transactional email engine. | **NO** Twilio WhatsApp Business API or automated SMS webhooks. |
-| **Quoting & POS** | Line items for physical inventory parts + optional labor/service fees, discounts, tax rate, PDF generation, status pipeline, 80mm thermal receipts. | **NO** complex multi-tiered commission splits or recurring billing subscriptions. |
+| **Quoting & POS** | Line items for physical inventory products + optional labor/service fees, discounts, tax rate, PDF generation, status pipeline, 80mm thermal receipts. | **NO** complex multi-tiered commission splits or recurring billing subscriptions. |
 | **Platform Administration** | Superadmin Control Plane (`/admin`) for SaaS owners to manage tenants, users, company details, password resets, and support impersonation. | **NO** public access; strictly guarded by `is_superadmin` flag. |
 | **Device Compatibility** | Adaptive responsive design across Mobile, Tablet, Laptop, Desktop, and Ultrawide/4K displays with touch ergonomics. | **NO** native iOS/Android binary apps (PWA / responsive web app). |
 
@@ -894,7 +901,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–15): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–16): WHAT WAS BUILT
 
 > **CURRENT STATUS (2026-10-19)**: All phases (1–15) are built and committed: this is **Version 1** (git tag `v1.0.0`). This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
@@ -1125,11 +1132,28 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
+### PHASE 16 (Version 2): ProductLogik Rebrand, Accent Colour, Urdu PDFs, What's New & Dark Mode [COMPLETED]
+**Commit**: pending (`Phase 16 - productlogik rebrand, accent colour, urdu pdfs, whats new and dark mode`). Plan: `docs/upgrade-plan.md` Phase 16, RF-16.1–16.4.
+
+**What was built**:
+1. **Migration** `supabase/migrations/20261019202258_phase16_brand_accent_whats_new.sql`: `tenants.accent_color` (`#rrggbb` check, column grant to `authenticated`), `profiles.whats_new_seen` (≤ 40 chars, column grant), and `private.impersonated_tenant_id()` reads `x-productlogik-impersonation` first, then the old `x-carshop-impersonation` (until Phase 33). `database.types.ts` patched by hand.
+2. **Brand**: ProductLogik mark copied unchanged from the brand source (`public/brand/mark.svg|png`, `mark-mono.svg`, `src/app/icon.svg`, favicon, apple icon, `public/icons/*` incl. a maskable PWA icon); `src/app/manifest.ts` (name, short name "ProductLogik", emerald theme colour; `/manifest.webmanifest` public in the proxy). `carshop_logo/` and the Next.js starter SVGs deleted. Plus Jakarta Sans with a Noto Sans Arabic fallback. `package.json` `productlogik-pos@2.0.0-alpha.0`; layout metadata `%s · ProductLogik POS`.
+3. **Tokens** (`globals.css`): emerald/slate palette, `--accent-brand*` replace `--blue*`, semantic tokens (`--on-color`, `--success-bg`, `--danger-bg`, `--danger-text`, `--warning-text`, `--ring-soft`, `--glass-rgb`…). `scripts/check-contrast.mjs` (`npm run check:contrast`): 48 light/dark/document pairs, all WCAG AA.
+4. **Copy**: CarShop → ProductLogik and parts → products across the app, PDFs, slip, share page, emails and admin. Version 1 keys are still read (sidebar `carshop.sidebar`, `carshop.seenAlerts`, the leave-guard mark, the `carshop_impersonation` cookie) so nothing resets after the deploy.
+5. **RF-16.1 accent colour** (`src/lib/accent.ts`): 8 presets + picker in Settings → Profile (superadmin parity in `/admin/tenants/[id]`), rejected below 4.5:1 on white; used on the A4 PDF, the share page and emails (default emerald 700 `#047857`); the POS slip stays black.
+6. **RF-16.2 Urdu/Arabic in PDFs**: Noto Sans Arabic TTFs + OFL in `src/assets/fonts`, registered in `src/components/pdf/fonts.ts`, shipped with `outputFileTracingIncludes`; shaping and right-to-left order verified on the A4 PDF and slip.
+7. **RF-16.3 What's new**: `src/lib/changelog.ts` (entries, newest first), `src/lib/actions/whats-new.ts` (stores the seen id), `shared/whats-new.tsx` (gift icon in the top bar with a dot until seen).
+8. **RF-16.4 dark mode**: `next-themes` via `shared/theme-provider.tsx` (class on `<html>` before paint, no flash), Light / Dark / System in the user menu, sonner follows the theme; `.dark` token block (inverted slate ramp, `color-scheme: dark`); always-light scopes re-declare the light tokens (sidebar chrome, auth aside, admin navbar, impersonation banner, share page, POS slip on screen and in print). The A4 PDF and emails are unaffected.
+9. **Docs**: README rewritten, this spec's title/vision/§2.1 updated, Mac setup clone URL, `docs/regression-checklist.md` created. GitHub repo renamed to `hamzi207/productlogik-pos` and `origin` updated (the old URL redirects; the local folder is still `carshop_pos`).
+10. **Verified**: `npx tsc`, `npm run lint`, `npm run check:contrast` and `npm run build` pass. Browser check on the dev server: the served CSS has the dark block; light and dark on dashboard, inventory, customers, invoices, new invoice, reports and settings at desktop 1440 and phone 393, plus the add-product dialog; the `dark` class is on `<html>` per the stored theme, no console errors. Supabase advisors: no new findings (the remaining ones date from Version 1). Test data removed.
+
+---
+
 ---
 
 ## 8. ROADMAP: STILL TO BUILD
 
-> Nothing: Phases 12–15 moved to §7 on 2026-10-19 and every phase of this blueprint is built. New work starts as a new phase here, listing only what doesn't exist yet and naming the §7 phase it extends.
+> Version 1 blueprint: nothing left (Phases 12–15 moved to §7 on 2026-10-19). Version 2: Phases 17–33 are planned in `docs/upgrade-plan.md` and are built one at a time; each moves to §7 when done. New work starts as a new phase here, listing only what doesn't exist yet and naming the §7 phase it extends.
 
 ---
 

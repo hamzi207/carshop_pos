@@ -81,7 +81,7 @@ export default function InventoryPage({ searchParams }: { searchParams: SearchPa
           <Suspense
             fallback={
               <button type="button" className="button button-primary" disabled>
-                <Plus size={14} /> Add New Part
+                <Plus size={14} /> Add New Product
               </button>
             }
           >

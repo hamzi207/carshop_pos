@@ -6,12 +6,14 @@ import { Popover } from "radix-ui";
 import { AlarmClock, Bell, CalendarClock, CheckCircle2, PackageX } from "lucide-react";
 import type { AlertsResponse, ShopAlert } from "@/app/api/notifications/route";
 
-const SEEN_KEY = "carshop.seenAlerts";
+const SEEN_KEY = "productlogik.seenAlerts";
+/** Version 1 name, still read until Phase 33. */
+const OLD_SEEN_KEY = "carshop.seenAlerts";
 const REFRESH_MS = 2 * 60 * 1000;
 
 function readSeen(): string[] {
   try {
-    const raw = localStorage.getItem(SEEN_KEY);
+    const raw = localStorage.getItem(SEEN_KEY) ?? localStorage.getItem(OLD_SEEN_KEY);
     return raw ? (JSON.parse(raw) as string[]) : [];
   } catch {
     return [];

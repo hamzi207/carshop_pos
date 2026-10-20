@@ -385,9 +385,9 @@ function BuilderForm({
     const taken = !doc && numberPreview && result.section === section && result.number !== numberPreview;
     const stockNote =
       result.section === "invoices"
-        ? verb === "created" ? "Parts deducted from stock." : "Stock updated to match."
+        ? verb === "created" ? "Products deducted from stock." : "Stock updated to match."
         : result.section === "quotations"
-          ? verb === "created" ? "Parts reserved until it is cancelled, deleted or invoiced." : "Reserved stock updated to match."
+          ? verb === "created" ? "Products reserved until it is cancelled, deleted or invoiced." : "Reserved stock updated to match."
           : "Saved as a draft; nothing reserved or deducted.";
     finish(
       result,
@@ -444,7 +444,7 @@ function BuilderForm({
         body: (
           <p>
             It gets {doc?.quotation_number ? `its number ${doc.quotation_number} back` : <>the next <strong>Q-</strong> number</>} and moves to
-            Quotations. <strong>The parts on it are reserved</strong> until the quotation is cancelled, deleted or invoiced.
+            Quotations. <strong>The products on it are reserved</strong> until the quotation is cancelled, deleted or invoiced.
             {unsavedNote}
           </p>
         ),
@@ -461,7 +461,7 @@ function BuilderForm({
         body: (
           <p>
             It gets the next <strong>INV-</strong> number and moves to Invoices
-            {doc ? `, keeping ${number} as its earlier number` : ""}. <strong>The parts are deducted from your stock</strong>
+            {doc ? `, keeping ${number} as its earlier number` : ""}. <strong>The products are deducted from your stock</strong>
             {status === "sent" || status === "accepted" ? " (their reservation is released)" : ""}. Custom items don&apos;t
             affect stock.{unsavedNote}
           </p>
@@ -471,10 +471,10 @@ function BuilderForm({
     );
 
   const STATUS_NOTE = {
-    accepted: "The customer accepted; its parts stay reserved.",
+    accepted: "The customer accepted; its products stay reserved.",
     cancelled: "Its reserved stock was released.",
-    sent: "Re-opened; its parts are reserved again.",
-    void: "Cancelled; its parts went back into stock.",
+    sent: "Re-opened; its products are reserved again.",
+    void: "Cancelled; its products went back into stock.",
   } as const;
   const changeStatus = (next: keyof typeof STATUS_NOTE, message: string) => async () => {
     if (!doc) return;
@@ -490,7 +490,7 @@ function BuilderForm({
         tone: "danger",
         confirmLabel: isInvoice ? "Cancel Invoice" : "Cancel Quotation",
         body: isInvoice ? (
-          <p>The invoice stays on record as cancelled and <strong>its parts go back into stock</strong>. A cancelled invoice can&apos;t be re-opened, only deleted.</p>
+          <p>The invoice stays on record as cancelled and <strong>its products go back into stock</strong>. A cancelled invoice can&apos;t be re-opened, only deleted.</p>
         ) : (
           <p>Its reserved stock is released. The quotation stays on record as cancelled and can be re-opened later.</p>
         ),
@@ -531,14 +531,14 @@ function BuilderForm({
           <p>
             This {SECTION[current].singular.toLowerCase()} and its lines will be removed
             {status === "sent" || status === "accepted" ? ", and its reserved stock released" : ""}
-            {status === "invoiced" ? ", and its parts put back into stock" : ""}. This can&apos;t be undone.
+            {status === "invoiced" ? ", and its products put back into stock" : ""}. This can&apos;t be undone.
           </p>
         ),
       },
       async () => {
         if (!doc) return;
         const freed =
-          status === "invoiced" ? "Its parts went back into stock." : status === "sent" || status === "accepted" ? "Its reserved stock was released." : "It's gone for good.";
+          status === "invoiced" ? "Its products went back into stock." : status === "sent" || status === "accepted" ? "Its reserved stock was released." : "It's gone for good.";
         if (finish(await deleteDocument(doc.id), `${number} deleted`, freed, "Not deleted")) leaveWith(() => router.replace(SECTION[current].path));
       },
     );
@@ -730,12 +730,12 @@ function BuilderForm({
       )}
       {(status === "cancelled" || status === "void") && (
         <div className="form-alert form-alert-info quote-alert" role="status">
-          {status === "void" ? "This invoice is cancelled; its parts went back into stock." : "This quotation is cancelled. Re-open it to make changes."}
+          {status === "void" ? "This invoice is cancelled; its products went back into stock." : "This quotation is cancelled. Re-open it to make changes."}
         </div>
       )}
       {(status === "sent" || status === "accepted") && (
         <div className="form-alert form-alert-info quote-alert" role="status">
-          The parts on this quotation are reserved until it is cancelled, deleted, moved back to drafts or invoiced.
+          The products on this quotation are reserved until it is cancelled, deleted, moved back to drafts or invoiced.
         </div>
       )}
 

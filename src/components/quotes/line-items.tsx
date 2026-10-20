@@ -93,7 +93,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
           <h2>Line items</h2>
           <p>
             {lines.length === 0
-              ? "Search for a part to add it, or add a custom item that isn't in your inventory."
+              ? "Search for a product to add it, or add a custom item that isn't in your inventory."
               : `${lines.length} ${lines.length === 1 ? "line" : "lines"}`}
           </p>
         </div>
@@ -328,7 +328,7 @@ function MobileLineCard({
   const details = (
     <>
       <span className="mobile-card-top">
-        <strong className="mobile-card-title">{line.description || (custom ? "Custom item (tap to describe)" : "Part")}</strong>
+        <strong className="mobile-card-title">{line.description || (custom ? "Custom item (tap to describe)" : "Product")}</strong>
         <strong className="amount">{formatMoney(amounts.net, money)}</strong>
       </span>
       <span className="mobile-line-meta">

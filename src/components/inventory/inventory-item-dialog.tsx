@@ -33,12 +33,12 @@ type Props = {
   item?: InventoryListItem;
 };
 
-/** Add / edit inventory part modal (Figma "Add inventory part"). */
+/** Add / edit inventory product modal (Figma "Add inventory product"). */
 export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, categories, item }: Props) {
   // Closing with unsaved edits asks first (Cancel, X, Escape, clicking outside).
   const guard = useDiscardGuard({
     onOpenChange,
-    discardedNote: item ? `${item.name} was left as it was saved.` : "The new part was not added to inventory.",
+    discardedNote: item ? `${item.name} was left as it was saved.` : "The new product was not added to inventory.",
   });
   return (
     <>
@@ -144,7 +144,7 @@ function ItemForm({
     if (result.status === "error") {
       if (result.field) setError(result.field, { message: result.message });
       else setServerError(result.message);
-      notify.error(isEdit ? "Part not saved" : "Part not added", result.message);
+      notify.error(isEdit ? "Product not saved" : "Product not added", result.message);
       return;
     }
     notify.success(
@@ -171,7 +171,7 @@ function ItemForm({
           <span className="header-icon blue"><Package size={18} /></span>
           <div>
             <Dialog.Title asChild>
-              <h2>{isEdit ? "Edit inventory part" : "Add inventory part"}</h2>
+              <h2>{isEdit ? "Edit inventory product" : "Add inventory product"}</h2>
             </Dialog.Title>
             <Dialog.Description asChild>
               <p>
@@ -195,7 +195,7 @@ function ItemForm({
         )}
         <div className="form-grid">
           <label>
-            <span>SKU / PART CODE</span>
+            <span>SKU / PRODUCT CODE</span>
             <div className="input-with-action">
               <input placeholder="e.g. WF-CER20-40" autoComplete="off" {...invalid("sku")} {...register("sku")} />
               <button
@@ -349,7 +349,7 @@ function ItemForm({
           ) : (
             <Plus size={14} />
           )}
-          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Inventory Part"}
+          {isSubmitting ? "Saving…" : isEdit ? "Save Changes" : "Add Inventory Product"}
         </button>
       </div>
     </form>
