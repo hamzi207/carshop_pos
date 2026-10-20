@@ -1167,7 +1167,7 @@ No payment gateways, native shells or paid print services. `qrcode`, `@react-pdf
 
 1. **Phase numbering**: continue at 16 (recommended), or restart V2 at "Phase 1"? *(Phase 16)*
 2. **Product name**: keep "ProductLogik POS" as the brief says, or something closer to the new positioning (e.g. "ProductLogik Inventory & Billing")? *(Phase 16)*
-3. **Local folder rename** to `productlogik-pos`: do you do it by hand after Phase 16, or leave it? *(Phase 16)*
+3. ~~**Local folder rename** to `productlogik-pos`: do you do it by hand after Phase 16, or leave it?~~ **Decided 2026-10-20: renamed by hand to `productlogik-pos`**; `FOUNDER_SETUP_GUIDE.md` and `MAC_SETUP_CHECKLIST.md` paths updated to match. *(Phase 16)*
 4. **Industry list**: are the 14 launch industries in §11.1 right (anything to add, merge or move to "later")? The category trees for the 13 new launch industries are drafted by Claude in `docs/category-templates/` for your review (Phase 18 item 8). **Drafted 2026-10-20** in `docs/category-templates/`, waiting for your review before Phase 18. *(Phase 18)*
 5. **Industry at sign-up**: may a self-registering organization pick its industry, or should the superadmin assign it (the organization waits as "trial" until then)? *(Phase 18)*
 6. **Modules**: superadmin-only (planned), or may organization admins switch optional modules like Vehicle Fitment themselves? *(Phase 18)*

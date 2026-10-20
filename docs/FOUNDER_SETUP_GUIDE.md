@@ -21,7 +21,7 @@
 
 ### You Are the Technical Product Manager
 You do not need to memorize every line of TypeScript or SQL. Your job is to:
-1. Provide the specification document ([`PROJECT_SPEC.md`](file:///d:/SpicedProjects/Projects/carshop_pos/docs/PROJECT_SPEC.md)) as the single source of truth.
+1. Provide the specification document ([`PROJECT_SPEC.md`](file:///d:/SpicedProjects/Projects/productlogik-pos/docs/PROJECT_SPEC.md)) as the single source of truth.
 2. Instruct your AI agents (**Claude Code** in your terminal and **Antigravity** in your IDE) to build one specific phase at a time.
 3. Test each feature in your web browser like an actual auto accessory store owner.
 4. Save your progress with `git commit` before approving the next phase.
@@ -40,7 +40,7 @@ Before touching any code, verify that your computer has the necessary software i
 1. Press `Windows Key + S`, type **PowerShell**, and press **Enter**.
 2. Navigate to your project directory:
    ```powershell
-   cd d:\SpicedProjects\Projects\carshop_pos
+   cd d:\SpicedProjects\Projects\productlogik-pos
    ```
 
 ### 2.2 Check Node.js
@@ -82,7 +82,7 @@ claude --version
 
 > 🟢 **STATUS UPDATE**: **ALREADY COMPLETED!**  
 > You ran the Figma prompt and generated the UI project. It is saved in your workspace folder:  
-> 📁 **`d:\SpicedProjects\Projects\carshop_pos\design\figma-ui\`**  
+> 📁 **`d:\SpicedProjects\Projects\productlogik-pos\design\figma-ui\`**  
 > 
 > - **Main Component**: `design/figma-ui/src/App.tsx` (Contains the full interactive screens for Dashboard, Quoting Wizard, Inventory Table, and Customer CRM).
 > - **Styling & Design Tokens**: `design/figma-ui/src/index.css` (Contains the exact color tokens, dark slate sidebar, buttons, status pills, and responsive layout classes).
@@ -176,7 +176,7 @@ By default, Supabase requires users to click an email verification link before l
 
 The `.env.local` file has **already been created for you** directly in your project root!
 
-1. Open [`.env.local`](file:///d:/SpicedProjects/Projects/carshop_pos/.env.local) right here in your IDE.
+1. Open [`.env.local`](file:///d:/SpicedProjects/Projects/productlogik-pos/.env.local) right here in your IDE.
 2. It looks like this:
    ```env
    # -----------------------------------------------------------------------------
@@ -202,7 +202,7 @@ The `.env.local` file has **already been created for you** directly in your proj
 You are now ready to unleash Claude Code to build your SaaS application!
 
 ### 6.1 Launch Claude Code in Your Project Root
-1. In PowerShell, make sure you are in `d:\SpicedProjects\Projects\carshop_pos`.
+1. In PowerShell, make sure you are in `d:\SpicedProjects\Projects\productlogik-pos`.
 2. Start Claude Code by typing:
    ```powershell
    claude
@@ -435,7 +435,7 @@ Whenever Claude Code finishes a phase, it will pause. Follow the exact testing s
 ---
 
 ## 🏁 Your Immediate Next Move
-1. Open [`.env.local`](file:///d:/SpicedProjects/Projects/carshop_pos/.env.local) right here in your IDE, paste your 2 API keys from Supabase, and press `Ctrl + S`.
+1. Open [`.env.local`](file:///d:/SpicedProjects/Projects/productlogik-pos/.env.local) right here in your IDE, paste your 2 API keys from Supabase, and press `Ctrl + S`.
 2. In your PowerShell terminal, run:
    ```powershell
    claude mcp add --scope project --transport http supabase "https://mcp.supabase.com/mcp?project_ref=atjbxwhvtattwiivrqbe&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching"

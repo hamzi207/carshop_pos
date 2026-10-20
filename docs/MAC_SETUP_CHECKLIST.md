@@ -23,7 +23,7 @@
 | :--- | :--- | :--- | :--- |
 | **Local Secrets (`.env.local`)** | Exists locally | **Missing on clone** (gitignored) | Copy your `.env.local` from Windows to Mac securely. |
 | **Node.js Version** | Often whatever installer ran | Requires **Node.js >= 22.6.0** (LTS 22 recommended) | `npm run seed:vehicles` uses `--experimental-strip-types` and `--env-file`, requiring Node 22+. Older Node 18 or 20 will fail. |
-| **Line Endings (CRLF vs LF)** | Windows defaults to CRLF (`\r\n`) | macOS uses LF (`\n`) | Enforced via [.gitattributes](file:///d:/SpicedProjects/Projects/carshop_pos/.gitattributes) and `git config --global core.autocrlf input`. |
+| **Line Endings (CRLF vs LF)** | Windows defaults to CRLF (`\r\n`) | macOS uses LF (`\n`) | Enforced via [.gitattributes](file:///d:/SpicedProjects/Projects/productlogik-pos/.gitattributes) and `git config --global core.autocrlf input`. |
 | **Architecture** | x64 | Apple Silicon (`arm64` - M1/M2/M3/M4) | Run native arm64 Node.js, not x86 under Rosetta, for best Turbopack & build speeds. |
 | **Dependencies** | Pre-compiled Windows binaries | Darwin native binaries | Always run `npm ci` (clean install from `package-lock.json`). |
 | **Uncommitted Work** | Active working directory | Only sees what has been pushed to GitHub | Commit & push from Windows before cloning/pulling on Mac. |
@@ -37,7 +37,7 @@ Before leaving your Windows machine, ensure your remote GitHub repository has ev
 ### 2.1 Check for Uncommitted Changes
 Open PowerShell on Windows and run:
 ```powershell
-cd d:\SpicedProjects\Projects\carshop_pos
+cd d:\SpicedProjects\Projects\productlogik-pos
 git status
 ```
 
@@ -78,7 +78,7 @@ xcode-select --install
 *(If already installed, this will say it is already up to date).*
 
 ### 3.2 Install & Verify Node.js 22 LTS
-This project includes a [.nvmrc](file:///d:/SpicedProjects/Projects/carshop_pos/.nvmrc) requiring **Node.js 22**.
+This project includes a [.nvmrc](file:///d:/SpicedProjects/Projects/productlogik-pos/.nvmrc) requiring **Node.js 22**.
 
 Check your current version:
 ```bash
@@ -236,7 +236,7 @@ npm run dev
 
 ### Gotcha 3: Git shows hundreds of modified files with `^M` or line ending differences
 - **Cause:** Windows CRLF line endings were checked out or committed without normalization.
-- **Fix:** We added [.gitattributes](file:///d:/SpicedProjects/Projects/carshop_pos/.gitattributes). Normalize existing files on your Mac by running:
+- **Fix:** We added [.gitattributes](file:///d:/SpicedProjects/Projects/productlogik-pos/.gitattributes). Normalize existing files on your Mac by running:
   ```bash
   git add --renormalize .
   git status
@@ -249,7 +249,7 @@ If you use Claude Code or Antigravity on your MacBook:
    ```bash
    claude /mcp
    ```
-   Select `supabase` and authorize your browser session as documented in [docs/supabase-mcp-setup.md](file:///d:/SpicedProjects/Projects/carshop_pos/docs/supabase-mcp-setup.md).
+   Select `supabase` and authorize your browser session as documented in [docs/supabase-mcp-setup.md](file:///d:/SpicedProjects/Projects/productlogik-pos/docs/supabase-mcp-setup.md).
 
 ### Gotcha 5: File Path & Casing Sensitivity
 - Both Windows NTFS and macOS APFS are case-preserving and case-insensitive by default.
