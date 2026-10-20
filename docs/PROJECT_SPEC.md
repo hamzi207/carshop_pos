@@ -6,7 +6,7 @@
 > **Target Audience**: AI Coding Agents (Claude Code, Antigravity) & Lead Engineers  
 > **Application Type**: Multi-Tenant B2B SaaS (Cloud POS & Quoting Engine)  
 > **Release Target**: Phase 1 MVP (Inventory, Quoting, Customer Directory, YMM Engine)
-> **Current Standing (2026-10-20)**: Version 1 (Phases 1–15) is built, committed and tagged `v1.0.0`. Version 2 (ProductLogik POS, Phases 16–33) follows `docs/upgrade-plan.md`; Phase 16 (rebrand, accent colour, Urdu/Arabic PDFs, What's new, dark mode) is built and awaiting commit (§7); Phases 17–33 are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
+> **Current Standing (2026-10-20)**: Version 1 (Phases 1–15) is built, committed and tagged `v1.0.0`. Version 2 (ProductLogik POS, Phases 16–33) follows `docs/upgrade-plan.md`; Phase 16 (rebrand, accent colour, Urdu/Arabic PDFs, What's new, dark mode) is built and committed (`e06086c`, §7); Phases 17–33 are next, one at a time. Sections 1–6 are the original blueprint. §7 records exactly what each completed phase built (the app as it is today) and §8 lists only what is still to build; where §1–6 differ (e.g. the schema in §3, `process_quote_payment`, the vehicle picker on quotes), §7 and `supabase/migrations/` are authoritative.
 
 ---
 
@@ -1133,7 +1133,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 ---
 
 ### PHASE 16 (Version 2): ProductLogik Rebrand, Accent Colour, Urdu PDFs, What's New & Dark Mode [COMPLETED]
-**Commit**: pending (`Phase 16 - productlogik rebrand, accent colour, urdu pdfs, whats new and dark mode`). Plan: `docs/upgrade-plan.md` Phase 16, RF-16.1–16.4.
+**Commit**: `e06086c` (`Phase 16 - productlogik rebrand, accent colour, urdu pdfs, whats new and dark mode`). Plan: `docs/upgrade-plan.md` Phase 16, RF-16.1–16.4.
 
 **What was built**:
 1. **Migration** `supabase/migrations/20261019202258_phase16_brand_accent_whats_new.sql`: `tenants.accent_color` (`#rrggbb` check, column grant to `authenticated`), `profiles.whats_new_seen` (≤ 40 chars, column grant), and `private.impersonated_tenant_id()` reads `x-productlogik-impersonation` first, then the old `x-carshop-impersonation` (until Phase 33). `database.types.ts` patched by hand.
