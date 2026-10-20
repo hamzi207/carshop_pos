@@ -303,7 +303,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 7. **Audit log viewer** (`/admin/audit`): every superadmin action and impersonated request (V1 tables), filtered by organization, user, action and date, with before/after details and a CSV export. Each organization's **Activity** tab shows its slice.
 8. **Cross-organization overview** (extends the V1 Overview): organizations by industry/status, users, stores, documents, pending category requests, organizations near their limits.
 9. **Subscription plans & manual payments** (added in Rev 6; replaces RF-17.3). Organizations pay ProductLogik by **mobile wallet or bank transfer only**. There's no gateway, card or automatic charging. The superadmin decides each organization's plan.
-   - **Plans** (`/admin/plans`, superadmin only):
+   - **Plans** (`/admin/plans`, superadmin only). **Plans are data, not code**: the superadmin creates as many plans as needed from the console, at any time, with no developer or deploy involved (the product owner's requirement, 2026-10-20, because client needs in Pakistan vary a lot).
      - Create, edit, duplicate and retire plans. Each plan has a name (e.g. Starter, Business, Enterprise), an internal code, a short description and a display order.
      - **Prices per billing cycle** in PKR: monthly, quarterly, half-yearly and yearly. The superadmin fills in only the cycles the plan offers (e.g. yearly at the price of 10 months).
      - **Limits**: max stores, max users (active members; deactivated ones don't count), max products (active inventory items), and the allowed modules (e.g. Vehicle Fitment, Phase 18). Any limit can be left empty for "unlimited".
@@ -316,6 +316,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
      - **Agreed price**: the plan price by default, or a custom price or a discount (amount or %) with a note, e.g. "launch discount until Dec".
      - **Limit overrides**: optional per-organization values for stores, users, products and modules. The effective limit is the override if set, otherwise the plan's. The tab shows both, plus current usage (e.g. "Users 4 / 5").
      - **Grace days** after the due date (default 7, from platform settings), and **auto-suspend when unpaid** on/off (default on).
+     - **Make a custom plan from here**: when a client doesn't fit any existing plan, "Create custom plan for this organization" opens the plan form pre-filled from its current plan. The superadmin changes the price, cycles or limits, saves it as a new *custom* plan (optionally named after the client) and assigns it in the same step. It can later be made *standard* so other clients can use it too.
      - **Change plan** (upgrade or downgrade) takes effect immediately or from the next period, as the superadmin chooses. There's no automatic proration: the superadmin can add a one-off **adjustment line** (charge or credit) to the next invoice.
      - **Downgrades never delete data**. If an organization is above a new limit, nothing is removed or deactivated. It just can't add more (new users, stores or products) until it's back under the limit, and its admins see a banner explaining why.
      - **Cancel subscription**: the organization stays usable until the end of the paid period, then becomes suspended ("Subscription ended"). This is separate from archiving.
@@ -346,6 +347,15 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
      - **Payments to verify** queue.
      - Collected this month and last month, expected monthly revenue (MRR, from active subscriptions), and revenue per plan.
      - CSV export of invoices and payments.
+   - **Three starting plans** are seeded by the migration as *standard* plans. They're only a starting point: the superadmin can edit, duplicate or retire them from the console like any other plan. The figures below are placeholders for the product owner to confirm or change before or after launch.
+
+     | Plan | Monthly | Quarterly | Half-yearly | Yearly | Stores | Users | Products | Modules | Trial |
+     | :--- | ---: | ---: | ---: | ---: | :---: | :---: | :---: | :--- | :---: |
+     | **Starter** | PKR 2,500 | PKR 7,500 | PKR 14,000 | PKR 25,000 | 1 | 3 | 1,000 | all available | 14 days |
+     | **Business** | PKR 6,000 | PKR 18,000 | PKR 34,000 | PKR 60,000 | 3 | 10 | 10,000 | all available | 14 days |
+     | **Enterprise** | PKR 15,000 | PKR 45,000 | PKR 85,000 | PKR 150,000 | 10 | 30 | unlimited | all available | 14 days |
+
+     Half-yearly is about 5% off and yearly is 2 months free. **Starter** is the default plan for self-sign-ups (platform setting).
    - **Existing organizations**: the migration creates a **"Founding" custom plan** (price 0, no limits) and puts every existing organization on it as active with no due date, so nothing changes for them until the superadmin assigns a real plan.
    - **Enforcement in SQL**:
      - `private.tenant_limit(p_tenant, p_kind)` returns the effective limit (override, else plan).
@@ -366,7 +376,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
   - `private.tenant_limit(p_tenant, p_kind)`, `private.tenant_has_module(p_tenant, p_module)`, and limit triggers on `profiles` and `inventory_items` (the `stores` trigger is added in Phase 20).
   - Org-admin RPC `submit_subscription_payment(...)` (creates a *pending* payment only). Service-role RPCs `admin_assign_plan`, `admin_change_plan`, `admin_cancel_subscription`, `admin_create_subscription_invoice`, `admin_record_subscription_payment`, `admin_verify_subscription_payment`, `admin_reverse_subscription_payment`, `admin_extend_subscription`.
   - `run_subscription_cycle(p_date)` for the daily `pg_cron` job: create invoices, send reminders, move statuses, suspend, and reactivate on payment. Idempotent per day.
-  - Seed: the "Founding" custom plan, with every existing tenant on it.
+  - Seed: the Starter, Business and Enterprise standard plans (table in deliverable 9), and the "Founding" custom plan with every existing tenant on it. `platform_settings.default_plan_id` = Starter.
 - `platform_settings` (*global*, single row, service role only): sign-up rules, default industry/status, impersonation TTL, email defaults, announcement defaults.
 - `platform_defaults` (*global*: kind, payload jsonb) for the lists new organizations start with; `announcements` (*global*, readable by the targeted organizations).
 - `impersonation_sessions.mode` ('full' | 'read_only'); `private.impersonation_mode()`; `private.assert_writable()` called at the top of every security-definer write RPC (V1 RPCs updated).
@@ -396,6 +406,8 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 - **Payments**: a recorded payment that covers the invoice marks it paid, moves paid-until forward one period and reactivates a suspended organization. A part payment leaves the invoice partly paid. A reversal reopens it.
 - **Payment proof**: an org admin submits a JazzCash reference with a screenshot → it's pending → the superadmin verifies it (the same result as recording a payment) or rejects it (the admin sees the reason). Another organization can't read the screenshot or the submission.
 - **Downgrade**: moving an organization with 6 users to a 5-user plan keeps all 6 active, blocks a 7th invite and shows the over-limit banner.
+- **No code needed for new plans**: from the console, create a new plan with its own price and limits and assign it; duplicate a plan; and use "Create custom plan for this organization" from a Subscription tab. All of these work immediately.
+- The three seeded plans exist with the agreed figures, and Starter is the sign-up default.
 - **Existing organizations** are on the Founding plan after the migration, with no limits, banners or due dates.
 - Subscription invoice and receipt PDFs show the payment instructions and open correctly. The amounts are right with a discount and an adjustment line.
 - **Archive → restore** works. Archived users can't sign in or call the API. Scheduled jobs skip archived organizations. The export ZIP opens with all tables. There's no delete path for organizations anywhere (UI or RPC).
