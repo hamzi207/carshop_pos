@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_tags: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      announcements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          id: string
+          message: string
+          starts_at: string
+          target_tenant_ids: string[] | null
+          tone: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          message: string
+          starts_at?: string
+          target_tenant_ids?: string[] | null
+          tone?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          message?: string
+          starts_at?: string
+          target_tenant_ids?: string[] | null
+          tone?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -61,8 +115,8 @@ export type Database = {
           billing_address: string | null
           cnic_or_ntn: string | null
           contact_person: string | null
-          credit_days: number
           created_at: string
+          credit_days: number
           customer_type: string
           default_discount_percentage: number
           email: string | null
@@ -81,8 +135,8 @@ export type Database = {
           billing_address?: string | null
           cnic_or_ntn?: string | null
           contact_person?: string | null
-          credit_days?: number
           created_at?: string
+          credit_days?: number
           customer_type?: string
           default_discount_percentage?: number
           email?: string | null
@@ -101,8 +155,8 @@ export type Database = {
           billing_address?: string | null
           cnic_or_ntn?: string | null
           contact_person?: string | null
-          credit_days?: number
           created_at?: string
+          credit_days?: number
           customer_type?: string
           default_discount_percentage?: number
           email?: string | null
@@ -184,6 +238,7 @@ export type Database = {
           expires_at: string
           id: string
           ip_address: unknown
+          mode: string
           started_at: string
           tenant_id: string
           token_hash: string
@@ -194,6 +249,7 @@ export type Database = {
           expires_at: string
           id?: string
           ip_address?: unknown
+          mode?: string
           started_at?: string
           tenant_id: string
           token_hash: string
@@ -204,6 +260,7 @@ export type Database = {
           expires_at?: string
           id?: string
           ip_address?: unknown
+          mode?: string
           started_at?: string
           tenant_id?: string
           token_hash?: string
@@ -220,13 +277,13 @@ export type Database = {
       }
       inventory_items: {
         Row: {
-          available_quantity: number
+          available_quantity: number | null
           category_id: string
           cost_price: number
           created_at: string
           description: string | null
           id: string
-          is_low_stock: boolean
+          is_low_stock: boolean | null
           is_universal: boolean
           low_stock_threshold: number
           name: string
@@ -240,13 +297,13 @@ export type Database = {
           vendor_name: string | null
         }
         Insert: {
-          available_quantity?: never
+          available_quantity?: number | null
           category_id: string
           cost_price: number
           created_at?: string
           description?: string | null
           id?: string
-          is_low_stock?: never
+          is_low_stock?: boolean | null
           is_universal?: boolean
           low_stock_threshold?: number
           name: string
@@ -260,13 +317,13 @@ export type Database = {
           vendor_name?: string | null
         }
         Update: {
-          available_quantity?: never
+          available_quantity?: number | null
           category_id?: string
           cost_price?: number
           created_at?: string
           description?: string | null
           id?: string
-          is_low_stock?: never
+          is_low_stock?: boolean | null
           is_universal?: boolean
           low_stock_threshold?: number
           name?: string
@@ -335,6 +392,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "invoice_payment_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "invoice_payment_items_payment_id_fkey"
             columns: ["payment_id"]
             isOneToOne: false
@@ -353,13 +417,6 @@ export type Database = {
             columns: ["quote_item_id"]
             isOneToOne: false
             referencedRelation: "quote_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoice_payment_items_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
           {
@@ -406,13 +463,6 @@ export type Database = {
           tenant_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "invoice_payments_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "invoice_payments_quote_id_fkey"
             columns: ["quote_id"]
@@ -478,6 +528,116 @@ export type Database = {
           },
         ]
       }
+      platform_admins: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string
+          full_name: string
+          id: string
+          removed_at: string | null
+          removed_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email: string
+          full_name: string
+          id: string
+          removed_at?: string | null
+          removed_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          removed_at?: string | null
+          removed_by?: string | null
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          business_address: string | null
+          business_email: string | null
+          business_name: string
+          business_ntn: string | null
+          business_phone: string | null
+          default_grace_days: number
+          default_plan_id: string | null
+          email_hourly_limit: number
+          email_reply_to: string | null
+          email_sender_name: string
+          id: boolean
+          impersonation_ttl_minutes: number
+          invoice_lead_days: number
+          payment_banks: Json
+          payment_note: string | null
+          payment_wallets: Json
+          reminder_days: number[]
+          signup_default_status: string
+          signup_open: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          business_address?: string | null
+          business_email?: string | null
+          business_name?: string
+          business_ntn?: string | null
+          business_phone?: string | null
+          default_grace_days?: number
+          default_plan_id?: string | null
+          email_hourly_limit?: number
+          email_reply_to?: string | null
+          email_sender_name?: string
+          id?: boolean
+          impersonation_ttl_minutes?: number
+          invoice_lead_days?: number
+          payment_banks?: Json
+          payment_note?: string | null
+          payment_wallets?: Json
+          reminder_days?: number[]
+          signup_default_status?: string
+          signup_open?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          business_address?: string | null
+          business_email?: string | null
+          business_name?: string
+          business_ntn?: string | null
+          business_phone?: string | null
+          default_grace_days?: number
+          default_plan_id?: string | null
+          email_hourly_limit?: number
+          email_reply_to?: string | null
+          email_sender_name?: string
+          id?: boolean
+          impersonation_ttl_minutes?: number
+          invoice_lead_days?: number
+          payment_banks?: Json
+          payment_note?: string | null
+          payment_wallets?: Json
+          reminder_days?: number[]
+          signup_default_status?: string
+          signup_open?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_settings_default_plan_id_fkey"
+            columns: ["default_plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -486,7 +646,6 @@ export type Database = {
           email: string
           full_name: string
           id: string
-          is_superadmin: boolean
           role: string
           tenant_id: string
           updated_at: string
@@ -499,7 +658,6 @@ export type Database = {
           email: string
           full_name: string
           id: string
-          is_superadmin?: boolean
           role?: string
           tenant_id: string
           updated_at?: string
@@ -512,7 +670,6 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
-          is_superadmin?: boolean
           role?: string
           tenant_id?: string
           updated_at?: string
@@ -727,13 +884,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "quotes_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "quotes_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -756,6 +906,363 @@ export type Database = {
           },
         ]
       }
+      subscription_adjustments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          invoice_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          invoice_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          invoice_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_adjustments_invoice_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_adjustments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_events: {
+        Row: {
+          created_at: string
+          days: number | null
+          email_status: string | null
+          for_date: string
+          id: string
+          invoice_id: string | null
+          kind: string
+          message: string | null
+          payment_id: string | null
+          sent_at: string | null
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          days?: number | null
+          email_status?: string | null
+          for_date?: string
+          id?: string
+          invoice_id?: string | null
+          kind: string
+          message?: string | null
+          payment_id?: string | null
+          sent_at?: string | null
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          days?: number | null
+          email_status?: string | null
+          for_date?: string
+          id?: string
+          invoice_id?: string | null
+          kind?: string
+          message?: string | null
+          payment_id?: string | null
+          sent_at?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_invoice_lines: {
+        Row: {
+          amount: number
+          description: string
+          id: string
+          invoice_id: string
+          kind: string
+          sort_order: number
+        }
+        Insert: {
+          amount: number
+          description: string
+          id?: string
+          invoice_id: string
+          kind: string
+          sort_order?: number
+        }
+        Update: {
+          amount?: number
+          description?: string
+          id?: string
+          invoice_id?: string
+          kind?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_invoice_lines_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_invoices: {
+        Row: {
+          adjustments: number
+          amount_paid: number
+          billing_cycle: string
+          created_at: string
+          created_by: string | null
+          discount: number
+          due_date: string
+          emailed_at: string | null
+          id: string
+          issue_date: string
+          number: string
+          period_end: string
+          period_start: string
+          plan_id: string | null
+          plan_name: string
+          status: string
+          subtotal: number
+          tenant_id: string
+          total: number
+          void_reason: string | null
+        }
+        Insert: {
+          adjustments?: number
+          amount_paid?: number
+          billing_cycle: string
+          created_at?: string
+          created_by?: string | null
+          discount?: number
+          due_date: string
+          emailed_at?: string | null
+          id?: string
+          issue_date?: string
+          number: string
+          period_end: string
+          period_start: string
+          plan_id?: string | null
+          plan_name: string
+          status?: string
+          subtotal: number
+          tenant_id: string
+          total: number
+          void_reason?: string | null
+        }
+        Update: {
+          adjustments?: number
+          amount_paid?: number
+          billing_cycle?: string
+          created_at?: string
+          created_by?: string | null
+          discount?: number
+          due_date?: string
+          emailed_at?: string | null
+          id?: string
+          issue_date?: string
+          number?: string
+          period_end?: string
+          period_start?: string
+          plan_id?: string | null
+          plan_name?: string
+          status?: string
+          subtotal?: number
+          tenant_id?: string
+          total?: number
+          void_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_invoices_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_invoices_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          method: string
+          note: string | null
+          paid_on: string
+          payer_name: string | null
+          proof_path: string | null
+          reason: string | null
+          reference: string | null
+          status: string
+          submitted_by: string | null
+          tenant_id: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          method: string
+          note?: string | null
+          paid_on: string
+          payer_name?: string | null
+          proof_path?: string | null
+          reason?: string | null
+          reference?: string | null
+          status?: string
+          submitted_by?: string | null
+          tenant_id: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          method?: string
+          note?: string | null
+          paid_on?: string
+          payer_name?: string | null
+          proof_path?: string | null
+          reason?: string | null
+          reference?: string | null
+          status?: string
+          submitted_by?: string | null
+          tenant_id?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          allowed_modules: string[] | null
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          max_products: number | null
+          max_stores: number | null
+          max_users: number | null
+          name: string
+          price_monthly: number | null
+          price_yearly: number | null
+          retired_at: string | null
+          sort_order: number
+          trial_days: number
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          allowed_modules?: string[] | null
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_products?: number | null
+          max_stores?: number | null
+          max_users?: number | null
+          name: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          retired_at?: string | null
+          sort_order?: number
+          trial_days?: number
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          allowed_modules?: string[] | null
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          max_products?: number | null
+          max_stores?: number | null
+          max_users?: number | null
+          name?: string
+          price_monthly?: number | null
+          price_yearly?: number | null
+          retired_at?: string | null
+          sort_order?: number
+          trial_days?: number
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: []
+      }
       superadmin_audit_logs: {
         Row: {
           action: string
@@ -764,6 +1271,7 @@ export type Database = {
           details: Json
           id: string
           ip_address: unknown
+          reason: string | null
           target_tenant_id: string | null
           target_user_id: string | null
         }
@@ -774,6 +1282,7 @@ export type Database = {
           details?: Json
           id?: string
           ip_address?: unknown
+          reason?: string | null
           target_tenant_id?: string | null
           target_user_id?: string | null
         }
@@ -784,6 +1293,7 @@ export type Database = {
           details?: Json
           id?: string
           ip_address?: unknown
+          reason?: string | null
           target_tenant_id?: string | null
           target_user_id?: string | null
         }
@@ -797,11 +1307,311 @@ export type Database = {
           },
         ]
       }
+      tenant_follow_ups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          done_at: string | null
+          done_by: string | null
+          due_on: string
+          id: string
+          reason: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_on: string
+          id?: string
+          reason: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_on?: string
+          id?: string
+          reason?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_follow_ups_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_health_snapshots: {
+        Row: {
+          band: string
+          parts: Json
+          score: number
+          taken_on: string
+          tenant_id: string
+        }
+        Insert: {
+          band: string
+          parts: Json
+          score: number
+          taken_on: string
+          tenant_id: string
+        }
+        Update: {
+          band?: string
+          parts?: Json
+          score?: number
+          taken_on?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_health_snapshots_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_notes: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          deleted_at: string | null
+          deleted_reason: string | null
+          edited_at: string | null
+          id: string
+          tenant_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_reason?: string | null
+          edited_at?: string | null
+          id?: string
+          tenant_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_reason?: string | null
+          edited_at?: string | null
+          id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_notes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_subscription_history: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          changed_at: string
+          changed_by: string | null
+          id: string
+          reason: string | null
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          reason?: string | null
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          reason?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscription_history_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_subscriptions: {
+        Row: {
+          agreed_price: number | null
+          allowed_modules: string[] | null
+          auto_suspend: boolean
+          billing_cycle: string
+          cancel_at: string | null
+          change_reason: string | null
+          created_at: string
+          discount_type: string
+          discount_value: number
+          extended_until: string | null
+          grace_days: number
+          max_products: number | null
+          max_stores: number | null
+          max_users: number | null
+          next_due_date: string | null
+          paid_until: string | null
+          pending_billing_cycle: string | null
+          pending_plan_id: string | null
+          plan_id: string
+          price_note: string | null
+          started_at: string
+          status: string
+          tenant_id: string
+          trial_ends_at: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          agreed_price?: number | null
+          allowed_modules?: string[] | null
+          auto_suspend?: boolean
+          billing_cycle?: string
+          cancel_at?: string | null
+          change_reason?: string | null
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          extended_until?: string | null
+          grace_days?: number
+          max_products?: number | null
+          max_stores?: number | null
+          max_users?: number | null
+          next_due_date?: string | null
+          paid_until?: string | null
+          pending_billing_cycle?: string | null
+          pending_plan_id?: string | null
+          plan_id: string
+          price_note?: string | null
+          started_at?: string
+          status?: string
+          tenant_id: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          agreed_price?: number | null
+          allowed_modules?: string[] | null
+          auto_suspend?: boolean
+          billing_cycle?: string
+          cancel_at?: string | null
+          change_reason?: string | null
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          extended_until?: string | null
+          grace_days?: number
+          max_products?: number | null
+          max_stores?: number | null
+          max_users?: number | null
+          next_due_date?: string | null
+          paid_until?: string | null
+          pending_billing_cycle?: string | null
+          pending_plan_id?: string | null
+          plan_id?: string
+          price_note?: string | null
+          started_at?: string
+          status?: string
+          tenant_id?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscriptions_pending_plan_id_fkey"
+            columns: ["pending_plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_tags: {
+        Row: {
+          created_at: string
+          tag_id: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          tag_id: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          tag_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "admin_tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
           accent_color: string | null
           address: string | null
           allow_international_phones: boolean
+          archive_reason: string | null
+          archived_at: string | null
+          archived_by: string | null
           bank_account_number: string | null
           bank_account_title: string | null
           bank_iban: string | null
@@ -822,6 +1632,7 @@ export type Database = {
           logo_url: string | null
           name: string
           ntn: string | null
+          owner_id: string | null
           phone: string | null
           prices_include_tax: boolean
           print_format: string
@@ -833,6 +1644,7 @@ export type Database = {
           show_paisa: boolean
           slug: string
           status: string
+          status_reason: string | null
           strn: string | null
           tax_rate: number
           timezone: string
@@ -843,6 +1655,9 @@ export type Database = {
           accent_color?: string | null
           address?: string | null
           allow_international_phones?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           bank_account_number?: string | null
           bank_account_title?: string | null
           bank_iban?: string | null
@@ -862,7 +1677,8 @@ export type Database = {
           invoice_terms?: string | null
           logo_url?: string | null
           name: string
-          ntn: string | null
+          ntn?: string | null
+          owner_id?: string | null
           phone?: string | null
           prices_include_tax?: boolean
           print_format?: string
@@ -874,7 +1690,8 @@ export type Database = {
           show_paisa?: boolean
           slug: string
           status?: string
-          strn: string | null
+          status_reason?: string | null
+          strn?: string | null
           tax_rate?: number
           timezone?: string
           updated_at?: string
@@ -884,6 +1701,9 @@ export type Database = {
           accent_color?: string | null
           address?: string | null
           allow_international_phones?: boolean
+          archive_reason?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
           bank_account_number?: string | null
           bank_account_title?: string | null
           bank_iban?: string | null
@@ -904,6 +1724,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           ntn?: string | null
+          owner_id?: string | null
           phone?: string | null
           prices_include_tax?: boolean
           print_format?: string
@@ -915,17 +1736,27 @@ export type Database = {
           show_paisa?: boolean
           slug?: string
           status?: string
+          status_reason?: string | null
           strn?: string | null
           tax_rate?: number
           timezone?: string
           updated_at?: string
           week_start?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tenants_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vehicles: {
         Row: {
           created_at: string
+          deactivated_at: string | null
           id: number
           make: string
           model: string
@@ -935,6 +1766,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deactivated_at?: string | null
           id?: number
           make: string
           model: string
@@ -944,6 +1776,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deactivated_at?: string | null
           id?: number
           make?: string
           model?: string
@@ -976,29 +1809,86 @@ export type Database = {
           year: number
         }[]
       }
+      admin_create_subscription_invoice: {
+        Args: {
+          p_by: string
+          p_issue_date: string
+          p_period_start: string
+          p_tenant: string
+        }
+        Returns: string
+      }
+      admin_document_number_floors: {
+        Args: { p_tenant: string }
+        Returns: Json
+      }
+      admin_force_sign_out: { Args: { p_user: string }; Returns: number }
+      admin_merge_vehicles: {
+        Args: { p_keep: number; p_merge: number[] }
+        Returns: number
+      }
+      admin_near_limits: {
+        Args: { p_ratio?: number }
+        Returns: {
+          kind: string
+          max: number
+          name: string
+          tenant_id: string
+          used: number
+        }[]
+      }
       admin_platform_metrics: { Args: never; Returns: Json }
+      admin_reconcile_tenant: { Args: { p_tenant: string }; Returns: Json }
+      admin_refresh_health: { Args: { p_date: string }; Returns: number }
+      admin_set_platform_admin: {
+        Args: {
+          p_active: boolean
+          p_by: string
+          p_email?: string
+          p_full_name?: string
+          p_user: string
+        }
+        Returns: boolean
+      }
+      admin_tenant_health: { Args: { p_tenant: string }; Returns: Json }
       admin_tenants: {
         Args: {
+          p_archived?: boolean
+          p_band?: string
           p_limit: number
           p_offset: number
           p_search: string
+          p_sort?: string
           p_status: string
+          p_tag?: string
         }
         Returns: {
+          archived_at: string
+          billing_cycle: string
           created_at: string
           currency: string
           email: string
+          health_band: string
+          health_score: number
           id: string
           invoices: number
           last_sign_in_at: string
           logo_url: string
           name: string
+          next_due_date: string
+          next_follow_up: string
+          open_follow_ups: number
           owner_email: string
           owner_name: string
+          paid_until: string
           phone: string
+          plan_name: string
           sales: number
           slug: string
           status: string
+          status_reason: string
+          subscription_status: string
+          tags: Json
           total: number
           users: number
         }[]
@@ -1007,16 +1897,39 @@ export type Database = {
         Args: { p_limit: number; p_offset: number; p_search: string }
         Returns: {
           created_at: string
+          deactivated_at: string
           email: string
           full_name: string
           id: string
-          is_superadmin: boolean
           last_sign_in_at: string
           role: string
+          tenant_archived_at: string
           tenant_id: string
           tenant_name: string
           tenant_status: string
           total: number
+        }[]
+      }
+      admin_vehicles: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_query: string
+          p_scope?: string
+          p_year?: number
+        }
+        Returns: {
+          deactivated_at: string
+          documents: number
+          id: number
+          items: number
+          make: string
+          model: string
+          tenant_id: string
+          tenant_name: string
+          total: number
+          trim: string
+          year: number
         }[]
       }
       convert_quote: {
@@ -1073,6 +1986,10 @@ export type Database = {
           total: number
         }[]
       }
+      dashboard_metrics: {
+        Args: { p_from?: string; p_range?: string; p_to?: string }
+        Returns: Json
+      }
       document_list_totals: {
         Args: {
           p_search: string
@@ -1085,6 +2002,7 @@ export type Database = {
           total: number
         }[]
       }
+      document_number_floors: { Args: never; Returns: Json }
       filter_documents: {
         Args: {
           p_search: string
@@ -1092,7 +2010,42 @@ export type Database = {
           p_statuses: string[]
           p_today: string
         }
-        Returns: Database["public"]["Tables"]["quotes"]["Row"][]
+        Returns: {
+          amount_paid: number
+          created_at: string
+          created_by: string | null
+          custom_vehicle_notes: string | null
+          customer_id: string
+          discount_amount: number
+          discount_reason: string | null
+          discount_type: string
+          discount_value: number
+          draft_number: string | null
+          due_date: string | null
+          id: string
+          inventory_deducted: boolean
+          invoice_number: string | null
+          invoiced_at: string | null
+          notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_notes: string | null
+          quotation_number: string | null
+          quote_number: string
+          quoted_at: string | null
+          share_token: string
+          status: string
+          subtotal: number
+          tax_amount: number
+          tax_rate: number
+          tenant_id: string
+          total_amount: number
+          updated_at: string
+          valid_until: string | null
+          vehicle_id: number | null
+          walk_in_name: string | null
+          walk_in_phone: string | null
+        }[]
         SetofOptions: {
           from: "*"
           to: "quotes"
@@ -1100,19 +2053,20 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      dashboard_metrics: {
-        Args: { p_from?: string; p_range?: string; p_to?: string }
-        Returns: Json
-      }
       is_valid_timezone: { Args: { p_tz: string }; Returns: boolean }
-      document_number_floors: { Args: never; Returns: Json }
       match_vehicles: {
         Args: { p_specs: Json }
-        Returns: { spec_index: number; vehicle_id: number }[]
+        Returns: {
+          spec_index: number
+          vehicle_id: number
+        }[]
       }
       my_shop_status: { Args: never; Returns: string }
+      my_status_reason: { Args: never; Returns: string }
+      my_subscription: { Args: never; Returns: Json }
+      my_subscription_invoice: { Args: { p_invoice: string }; Returns: Json }
+      my_unpaid_notice: { Args: never; Returns: Json }
       next_document_number: { Args: { p_prefix: string }; Returns: string }
-      shop_alerts: { Args: never; Returns: Json }
       record_payment: {
         Args: {
           p_amount: number
@@ -1128,6 +2082,7 @@ export type Database = {
         Args: { p_from?: string; p_range?: string; p_to?: string }
         Returns: Json
       }
+      run_subscription_cycle: { Args: { p_date: string }; Returns: Json }
       save_inventory_item: {
         Args: {
           p_category_id: string
@@ -1211,8 +2166,8 @@ export type Database = {
           billing_address: string | null
           cnic_or_ntn: string | null
           contact_person: string | null
-          credit_days: number
           created_at: string
+          credit_days: number
           customer_type: string
           default_discount_percentage: number
           email: string | null
@@ -1237,13 +2192,13 @@ export type Database = {
       search_inventory_items: {
         Args: { p_query: string }
         Returns: {
-          available_quantity: number
+          available_quantity: number | null
           category_id: string
           cost_price: number
           created_at: string
           description: string | null
           id: string
-          is_low_stock: boolean
+          is_low_stock: boolean | null
           is_universal: boolean
           low_stock_threshold: number
           name: string
@@ -1262,6 +2217,21 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      shop_alerts: { Args: never; Returns: Json }
+      signup_open: { Args: never; Returns: boolean }
+      submit_subscription_payment: {
+        Args: {
+          p_amount: number
+          p_invoice_id: string
+          p_method: string
+          p_note: string
+          p_paid_on: string
+          p_payer_name: string
+          p_proof_path: string
+          p_reference: string
+        }
+        Returns: string
       }
       vehicle_makes: {
         Args: { p_year: number }

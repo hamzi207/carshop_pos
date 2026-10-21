@@ -17,6 +17,11 @@ export const createOrganizationSchema = z.object({
   email: z.email("Enter a valid email address.").trim().toLowerCase(),
   phone: z.string().trim().max(30).optional().default(""),
   status: z.enum(["active", "trial"]).default("active"),
+  /** Phase 17: the subscription plan and cycle ("" = the sign-up default plan). */
+  planId: z.union([z.literal(""), z.uuid("Choose a plan.")]).default(""),
+  cycle: z.enum(["monthly", "yearly"]).default("monthly"),
+  /** How the owner first signs in: an emailed link, or a temporary password shown once. */
+  access: z.enum(["email", "password"]).default("email"),
 });
 
 export type CreateOrganizationInput = z.input<typeof createOrganizationSchema>;

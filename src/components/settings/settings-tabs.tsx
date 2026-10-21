@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, Globe, Printer, Receipt, Store, Tags, Users } from "lucide-react";
+import { CreditCard, FileText, Globe, Printer, Receipt, Store, Tags, Users } from "lucide-react";
 
 export const SETTINGS_TABS = [
   { href: "/settings", label: "Profile", icon: Store },
@@ -13,6 +13,7 @@ export const SETTINGS_TABS = [
   { href: "/settings/documents", label: "Documents", icon: FileText },
   { href: "/settings/printing", label: "Printing", icon: Printer },
   { href: "/settings/pos", label: "POS", icon: Receipt },
+  { href: "/settings/subscription", label: "Subscription", icon: CreditCard },
 ] as const;
 
 /** The Settings sections; `pathname` null while prerendering (nothing highlighted). */

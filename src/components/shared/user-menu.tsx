@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { ChevronDown, LogOut, Monitor, Moon, ShieldCheck, Sun } from "lucide-react";
+import { ChevronDown, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   DropdownMenu,
@@ -20,8 +19,6 @@ type UserMenuProps = {
   fullName: string;
   email: string;
   roleLabel: string;
-  /** Platform operators get a link to the /admin console. */
-  isSuperadmin?: boolean;
 };
 
 const THEMES = [
@@ -30,7 +27,7 @@ const THEMES = [
   { value: "system", label: "System", icon: Monitor },
 ] as const;
 
-export function UserMenu({ initials, fullName, email, roleLabel, isSuperadmin = false }: UserMenuProps) {
+export function UserMenu({ initials, fullName, email, roleLabel }: UserMenuProps) {
   // RF-16.4: theme for this browser (see theme-provider.tsx).
   const { theme, setTheme } = useTheme();
   return (
@@ -51,17 +48,6 @@ export function UserMenu({ initials, fullName, email, roleLabel, isSuperadmin = 
           <div className="text-xs font-normal text-muted-foreground">{email}</div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {isSuperadmin && (
-          <>
-            <DropdownMenuItem asChild>
-              <Link href="/admin">
-                <ShieldCheck />
-                Superadmin console
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </>
-        )}
         <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Theme</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
           {THEMES.map(({ value, label, icon: Icon }) => (

@@ -901,7 +901,7 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
-## 7. COMPLETED PHASES (1–16): WHAT WAS BUILT
+## 7. COMPLETED PHASES (1–17): WHAT WAS BUILT
 
 > **CURRENT STATUS (2026-10-19)**: All phases (1–15) are built and committed: this is **Version 1** (git tag `v1.0.0`). This section records exactly what each phase built, including later changes made within the phase (e.g. the `docs/changes.md` rounds after Phase 5). It describes the app as it exists today; where it differs from the blueprint in §1–6, this section and `supabase/migrations/` are authoritative. **Do not rebuild or refactor these phases.** Active work is in §8.
 
@@ -1149,11 +1149,30 @@ Design a complete, high-fidelity B2B SaaS web application UI template in Figma f
 
 ---
 
+### PHASE 17 (Version 2): Superadmin Console, Subscriptions & Manual Billing [COMPLETED]
+**Commit**: `Phase 17 - superadmin console, subscriptions, billing and separate superadmin accounts`. Plan: `docs/upgrade-plan.md` Phase 17 (deliverables 1–9, RF-17.1, RF-17.2, RF-17.4).
+
+**What was built**:
+1. **Migrations** (`supabase/migrations/2026102*_phase17_*.sql`, 13 files): control plane (organization limits, status reasons, archive columns, impersonation modes), `private.pre_request` (read-only Login As makes the transaction read only; `service_role` needs `usage on schema private`, fixed in `…072436`), subscription plans / tenant subscriptions / invoices / payments / adjustments / history and events, console tables (notes, tags, follow-ups, health snapshots, announcements, platform settings), billing RPCs (full payments only, no part payments), admin tools (`my_status_reason`), `admin_near_limits`, the vehicle catalog (`vehicles.deactivated_at`, `admin_vehicles`, `admin_merge_vehicles`), and **`platform_admins`** (`…074800`).
+2. **Superadmins are separate accounts** (product owner, 2026-10-21): `public.platform_admins` (service role only; removed admins keep their row for the audit log and are banned); `profiles.is_superadmin` dropped; a trigger keeps an account from being both a shop user and a superadmin. They sign in at **`/admin/login`** then **`/admin/mfa`** (route group `src/app/admin/(auth)`; console pages in `src/app/admin/(console)`, same URLs). The shop `/login` refuses superadmin accounts and `/admin/login` refuses shop accounts; a superadmin opening a shop page goes back to `/admin` except during Login As; sign-out returns each to its own sign-in. `app_metadata.platform_admin` is the proxy's routing hint, the table grants access (`requireSuperadmin()`). Quotes and payments made during Login As record the auth account (`created_by` now references `auth.users`). Team → Add Superadmin creates the account and emails an invitation (`superadmin_invite`); an email that belongs to a shop is refused (Gmail `name+admin@` works).
+3. **Two-factor (RF-17.1)**: TOTP enrol / verify at `/admin/mfa` (one enrolment even when React runs effects twice), `aal2` required by the proxy, `requireSuperadmin()`, the export routes and Login As. `supabase/config.toml` has TOTP enabled. Founder guide §9 covers going live and lockout recovery.
+4. **Organization page tabs** (`/admin/tenants/[id]`): Overview (summary, health score with 90-day trend, notes, tags, follow-ups, danger zone), Profile, Localization, Documents, Printing & POS, Categories, Users (team manager with sign out everywhere, make owner, delete account, CSV invite of up to 50), Subscription, Data (full ZIP export of 16 tables + files, superadmin only and audited; reconciliation checks), Activity. Suspend with a reason shown at sign-in; archive (reason + typed name, signs everyone out) and restore; never deleted.
+5. **Shops list**: Archived filter, tag / health / sort filters, health column, tags, next follow-up, archive-age row colours (13 steps over a year) with a legend.
+6. **Subscriptions & billing (deliverable 9)**: superadmin-made plans (three starting plans, monthly and yearly only, custom plans from a client), plan per organization with trial, agreed price and discount, invoices, payments by wallet or bank recorded or verified by the superadmin (full payments only), grace period, unpaid suspension to `/subscription-due`, the organization's Settings → Subscription page and payment reporting with a screenshot, daily run at `/api/cron/subscriptions` (`CRON_SECRET`), reminder / receipt / notice emails, Billing overview with CSV export.
+7. **Console pages**: Overview with Needs attention (follow-ups due, at-risk, near plan limits), Users, Plans, Billing, Audit (filters, details, CSV), Team (superadmins, reset two-factor), Platform (seller details, payment accounts, billing defaults, sign-up, email sender, announcements shown as a banner in every organization), Platform → Vehicle catalog (search, add, edit, deactivate, merge).
+8. **Shared**: light / dark button in the shop top bar and the console bar (`shared/theme-toggle.tsx`); System stays in the user menu. The shop user menu no longer links to the console.
+9. **Fixes found in testing**: `profiles` → `tenants` embeds name the foreign key (`tenants!profiles_tenant_id_fkey`) now that `tenants.owner_id` also links them (it caused a `/dashboard` ↔ `/login` reload loop); an account with no shop is signed out (`/auth/suspended?reason=no_shop`) instead of looping.
+10. **Verified**: `npx tsc`, `npm run lint` and `npm run build` pass. Browser tests with temporary accounts (deleted afterwards): two-factor 9/9 (QR, code, wrong code refused, second sign-in code only) and separation 20/20 (both sign-ins refuse the other kind of account, two-factor, theme button, no cross links, superadmin kept out of shop pages, Login As and Exit, sign-out, shop user view). Supabase advisors: nothing new except the dashboard setting for leaked-password protection.
+
+**Not built (deferred)**: document overrides (delete a document with payments, reopen a cancelled one, audited stock correction); platform default lists and console imports of customers, suppliers and opening balances (those features arrive in later phases); permission bypass and auto-approvals while acting as an organization (Phase 22). The daily run's scheduler (Vercel Cron or `pg_cron`) is chosen at deploy time.
+
+---
+
 ---
 
 ## 8. ROADMAP: STILL TO BUILD
 
-> Version 1 blueprint: nothing left (Phases 12–15 moved to §7 on 2026-10-19). Version 2: Phases 17–33 are planned in `docs/upgrade-plan.md` and are built one at a time; each moves to §7 when done. New work starts as a new phase here, listing only what doesn't exist yet and naming the §7 phase it extends.
+> Version 1 blueprint: nothing left (Phases 12–15 moved to §7 on 2026-10-19). Version 2: Phases 18–33 are planned in `docs/upgrade-plan.md` and are built one at a time; each moves to §7 when done. Left from Phase 17 (see its "Not built" note): document overrides, platform default lists and console imports (with the phases that add those features), and Login As permission bypass (Phase 22). New work starts as a new phase here, listing only what doesn't exist yet and naming the §7 phase it extends.
 
 ---
 

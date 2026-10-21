@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { Dialog } from "radix-ui";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,10 +36,20 @@ const ROLE_CHOICES: { role: TeamRole; text: string }[] = [
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
 
-type Props = { members: TeamRow[]; meId: string; canEdit: boolean };
+type Props = {
+  members: TeamRow[];
+  meId: string;
+  canEdit: boolean;
+  /** Superadmin console: the organization being managed (audited). */
+  tenantId?: string;
+  /** The organization's owner (badge). */
+  ownerId?: string | null;
+  /** Superadmin console: extra per-member tools (passwords, sign-out, ownership). */
+  memberTools?: (member: TeamRow) => ReactNode;
+};
 
 /** Settings → Team: who can sign in to this shop, their role and status; invite, change, deactivate. */
-export function TeamManager({ members, meId, canEdit }: Props) {
+export function TeamManager({ members, meId, canEdit, tenantId, ownerId, memberTools }: Props) {
   const [inviting, setInviting] = useState(false);
   const counts = {
     active: members.filter((m) => m.status === "active").length,
@@ -69,20 +79,34 @@ export function TeamManager({ members, meId, canEdit }: Props) {
         </div>
       )}
 
-      <ul className="team-list" aria-label="Team members">
+      <ul className={`team-list${memberTools ? " has-tools" : ""}`} aria-label="Team members">
         {members.map((m) => (
-          <TeamMemberRow key={m.id} member={m} isMe={m.id === meId} canEdit={canEdit} />
+          <TeamMemberRow key={m.id} member={m} isMe={m.id === meId} isOwner={m.id === ownerId} canEdit={canEdit} tenantId={tenantId} tools={memberTools?.(m)} />
         ))}
       </ul>
 
       <Dialog.Root open={inviting} onOpenChange={setInviting}>
-        <ModalSheet className="modal modal-sm">{inviting && <InviteForm onDone={() => setInviting(false)} />}</ModalSheet>
+        <ModalSheet className="modal modal-sm">{inviting && <InviteForm tenantId={tenantId} onDone={() => setInviting(false)} />}</ModalSheet>
       </Dialog.Root>
     </section>
   );
 }
 
-function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: boolean; canEdit: boolean }) {
+function TeamMemberRow({
+  member: m,
+  isMe,
+  isOwner,
+  canEdit,
+  tenantId,
+  tools,
+}: {
+  member: TeamRow;
+  isMe: boolean;
+  isOwner: boolean;
+  canEdit: boolean;
+  tenantId?: string;
+  tools?: ReactNode;
+}) {
   const [pending, startTransition] = useTransition();
   const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
   const status = STATUS[m.status];
@@ -95,7 +119,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
       setConfirm(null);
     });
 
-  const changeRole = (role: TeamRole) => run(() => setMemberRole(m.id, role), "Role not changed", "Role changed");
+  const changeRole = (role: TeamRole) => run(() => setMemberRole(m.id, role, tenantId), "Role not changed", "Role changed");
   const deactivate = () =>
     setConfirm({
       title: `Deactivate ${m.fullName}?`,
@@ -108,7 +132,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
       confirmLabel: "Deactivate",
       icon: <UserMinus size={18} />,
       tone: "danger",
-      onConfirm: () => run(() => setMemberActive(m.id, false), "Not deactivated", "Member deactivated"),
+      onConfirm: () => run(() => setMemberActive(m.id, false, tenantId), "Not deactivated", "Member deactivated"),
     });
   const withdraw = () =>
     setConfirm({
@@ -117,7 +141,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
       confirmLabel: "Cancel invitation",
       icon: <X size={18} />,
       tone: "danger",
-      onConfirm: () => run(() => cancelInvite(m.id), "Invitation not cancelled", "Invitation cancelled"),
+      onConfirm: () => run(() => cancelInvite(m.id, tenantId), "Invitation not cancelled", "Invitation cancelled"),
     });
 
   return (
@@ -127,6 +151,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
         <strong>
           {m.fullName}
           {isMe && <em className="team-you">You</em>}
+          {isOwner && <em className="team-you">Owner</em>}
         </strong>
         <span>{m.email}</span>
       </span>
@@ -151,6 +176,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
         )}
       </span>
       <span className="team-actions">
+        {tools}
         {canEdit && !isMe && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -161,7 +187,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
             <DropdownMenuContent align="end">
               {m.status === "invited" && (
                 <>
-                  <DropdownMenuItem onSelect={() => run(() => resendInvite(m.id), "Invitation not sent", "Invitation sent")}>
+                  <DropdownMenuItem onSelect={() => run(() => resendInvite(m.id, tenantId), "Invitation not sent", "Invitation sent")}>
                     <Send size={14} /> Resend invite
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={withdraw}>
@@ -175,7 +201,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
                 </DropdownMenuItem>
               )}
               {m.status === "deactivated" && (
-                <DropdownMenuItem onSelect={() => run(() => setMemberActive(m.id, true), "Not reactivated", "Member reactivated")}>
+                <DropdownMenuItem onSelect={() => run(() => setMemberActive(m.id, true, tenantId), "Not reactivated", "Member reactivated")}>
                   <RotateCcw size={14} /> Reactivate
                 </DropdownMenuItem>
               )}
@@ -188,7 +214,7 @@ function TeamMemberRow({ member: m, isMe, canEdit }: { member: TeamRow; isMe: bo
   );
 }
 
-function InviteForm({ onDone }: { onDone: () => void }) {
+function InviteForm({ onDone, tenantId }: { onDone: () => void; tenantId?: string }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -202,7 +228,7 @@ function InviteForm({ onDone }: { onDone: () => void }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
-    const result = await inviteTeamMember(values);
+    const result = await inviteTeamMember(values, tenantId);
     if (result.status === "error") {
       setServerError(result.message);
       return;

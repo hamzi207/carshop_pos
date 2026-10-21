@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Lock, Mail } from "lucide-react";
-import { signIn } from "@/lib/actions/auth";
+import { signIn, signInAdmin } from "@/lib/actions/auth";
 import { loginSchema, type LoginInput } from "@/lib/validations/auth.schema";
 import { FormField } from "./form-field";
 
@@ -14,10 +14,12 @@ const QUERY_ERRORS: Record<string, string> = {
   no_shop: "Your account isn't linked to a shop yet. Please contact your shop admin.",
   link_expired: "That link is invalid or has expired. Ask for a new one.",
   deactivated: "Your access to this shop has been turned off. Please ask your shop admin if you think this is a mistake.",
+  archived: "This organization has been archived. Please contact ProductLogik POS support.",
   suspended: "This shop's account is paused, so signing in isn't possible right now. Please contact ProductLogik POS support to reactivate it.",
 };
 
-export function LoginForm() {
+/** The shop sign-in (/login), or with `admin` the superadmin console's own (/admin/login). */
+export function LoginForm({ admin = false }: { admin?: boolean }) {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? undefined;
   const queryError = QUERY_ERRORS[searchParams.get("error") ?? ""] ?? null;
@@ -35,7 +37,7 @@ export function LoginForm() {
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     // On success the action redirects and this never resolves.
-    const result = await signIn(values, next);
+    const result = await (admin ? signInAdmin : signIn)(values, next);
     if (result.status === "error") setServerError(result.message);
   });
 
@@ -53,7 +55,7 @@ export function LoginForm() {
         type="email"
         label="EMAIL"
         icon={<Mail size={16} />}
-        placeholder="you@yourshop.com"
+        placeholder={admin ? "you@productlogik.com" : "you@yourshop.com"}
         autoComplete="email"
         error={errors.email?.message}
         {...register("email")}

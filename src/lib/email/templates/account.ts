@@ -73,3 +73,24 @@ export function staffInviteEmail(p: {
   };
 }
 
+
+/** Phase 17: a superadmin adds another to the platform team (their own account, not a shop's). */
+export function superadminInviteEmail(p: { fullName: string; inviterName: string; setPasswordUrl: string; loginUrl: string }): EmailContent {
+  const subject = `${p.inviterName} added you to the ${PLATFORM} team`;
+  const lines = [
+    `Hi ${p.fullName},`,
+    `${p.inviterName} made you a superadmin of ${PLATFORM}: you can manage every organization, subscription and setting on the platform.`,
+    "Choose a password first. When you sign in, you'll also set up an authenticator app (Google Authenticator, Microsoft Authenticator or similar) for a 6-digit code.",
+  ];
+  const note = `The link works for 1 hour and can be used once. After that, sign in at ${p.loginUrl}.`;
+  return {
+    subject,
+    html: layout({
+      heading: "You're a superadmin",
+      preheader: "Choose a password, then set up two-factor sign-in.",
+      body: lines.map(paragraph).join("") + button("Choose your password", p.setPasswordUrl) + muted(note),
+      footer: `${PLATFORM} · Sent because a superadmin added this email address to the platform team.`,
+    }),
+    text: [...lines, "", `Choose your password: ${p.setPasswordUrl}`, note].join("\n\n"),
+  };
+}

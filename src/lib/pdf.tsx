@@ -2,6 +2,7 @@ import "server-only";
 import path from "node:path";
 import { Font, renderToBuffer } from "@react-pdf/renderer";
 import { DocumentPdf } from "@/components/pdf/document-pdf";
+import { SubscriptionInvoicePdf, type SubscriptionInvoicePdfData } from "@/components/pdf/subscription-invoice-pdf";
 import { ThermalReceipt } from "@/components/pdf/thermal-receipt";
 import { customerLink } from "@/lib/customer-link";
 import type { PrintableDocument } from "@/lib/printable";
@@ -43,6 +44,12 @@ export async function pdfResponse(doc: PrintableDocument, download: boolean) {
 export async function receiptResponse(doc: PrintableDocument, origin: string, download: boolean) {
   const buffer = await renderToBuffer(<ThermalReceipt doc={doc} shareUrl={customerLink(doc, origin)} />);
   return pdfFile(buffer, `${doc.title}-${doc.number}-slip.pdf`, download);
+}
+
+/** ProductLogik's subscription invoice to an organization (Phase 17), inline or as a download. */
+export async function subscriptionInvoiceResponse(data: SubscriptionInvoicePdfData, download: boolean) {
+  const buffer = await renderToBuffer(<SubscriptionInvoicePdf data={data} />);
+  return pdfFile(buffer, `ProductLogik-invoice-${data.invoice.number}.pdf`, download);
 }
 
 const safeFilename = (name: string) => name.replace(/[^\w.-]+/g, "-");

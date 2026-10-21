@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { UserMenu } from "@/components/shared/user-menu";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { BrandLockup } from "@/components/shared/brand";
@@ -14,7 +14,7 @@ async function AdminProfile() {
   return <UserMenu initials={initials(me.fullName)} fullName={me.fullName} email={me.email} roleLabel="Superadmin" />;
 }
 
-/** /admin top bar: dark slate with the emerald accent, platform sections, back to the user's own shop. */
+/** /admin top bar: dark slate with the emerald accent, platform sections, light/dark, the superadmin's menu. */
 export function AdminNavbar() {
   return (
     <header className="admin-navbar">
@@ -27,9 +27,7 @@ export function AdminNavbar() {
         <AdminNavLinks />
       </Suspense>
       <div className="admin-navbar-end">
-        <Link href="/dashboard" className="admin-back">
-          <ArrowLeft size={14} /> <span>My shop</span>
-        </Link>
+        <ThemeToggle className="icon-button theme-toggle admin-theme-toggle" />
         <Suspense fallback={<div className="profile"><div className="avatar" /></div>}>
           <AdminProfile />
         </Suspense>

@@ -4,10 +4,31 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { deliverEmail, type DeliveryResult, type OutgoingEmail } from "./client";
 import type { EmailContent } from "./templates/layout";
 
-export type EmailTemplate = "welcome" | "password_reset" | "staff_invite" | "document_share" | "payment_receipt";
+export type EmailTemplate =
+  | "welcome"
+  | "superadmin_invite"
+  | "password_reset"
+  | "staff_invite"
+  | "document_share"
+  | "payment_receipt"
+  | "subscription_invoice"
+  | "subscription_reminder"
+  | "subscription_receipt"
+  | "subscription_notice"
+  | "superadmin_notice";
 
-/** Per shop, so a mistake (or abuse) can't burn through the Resend quota. */
+/** Per shop, so a mistake (or abuse) can't burn through the Resend quota. Platform settings can change it. */
 const HOURLY_LIMIT_PER_SHOP = 100;
+
+/** Sender name, default reply-to and the hourly limit from Platform settings (Phase 17). */
+async function emailSettings(admin: ReturnType<typeof createAdminClient>) {
+  const { data } = await admin.from("platform_settings").select("email_sender_name, email_reply_to, email_hourly_limit").maybeSingle();
+  return {
+    senderName: data?.email_sender_name ?? undefined,
+    replyTo: data?.email_reply_to ?? null,
+    hourlyLimit: data?.email_hourly_limit ?? HOURLY_LIMIT_PER_SHOP,
+  };
+}
 
 type SendInput = {
   template: EmailTemplate;
@@ -30,6 +51,7 @@ type SendInput = {
  */
 export async function sendTransactionalEmail(input: SendInput): Promise<DeliveryResult> {
   const admin = createAdminClient();
+  const settings = await emailSettings(admin);
 
   if (input.tenantId) {
     const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -38,8 +60,8 @@ export async function sendTransactionalEmail(input: SendInput): Promise<Delivery
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", input.tenantId)
       .gte("created_at", since);
-    if ((count ?? 0) >= HOURLY_LIMIT_PER_SHOP) {
-      return { status: "failed", error: `This shop has sent ${HOURLY_LIMIT_PER_SHOP} emails in the last hour. Try again later.` };
+    if ((count ?? 0) >= settings.hourlyLimit) {
+      return { status: "failed", error: `This shop has sent ${settings.hourlyLimit} emails in the last hour. Try again later.` };
     }
   }
 
@@ -48,7 +70,9 @@ export async function sendTransactionalEmail(input: SendInput): Promise<Delivery
     subject: input.content.subject,
     html: input.content.html,
     text: input.content.text,
-    replyTo: input.replyTo,
+    // The shop's own reply-to (document emails) wins over the platform default.
+    replyTo: input.replyTo ?? settings.replyTo,
+    senderName: settings.senderName,
     attachments: input.attachments,
   });
 

@@ -9,10 +9,12 @@ type Props = {
   label: string;
   /** Optional pills for ?status= ("" = all). */
   statuses?: { value: string; label: string }[];
+  /** Optional dropdowns, each its own URL key ("" = not set). */
+  selects?: { key: string; label: string; options: { value: string; label: string }[] }[];
 };
 
 /** Search (?q=) + optional status pills (?status=) in the URL, like the customer filters. */
-export function AdminFilters({ placeholder, label, statuses }: Props) {
+export function AdminFilters({ placeholder, label, statuses, selects }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -58,6 +60,19 @@ export function AdminFilters({ placeholder, label, statuses }: Props) {
           </button>
         )}
       </div>
+      {selects?.map((f) => (
+        <select
+          key={f.key}
+          className="admin-filter-select"
+          aria-label={f.label}
+          value={params.get(f.key) ?? ""}
+          onChange={(e) => update({ [f.key]: e.target.value })}
+        >
+          {f.options.map((o) => (
+            <option key={o.value || "none"} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      ))}
       {statuses && (
         <div className="category-pills" role="group" aria-label="Status">
           {statuses.map((s) => (

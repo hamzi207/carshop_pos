@@ -6,6 +6,7 @@ import { buildCategoryIndex, descendantIds } from "@/lib/categories";
 import { getCategories } from "@/lib/category-data";
 import { isRangePastEnd, pageRange, type Paged, type Pagination } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
+import { planLimitMessage } from "@/lib/plan-limits";
 import type { Tables } from "@/lib/types/database.types";
 import type { InventoryListItem } from "@/lib/types/inventory";
 import {
@@ -140,6 +141,8 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
   });
 
   if (error) {
+    const limit = planLimitMessage(error);
+    if (limit) return { status: "error", message: limit };
     switch (error.code) {
       case "23505":
         return { status: "error", field: "sku", message: `SKU ${item.sku} is already used by another item.` };

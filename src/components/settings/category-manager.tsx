@@ -12,10 +12,12 @@ type Props = {
   counts: Record<string, number>;
   /** Staff see the list but can't change it. */
   canEdit: boolean;
+  /** Superadmin console: the organization being edited (audited). */
+  tenantId?: string;
 };
 
 /** Settings → Product categories: the shop's category tree (docs/categories.md), editable by admins. */
-export function CategoryManager({ categories, counts, canEdit }: Props) {
+export function CategoryManager({ categories, counts, canEdit, tenantId }: Props) {
   const index = useMemo(() => buildCategoryIndex(categories, counts), [categories, counts]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
@@ -77,16 +79,16 @@ export function CategoryManager({ categories, counts, canEdit }: Props) {
     if (editing.mode === "rename") {
       const node = index.byId.get(editing.id);
       if (!node || name === node.name) return cancel();
-      if (await run(() => renameCategory(editing.id, name), () => ["Category renamed", `“${node.name}” is now “${name}”. Items in it keep their category.`])) cancel();
+      if (await run(() => renameCategory(editing.id, name, tenantId), () => ["Category renamed", `“${node.name}” is now “${name}”. Items in it keep their category.`])) cancel();
     } else {
       const parent = editing.id === "root" ? undefined : index.byId.get(editing.id);
       const where = parent ? `under ${fullPath(parent)}` : "as a main category";
-      if (await run(() => createCategory({ name, parentId: parent?.id ?? null }), () => ["Category added", `“${name}” added ${where}.`])) cancel();
+      if (await run(() => createCategory({ name, parentId: parent?.id ?? null }, tenantId), () => ["Category added", `“${name}” added ${where}.`])) cancel();
     }
   };
 
   const remove = (node: CategoryNode) =>
-    run(() => deleteCategory(node.id), () => ["Category deleted", `“${fullPath(node)}” was removed.`]);
+    run(() => deleteCategory(node.id, tenantId), () => ["Category deleted", `“${fullPath(node)}” was removed.`]);
 
   const editor = (placeholder: string, indent: number) => (
     <form

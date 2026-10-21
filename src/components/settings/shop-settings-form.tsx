@@ -74,9 +74,11 @@ type Props = {
   canEdit: boolean;
   /** False when the page already says so (Settings → Documents). */
   readOnlyNote?: boolean;
+  /** Superadmin console: save to this organization (audited). */
+  tenantId?: string;
 };
 
-export function ShopSettingsForm({ sections, label, initial, timeZoneGroups, canEdit, readOnlyNote = true }: Props) {
+export function ShopSettingsForm({ sections, label, initial, timeZoneGroups, canEdit, readOnlyNote = true, tenantId }: Props) {
   const has = (section: SettingsSection) => sections.includes(section);
   // Other tabs may stay mounted with older values: only this tab's own settings are sent.
   const fields = sections.flatMap((section) => SECTION_FIELDS[section]);
@@ -102,7 +104,7 @@ export function ShopSettingsForm({ sections, label, initial, timeZoneGroups, can
 
   const persist = async (values: ShopSettingsInput) => {
     setServerError(null);
-    const result = await updateShopSettings(pick(values));
+    const result = await updateShopSettings(pick(values), tenantId);
     if (result.status === "error") {
       setServerError(result.message);
       notify.error("Settings not saved", result.message);

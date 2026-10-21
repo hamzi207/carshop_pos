@@ -8,16 +8,12 @@ import { z } from "zod";
 import { appOrigin, isResendSandboxError, passwordLink } from "@/lib/account-links";
 import { sendTransactionalEmail } from "@/lib/email/send";
 import { passwordResetEmail, welcomeEmail } from "@/lib/email/templates/account";
-import { hashToken, newToken } from "@/lib/impersonation";
+import { closeImpersonation, hashToken, newToken } from "@/lib/impersonation";
+import { changeSubscriptionPlan } from "./subscriptions";
 import { parsePhone } from "@/lib/phone";
 import { audit, requestIp, requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import {
-  IMPERSONATION_COOKIE,
-  IMPERSONATION_TTL_SECONDS,
-  OLD_IMPERSONATION_COOKIE,
-  readImpersonationToken,
-} from "@/lib/supabase/impersonation-header";
+import { IMPERSONATION_COOKIE, IMPERSONATION_TTL_SECONDS, OLD_IMPERSONATION_COOKIE } from "@/lib/supabase/impersonation-header";
 import {
   createOrganizationSchema,
   TENANT_STATUSES,
@@ -34,13 +30,19 @@ export type AdminActionResult = { status: "success"; message?: string } | { stat
 // Impersonation ("Login As")
 // ---------------------------------------------------------------------------
 
-/** Starts acting as a shop: its admin view, with the exit banner, for up to 2 hours. */
-export async function startImpersonation(tenantId: string): Promise<AdminActionResult> {
+/**
+ * Starts acting as a shop: its admin view, with the exit banner, for the platform's session length
+ * (Platform settings, default 2 hours). "read_only" (Phase 17) can look at everything and change nothing.
+ */
+export async function startImpersonation(tenantId: string, mode: "full" | "read_only" = "full"): Promise<AdminActionResult> {
   const me = await requireSuperadmin();
   if (!z.uuid().safeParse(tenantId).success) return { status: "error", message: "That shop wasn't found." };
+  if (mode !== "full" && mode !== "read_only") return { status: "error", message: "Choose full access or read-only." };
   const admin = createAdminClient();
   const { data: tenant } = await admin.from("tenants").select("id, name").eq("id", tenantId).maybeSingle();
   if (!tenant) return { status: "error", message: "That shop wasn't found." };
+  const { data: settings } = await admin.from("platform_settings").select("impersonation_ttl_minutes").maybeSingle();
+  const ttlSeconds = settings?.impersonation_ttl_minutes ? settings.impersonation_ttl_minutes * 60 : IMPERSONATION_TTL_SECONDS;
 
   const now = new Date();
   // One shop at a time: any earlier session of this superadmin ends here.
@@ -52,7 +54,8 @@ export async function startImpersonation(tenantId: string): Promise<AdminActionR
       token_hash: hashToken(token),
       admin_id: me.userId,
       tenant_id: tenant.id,
-      expires_at: new Date(now.getTime() + IMPERSONATION_TTL_SECONDS * 1000).toISOString(),
+      expires_at: new Date(now.getTime() + ttlSeconds * 1000).toISOString(),
+      mode,
       ip_address: await requestIp(),
     })
     .select("id")
@@ -61,7 +64,7 @@ export async function startImpersonation(tenantId: string): Promise<AdminActionR
     console.error("startImpersonation failed:", error);
     return { status: "error", message: "We couldn't start the session. Please try again." };
   }
-  await audit({ adminId: me.userId, action: "impersonation.start", tenantId: tenant.id, details: { sessionId: session.id, shop: tenant.name } });
+  await audit({ adminId: me.userId, action: "impersonation.start", tenantId: tenant.id, details: { sessionId: session.id, shop: tenant.name, mode } });
 
   const store = await cookies();
   store.delete(OLD_IMPERSONATION_COOKIE);
@@ -70,31 +73,17 @@ export async function startImpersonation(tenantId: string): Promise<AdminActionR
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: IMPERSONATION_TTL_SECONDS,
+    maxAge: ttlSeconds,
   });
   redirect("/dashboard");
 }
 
-/** Leaves the shop (the banner's Exit) and returns to the shops list. */
+/**
+ * Leaves the shop and returns to the shops list. The banner posts to /auth/exit-impersonation
+ * instead (a read-only session can't run server actions outside /admin); kept for /admin pages.
+ */
 export async function endImpersonation() {
-  const store = await cookies();
-  const token = readImpersonationToken(store);
-  store.delete(IMPERSONATION_COOKIE);
-  store.delete(OLD_IMPERSONATION_COOKIE);
-  if (token) {
-    const admin = createAdminClient();
-    const { data: session } = await admin
-      .from("impersonation_sessions")
-      .update({ ended_at: new Date().toISOString() })
-      .eq("token_hash", hashToken(token))
-      .is("ended_at", null)
-      .select("id, admin_id, tenant_id, started_at")
-      .maybeSingle();
-    if (session) {
-      const minutes = Math.round((Date.now() - new Date(session.started_at).getTime()) / 60000);
-      await audit({ adminId: session.admin_id, action: "impersonation.end", tenantId: session.tenant_id, details: { sessionId: session.id, minutes } });
-    }
-  }
+  await closeImpersonation();
   redirect("/admin/tenants");
 }
 
@@ -105,13 +94,23 @@ export async function endImpersonation() {
 /**
  * New shop + owner through the normal sign-up provisioning: an invited auth user with shop_name /
  * full_name metadata fires the on-signup trigger (tenant, admin profile, default categories,
- * walk-in customer). The owner gets a welcome email with a "Choose your password" link.
+ * walk-in customer). The owner gets a welcome email with a "Choose your password" link, or (Phase 17)
+ * a temporary password returned once. Phase 17: the chosen plan and cycle replace the sign-up default.
  */
-export async function createOrganization(input: CreateOrganizationInput): Promise<AdminActionResult & { tenantId?: string }> {
+export async function createOrganization(
+  input: CreateOrganizationInput,
+): Promise<AdminActionResult & { tenantId?: string; password?: string }> {
   const me = await requireSuperadmin();
   const parsed = createOrganizationSchema.safeParse(input);
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the details." };
-  const { shopName, fullName, email, phone, status } = parsed.data;
+  const { shopName, fullName, email, phone, status, planId, cycle, access } = parsed.data;
+  if (planId) {
+    const { data: plan } = await createAdminClient().from("subscription_plans").select("price_monthly, price_yearly, retired_at").eq("id", planId).maybeSingle();
+    if (!plan || plan.retired_at) return { status: "error", message: "That plan isn't available." };
+    if ((cycle === "monthly" ? plan.price_monthly : plan.price_yearly) === null) {
+      return { status: "error", message: `That plan isn't offered ${cycle === "monthly" ? "monthly" : "yearly"}.` };
+    }
+  }
   let e164: string | null = null;
   if (phone) {
     const p = parsePhone(phone, false);
@@ -136,6 +135,38 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
   if (!profile) return { status: "error", message: "The owner was created, but their shop wasn't. Check the database trigger." };
   await admin.from("tenants").update({ phone: e164, status, updated_at: new Date().toISOString() }).eq("id", profile.tenant_id);
 
+  // The chosen plan: from today, as a trial of the plan's length or billed from today.
+  let planNote = "";
+  if (planId) {
+    const changed = await changeSubscriptionPlan(profile.tenant_id, {
+      planId,
+      cycle,
+      when: "now",
+      startAs: status === "trial" ? "trial" : "active",
+      keepPrice: false,
+      reason: "Chosen when the organization was created",
+    });
+    if (changed.status === "error") planNote = ` The plan couldn't be set (${changed.message}); set it on the Subscription tab.`;
+  }
+
+  if (access === "password") {
+    const password = Array.from({ length: 12 }, () => PASSWORD_CHARS[randomInt(PASSWORD_CHARS.length)]).join("");
+    const { error: pwError } = await admin.auth.admin.updateUserById(link.user.id, { password, email_confirm: true });
+    await audit({
+      adminId: me.userId,
+      action: "tenant.create",
+      tenantId: profile.tenant_id,
+      userId: link.user.id,
+      details: { shop: shopName, owner: email, status, plan: planId || "default", access: "temporary_password" },
+    });
+    refresh();
+    if (pwError) {
+      console.error("createOrganization password failed:", pwError);
+      return { status: "success", tenantId: profile.tenant_id, message: `${shopName} was created, but the password couldn't be set. Use Users → Set a temporary password.${planNote}` };
+    }
+    return { status: "success", tenantId: profile.tenant_id, password, message: `${shopName} was created.${planNote}` };
+  }
+
   const sent = await sendTransactionalEmail({
     template: "welcome",
     to: email,
@@ -154,7 +185,7 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
     action: "tenant.create",
     tenantId: profile.tenant_id,
     userId: link.user.id,
-    details: { shop: shopName, owner: email, status, welcomeEmail: sent.status },
+    details: { shop: shopName, owner: email, status, plan: planId || "default", welcomeEmail: sent.status },
   });
   refresh();
   return {
@@ -165,26 +196,31 @@ export async function createOrganization(input: CreateOrganizationInput): Promis
         ? `${shopName} was created, but the welcome email couldn't be sent. Use Users → Reset password to send ${fullName} a link.`
         : sent.status === "logged"
           ? `${shopName} was created. Email isn't set up on this server, so the welcome email was printed to the server console.`
-          : `${shopName} was created and ${fullName} was emailed a link to choose a password.`,
+          : `${shopName} was created and ${fullName} was emailed a link to choose a password.${planNote}`,
   };
 }
 
-/** Active / Trial / Suspended. Suspended shops' users are signed out and can't sign in. */
-export async function setTenantStatus(tenantId: string, status: TenantStatus): Promise<AdminActionResult> {
+/**
+ * Active / Trial / Suspended. Suspended shops' users are signed out and can't sign in; `reason`
+ * (Phase 17) is shown to them at sign-in. Leaving suspended clears it.
+ */
+export async function setTenantStatus(tenantId: string, status: TenantStatus, reason?: string): Promise<AdminActionResult> {
   const me = await requireSuperadmin();
-  if (!z.uuid().safeParse(tenantId).success || !TENANT_STATUSES.includes(status)) {
+  const why = reason?.trim() || null;
+  if (!z.uuid().safeParse(tenantId).success || !TENANT_STATUSES.includes(status) || (why && why.length > 300)) {
     return { status: "error", message: "That change isn't valid." };
   }
   const admin = createAdminClient();
   const { data: before } = await admin.from("tenants").select("name, status").eq("id", tenantId).maybeSingle();
   if (!before) return { status: "error", message: "That shop wasn't found." };
-  if (before.status === status) return { status: "success" };
-  const { error } = await admin.from("tenants").update({ status, updated_at: new Date().toISOString() }).eq("id", tenantId);
+  if (before.status === status && status !== "suspended") return { status: "success" };
+  const statusReason = status === "suspended" ? why : null;
+  const { error } = await admin.from("tenants").update({ status, status_reason: statusReason, updated_at: new Date().toISOString() }).eq("id", tenantId);
   if (error) {
     console.error("setTenantStatus failed:", error);
     return { status: "error", message: "We couldn't change the shop's status. Please try again." };
   }
-  await audit({ adminId: me.userId, action: "tenant.status", tenantId, details: { shop: before.name, before: before.status, after: status } });
+  await audit({ adminId: me.userId, action: "tenant.status", tenantId, reason: statusReason, details: { shop: before.name, before: before.status, after: status } });
   refresh();
   return { status: "success" };
 }
@@ -269,4 +305,49 @@ export async function setUserRole(userId: string, role: "admin" | "staff"): Prom
   await audit({ adminId: me.userId, action: "user.role", tenantId: user.tenant_id, userId: user.id, details: { email: user.email, before: user.role, after: role } });
   refresh();
   return { status: "success" };
+}
+
+/**
+ * Ends every session of the user (Phase 17): they're signed out on every device at their next
+ * request once the current access token expires (up to an hour), or at once if deactivated.
+ */
+export async function forceSignOut(userId: string): Promise<AdminActionResult> {
+  const me = await requireSuperadmin();
+  const user = await loadUser(userId);
+  if (!user) return { status: "error", message: "That user wasn't found." };
+  if (user.id === me.userId) return { status: "error", message: "Sign yourself out from the user menu instead." };
+  const { data, error } = await createAdminClient().rpc("admin_force_sign_out", { p_user: user.id });
+  if (error) {
+    console.error("forceSignOut failed:", error);
+    return { status: "error", message: "We couldn't end their sessions. Please try again." };
+  }
+  await audit({ adminId: me.userId, action: "user.force_sign_out", tenantId: user.tenant_id, userId: user.id, details: { email: user.email, sessions: data ?? 0 } });
+  return {
+    status: "success",
+    message: data ? `${user.full_name}'s ${data === 1 ? "session was" : `${data} sessions were`} ended. Open pages stop working within the hour.` : `${user.full_name} had no open sessions.`,
+  };
+}
+
+/** Makes an active admin of the organization its owner (Phase 17). */
+export async function transferOwnership(tenantId: string, userId: string, reason: string): Promise<AdminActionResult> {
+  const me = await requireSuperadmin();
+  const why = z.string().trim().min(3, "Say why.").max(300).safeParse(reason);
+  if (!why.success) return { status: "error", message: why.error.issues[0]?.message ?? "Say why." };
+  const user = await loadUser(userId);
+  if (!user || user.tenant_id !== tenantId) return { status: "error", message: "That user isn't in this organization." };
+  const admin = createAdminClient();
+  const [{ data: profile }, { data: tenant }] = await Promise.all([
+    admin.from("profiles").select("deactivated_at").eq("id", user.id).single(),
+    admin.from("tenants").select("name, owner_id").eq("id", tenantId).single(),
+  ]);
+  if (user.role !== "admin" || profile?.deactivated_at) return { status: "error", message: `${user.full_name} must be an active admin first.` };
+  if (tenant?.owner_id === user.id) return { status: "success", message: `${user.full_name} is already the owner.` };
+  const { error } = await admin.from("tenants").update({ owner_id: user.id, updated_at: new Date().toISOString() }).eq("id", tenantId);
+  if (error) {
+    console.error("transferOwnership failed:", error);
+    return { status: "error", message: "We couldn't change the owner. Please try again." };
+  }
+  await audit({ adminId: me.userId, action: "tenant.owner", tenantId, userId: user.id, reason: why.data, details: { before: tenant?.owner_id ?? null, after: user.id, email: user.email } });
+  refresh();
+  return { status: "success", message: `${user.full_name} now owns ${tenant?.name ?? "the organization"}. Subscription emails go to them.` };
 }

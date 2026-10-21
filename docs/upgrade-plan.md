@@ -224,7 +224,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 
 **Goal**: the superadmin is a true super admin. They can create, view, change and manage **every** organization, user, setting and element of the app, in any organization, without asking the organization. On top of that, they own the platform-wide data (industries, categories, vehicle catalog, defaults) and the **subscription plans** that decide what each organization pays and how many stores, users and products it gets (deliverable 9). Everything they do is audited. This phase builds the framework; every later phase plugs its own settings and elements into it (decision 13).
 
-**Recommended features (offered when this phase starts, §10)**: RF-17.1 Two-factor sign-in for superadmins · RF-17.2 Organization notes, tags & follow-ups · ~~RF-17.3 Subscription tracking~~ (now deliverable 9, Rev 6) · RF-17.4 Organization health score · RF-17.5 "Login As" reason & transparency.
+**Recommended features (asked 2026-10-20, §10)**: **accepted** RF-17.1 Two-factor sign-in for superadmins, RF-17.2 Organization notes, tags & follow-ups, RF-17.4 Organization health score (deliverables 10–12) · RF-17.3 Subscription tracking became deliverable 9 (Rev 6) · **declined** RF-17.5 "Login As" reason & transparency.
 
 **Principles**
 - **Superset of the organization admin**: anything an org admin can do in their organization, the superadmin can do in any organization. Things org admins can't do (industry, modules, categories, status, limits, archiving, global catalogs) are superadmin-only.
@@ -317,18 +317,18 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
      - **Limit overrides**: optional per-organization values for stores, users, products and modules. The effective limit is the override if set, otherwise the plan's. The tab shows both, plus current usage (e.g. "Users 4 / 5").
      - **Grace days** after the due date (default 7, from platform settings), and **auto-suspend when unpaid** on/off (default on).
      - **Make a custom plan from here**: when a client doesn't fit any existing plan, "Create custom plan for this organization" opens the plan form pre-filled from its current plan. The superadmin changes the price, cycles or limits, saves it as a new *custom* plan (optionally named after the client) and assigns it in the same step. It can later be made *standard* so other clients can use it too.
-     - **Change plan** (upgrade or downgrade) takes effect immediately or from the next period, as the superadmin chooses. There's no automatic proration: the superadmin can add a one-off **adjustment line** (charge or credit) to the next invoice.
-     - **Downgrades never delete data**. If an organization is above a new limit, nothing is removed or deactivated. It just can't add more (new users, stores or products) until it's back under the limit, and its admins see a banner explaining why.
+     - **Change plan** (upgrade or downgrade) takes effect immediately or from the next period, as the superadmin chooses. There's no automatic proration: the superadmin can add a one-off **adjustment line** (charge or credit) to the next invoice. Unpaid invoices (without a payment being checked) are voided and reissued at the new price, so a downgraded organization pays the lower tier.
+     - **Downgrades never delete data automatically**. The Change Plan dialog lists what the organization has beyond the new plan's limits; the superadmin then brings it in line (deactivates users, removes products, switches off modules) or gives an override. Until it's back under the limit it can't add more (new users, stores or products), and its admins see a banner explaining why. If no existing plan fits, the superadmin uses "Create custom plan for this organization" (below).
      - **Cancel subscription**: the organization stays usable until the end of the paid period, then becomes suspended ("Subscription ended"). This is separate from archiving.
      - Every change keeps a **history row** (plan, cycle, price, limits, who, when, reason), shown on the tab.
    - **Subscription invoices** (what ProductLogik bills the organization; separate from the organization's own documents):
      - Numbered on the platform's own series, e.g. `PLS-2026-0001`, with the plan, period (from–to), agreed price, discount, adjustment lines and total.
      - **Created automatically** a set number of days before each period starts (default 7, platform setting) by a daily `pg_cron` job, and also on demand ("Create invoice now").
      - The PDF uses the ProductLogik business details and shows the **payment instructions** (wallet and bank accounts, deliverable 5) and the invoice number as the payment reference.
-     - Emailed to the organization's owner admin and shown on their Subscription page. Status: *unpaid*, *partly paid*, *paid*, *void* (void needs a reason).
+     - Emailed to the organization's owner admin and shown on their Subscription page. Status: *unpaid*, *paid*, *void* (void needs a reason).
    - **Recording payments** (superadmin):
      - **Record payment** on an invoice: date, amount, method (JazzCash, Easypaisa, other mobile wallet, bank transfer, cash), the transaction ID / reference, the sender's name or account, an optional screenshot or receipt file, and a note.
-     - Part payments are allowed. When an invoice is fully paid, the subscription's **paid-until date moves forward by one period**, and a suspended-for-non-payment organization is **reactivated automatically**.
+     - **No part payments** (the product owner's decision, 2026-10-21): a payment always covers the invoice's full amount due, whether the superadmin records it or the organization reports it. It's enforced in SQL. When an invoice is paid, the subscription's **paid-until date moves forward by one period**, and a suspended-for-non-payment organization is **reactivated automatically**.
      - A payment can be reversed (with a reason), which reopens the invoice.
      - A **payment receipt** PDF is emailed to the owner admin.
    - **Payment proof from the organization** (org admin, `/settings/subscription`):
@@ -362,12 +362,26 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
      - Triggers refuse the next insert or reactivation beyond the limit: users (`profiles` activation and invites), products (`inventory_items`, including CSV import, which reports the rows it couldn't add), and stores once `stores` exists (Phase 20 adds that trigger).
      - Modules outside the plan can't be switched on (Phase 18 reads `private.tenant_has_module()`).
      - The superadmin bypasses limits only through an explicit override, never silently.
+10. **Two-factor sign-in for superadmins** (RF-17.1):
+   - Authenticator-app (TOTP) codes through Supabase Auth MFA. Every superadmin must enrol before `/admin` opens: the first visit shows a QR code and a code box, then the console.
+   - After that, each sign-in asks for the 6-digit code. The console and every superadmin server action and route require an `aal2` session (`private.is_superadmin()` checks the JWT `aal` claim), so a stolen password alone can't reach the console.
+   - Organization users are unchanged (no 2FA required).
+   - Lost phone: another superadmin can reset a superadmin's 2FA from `/admin/team` (audited). If there's only one superadmin, the reset is a documented service-role script in `docs/`.
+11. **Organization notes, tags & follow-ups** (RF-17.2), superadmin only, never visible to the organization:
+   - **Notes**: a timeline of private notes on the organization's Overview tab (who, when; editable by the author, deletable with a reason).
+   - **Tags**: free tags with a colour (e.g. VIP, Onboarding, Fees due), managed at `/admin/platform` and attached on the organization page.
+   - **Follow-ups**: a date plus a short reason, marked done when handled. The console Overview lists follow-ups due today and overdue.
+   - The Shops list filters by tag and by "follow-up due", and shows the tags on each row and phone card.
+12. **Organization health score** (RF-17.4):
+   - A score of 0–100 per organization from the last 30 days: active users who signed in, documents created per week, and setup completeness (business profile, logo, at least one product, one customer and one invoice). It's shown as Healthy / Watch / At risk with the parts that make it up.
+   - Computed by one SQL function (`private.tenant_health(p_tenant)`), refreshed by the daily job into `tenant_health_snapshots`, so the Shops list can sort by it without a heavy query, and the organization page shows the trend.
+   - Archived organizations have no score.
 
 **Migration outline** — `…_phase17_superadmin_full_control.sql`:
 - `tenants`: `owner_id`, `archived_at`, `archived_by`, `archive_reason`, `status_reason`. `private.current_tenant_id()` returns null for an archived organization, like a suspended one. Not granted to `authenticated`.
 - **Subscriptions** (deliverable 9):
   - `subscription_plans` (*global*, superadmin only): `name`, `code` unique, `description`, `visibility` ('standard' | 'custom'), `price_monthly`, `price_yearly` (null = cycle not offered; at least one required), `max_stores`, `max_users`, `max_products` (null = unlimited), `allowed_modules text[]`, `trial_days`, `sort_order`, `retired_at`.
-  - `tenant_subscriptions` (one current row per tenant, read-only to the tenant's admins): `plan_id`, `billing_cycle` ('monthly' | 'yearly'), `status` ('trial' | 'active' | 'past_due' | 'grace' | 'suspended' | 'cancelled'), `agreed_price`, `discount_type`, `discount_value`, `price_note`, override columns `max_stores`, `max_users`, `max_products`, `allowed_modules`, `started_at`, `trial_ends_at`, `paid_until`, `next_due_date`, `grace_days`, `auto_suspend`, `cancel_at`.
+  - `tenant_subscriptions` (one current row per tenant, read-only to the tenant's admins): `plan_id`, `billing_cycle` ('monthly' | 'yearly'), `status` ('trial' | 'active' | 'past_due' | 'suspended' | 'cancelled'; the grace period is past_due until `next_due_date` + `grace_days`), `agreed_price`, `discount_type`, `discount_value`, `price_note`, override columns `max_stores`, `max_users`, `max_products`, `allowed_modules`, `started_at`, `trial_ends_at`, `paid_until`, `next_due_date`, `grace_days`, `auto_suspend`, `cancel_at`.
   - `tenant_subscription_history` (append-only: before/after jsonb, reason, by, at).
   - `subscription_invoices` (+ `subscription_invoice_lines`): platform-wide number series, `tenant_id`, period from/to, amounts, `status`, `void_reason`; unique per tenant + period so the job can't double-bill.
   - `subscription_payments`: `invoice_id`, `amount`, `paid_on`, `method` ('jazzcash' | 'easypaisa' | 'other_wallet' | 'bank_transfer' | 'cash'), `reference`, `payer_name`, `proof_path`, `status` ('pending' | 'verified' | 'rejected' | 'reversed'), `submitted_by`, `verified_by`, `reason`.
@@ -376,6 +390,9 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
   - `private.tenant_limit(p_tenant, p_kind)`, `private.tenant_has_module(p_tenant, p_module)`, and limit triggers on `profiles` and `inventory_items` (the `stores` trigger is added in Phase 20).
   - Org-admin RPC `submit_subscription_payment(...)` (creates a *pending* payment only). Service-role RPCs `admin_assign_plan`, `admin_change_plan`, `admin_cancel_subscription`, `admin_create_subscription_invoice`, `admin_record_subscription_payment`, `admin_verify_subscription_payment`, `admin_reverse_subscription_payment`, `admin_extend_subscription`.
   - `run_subscription_cycle(p_date)` for the daily `pg_cron` job: create invoices, send reminders, move statuses, suspend, and reactivate on payment. Idempotent per day.
+  - **RF-17.1**: `private.is_superadmin()` also requires `auth.jwt()->>'aal' = 'aal2'`; nothing is stored beyond Supabase's own `auth.mfa_factors`.
+  - **RF-17.2**: `tenant_notes` (tenant_id, body, author, edited_at, deleted_reason), `admin_tags` (*global*: name, colour), `tenant_tags` (tenant_id, tag_id), `tenant_follow_ups` (tenant_id, due_on, reason, done_at, done_by). All service role only.
+  - **RF-17.4**: `private.tenant_health(p_tenant)` and `tenant_health_snapshots` (tenant_id, taken_on, score, parts jsonb), written by the daily job.
   - Seed: the Starter, Business and Enterprise standard plans (table in deliverable 9), and the "Founding" custom plan with every existing tenant on it. `platform_settings.default_plan_id` = Starter.
 - `platform_settings` (*global*, single row, service role only): sign-up rules, default industry/status, impersonation TTL, email defaults, announcement defaults.
 - `platform_defaults` (*global*: kind, payload jsonb) for the lists new organizations start with; `announcements` (*global*, readable by the targeted organizations).
@@ -403,11 +420,14 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 - **Limits**: the plan's max users and products block the next invite, activation, product or CSV row, in SQL as well. A per-organization override raises the limit for that organization only. Editing a plan's limits changes every organization on it.
 - **Plans**: create, edit, duplicate and retire a plan. A retired plan can't be assigned but stays on its organizations. A price change shows only on the next invoice.
 - **Subscription cycle**: with the daily job run for chosen dates in a rolled-back transaction, the invoice is created on lead day −7, reminders go out on days −7, −3 and 0, the status moves to past due and then grace, and the organization is suspended after the grace days. Re-running the same date creates nothing new. Auto-suspend off → no suspension.
-- **Payments**: a recorded payment that covers the invoice marks it paid, moves paid-until forward one period and reactivates a suspended organization. A part payment leaves the invoice partly paid. A reversal reopens it.
+- **Payments**: a recorded payment that covers the invoice marks it paid, moves paid-until forward one period and reactivates a suspended organization. A payment for less (or more) than the amount due is refused, in the console, on "I've paid" and in SQL. A reversal reopens it.
 - **Payment proof**: an org admin submits a JazzCash reference with a screenshot → it's pending → the superadmin verifies it (the same result as recording a payment) or rejects it (the admin sees the reason). Another organization can't read the screenshot or the submission.
 - **Downgrade**: moving an organization with 6 users to a 5-user plan keeps all 6 active, blocks a 7th invite and shows the over-limit banner.
 - **No code needed for new plans**: from the console, create a new plan with its own price and limits and assign it; duplicate a plan; and use "Create custom plan for this organization" from a Subscription tab. All of these work immediately.
 - The three seeded plans exist with the agreed figures, and Starter is the sign-up default.
+- **2FA (RF-17.1)**: a superadmin without a factor is sent to enrolment; with a factor but an `aal1` session, every console page, server action and service-role RPC wrapper is refused until the code is entered. A wrong code is refused. Another superadmin can reset it (audited). Organization users sign in as before.
+- **Notes, tags, follow-ups (RF-17.2)**: add/edit/delete notes; tag an organization and filter the Shops list by tag; a follow-up due today shows on the Overview and disappears when marked done. An org admin can't read any of it (RLS and direct POST).
+- **Health score (RF-17.4)**: seeded organizations with no activity, some activity and full activity score At risk / Watch / Healthy; the Shops list sorts by score; the score parts add up.
 - **Existing organizations** are on the Founding plan after the migration, with no limits, banners or due dates.
 - Subscription invoice and receipt PDFs show the payment instructions and open correctly. The amounts are right with a discount and an adjustment line.
 - **Archive → restore** works. Archived users can't sign in or call the API. Scheduled jobs skip archived organizations. The export ZIP opens with all tables. There's no delete path for organizations anywhere (UI or RPC).
@@ -1291,11 +1311,11 @@ Ideas are drawn from what comparable inventory/invoicing products offer: custome
 | RF-16.2 | 16 | Urdu-ready fonts | Noto Nastaliq Urdu / Noto Sans Arabic fallbacks, so Urdu customer and product names show correctly on screens, PDFs and slips instead of empty boxes. | Accepted (Phase 16) |
 | RF-16.3 | 16 | "What's new" panel | An in-app changelog after each release, so users discover V2 features (dismissible, per user). | Accepted (Phase 16) |
 | RF-16.4 | 16 | Dark mode with a theme switcher | Light / Dark / System theme for the app screens, chosen in the user menu and remembered per browser. Documents (PDF, POS slip, share page, emails) stay light for printing. Requested by the product owner during Phase 16. | Accepted (Phase 16) |
-| RF-17.1 | 17 | Two-factor sign-in for superadmins | Authenticator-app (TOTP) codes through Supabase MFA, required for every superadmin account. This protects the most powerful accounts. | Not asked yet |
-| RF-17.2 | 17 | Organization notes, tags & follow-ups | Private superadmin notes, tags (VIP, onboarding, fees due) and follow-up dates per organization, filterable in the Shops list. | Not asked yet |
+| RF-17.1 | 17 | Two-factor sign-in for superadmins | Authenticator-app (TOTP) codes through Supabase MFA, required for every superadmin account. This protects the most powerful accounts. | Accepted (Phase 17) |
+| RF-17.2 | 17 | Organization notes, tags & follow-ups | Private superadmin notes, tags (VIP, onboarding, fees due) and follow-up dates per organization, filterable in the Shops list. | Accepted (Phase 17) |
 | RF-17.3 | 17 | Subscription tracking (no gateway) | Plan name, fee, renewal date and manually recorded payments per organization, with renewal reminders and an optional auto-suspend after a grace period. | Accepted and expanded (Rev 6, 2026-10-20): now Phase 17 deliverable 9, subscription plans & manual payments |
-| RF-17.4 | 17 | Organization health score | A sortable score from recent sign-ins, documents per week and setup completeness, so inactive or struggling organizations stand out. | Not asked yet |
-| RF-17.5 | 17 | "Login As" reason & transparency | The superadmin enters a reason when impersonating. Optionally, the organization's admin sees "Support accessed your account on …" in their notifications. | Not asked yet |
+| RF-17.4 | 17 | Organization health score | A sortable score from recent sign-ins, documents per week and setup completeness, so inactive or struggling organizations stand out. | Accepted (Phase 17) |
+| RF-17.5 | 17 | "Login As" reason & transparency | The superadmin enters a reason when impersonating. Optionally, the organization's admin sees "Support accessed your account on …" in their notifications. | Declined (2026-10-20) |
 | RF-18.1 | 18 | Custom product attributes per category | Superadmin-defined fields per category or industry (e.g. Brand, Warranty months, Material, Expiry required). They appear in the product dialog, filters and CSV, and optionally on documents. This is the "optional custom attributes" idea from `docs/upgrade.md`. | Not asked yet |
 | RF-18.2 | 18 | Category images & colours | An image or colour per category in pickers, the catalog editor and category chips, for faster recognition. | Not asked yet |
 | RF-18.3 | 18 | Industry onboarding checklist | A guided setup per industry for new organizations: profile, stores, import products, opening stock, opening balances, first invoice. Progress shows for the superadmin too. | Not asked yet |

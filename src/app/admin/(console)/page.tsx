@@ -5,25 +5,14 @@ import { Activity, FileText, Receipt, Store, Users } from "lucide-react";
 import { ActivityList } from "@/components/admin/activity-list";
 import { adminDate, adminMoney, statusBadge } from "@/components/admin/format";
 import { SignupsChart } from "@/components/admin/signups-chart";
-import { getNewestShops, getPlatformMetrics, getRecentActivity } from "@/lib/admin-data";
+import { Stat } from "@/components/admin/stat";
+import { NeedsAttention } from "@/components/admin/needs-attention";
+import { getAttention, getNewestShops, getPlatformMetrics, getRecentActivity } from "@/lib/admin-data";
 
 export const metadata: Metadata = { title: "Overview" };
 
-function Stat({ tone, icon, title, value, detail }: { tone: string; icon: React.ReactNode; title: string; value: string; detail: string }) {
-  return (
-    <section className={`card stat-card ${tone}`}>
-      <div className="stat-head">
-        <span className={`metric-icon ${tone}`}>{icon}</span>
-        <h3>{title}</h3>
-      </div>
-      <strong>{value}</strong>
-      <span>{detail}</span>
-    </section>
-  );
-}
-
 async function Overview() {
-  const [m, activity, newest] = await Promise.all([getPlatformMetrics(), getRecentActivity(12), getNewestShops(5)]);
+  const [m, activity, newest, attention] = await Promise.all([getPlatformMetrics(), getRecentActivity(12), getNewestShops(5), getAttention()]);
   const [main, ...others] = m.sales;
   const count = (n: number) => n.toLocaleString("en-PK");
   return (
@@ -57,6 +46,7 @@ async function Overview() {
           detail={`worth ${main ? adminMoney(m.documents.quotationsValue, main.currency) : m.documents.quotationsValue} · ${count(m.documents.drafts)} drafts`}
         />
       </div>
+      <NeedsAttention data={attention} today={attention.today} />
       <div className="admin-grid">
         <section className="card">
           <div className="card-header">

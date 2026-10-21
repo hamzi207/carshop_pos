@@ -9,6 +9,8 @@ export type OutgoingEmail = {
   /** Replies go to the shop rather than the no-reply sender. */
   replyTo?: string | null;
   attachments?: { filename: string; content: Buffer }[];
+  /** Display name before the sending address (Platform settings, Phase 17). */
+  senderName?: string;
 };
 
 export type DeliveryResult =
@@ -23,6 +25,13 @@ export type DeliveryResult =
  * once the domain is verified.
  */
 const FROM = process.env.RESEND_FROM_EMAIL || "ProductLogik POS <onboarding@resend.dev>";
+
+/** FROM with another display name (the address stays the verified one). */
+function fromWith(name: string | undefined) {
+  const address = FROM.match(/<([^>]+)>/)?.[1] ?? FROM;
+  const clean = name?.replace(/[<>"\r\n]/g, "").trim();
+  return clean ? `${clean} <${address}>` : FROM;
+}
 
 let client: Resend | null = null;
 function resend() {
@@ -52,7 +61,7 @@ export async function deliverEmail(email: OutgoingEmail): Promise<DeliveryResult
 
   try {
     const { data, error } = await api.emails.send({
-      from: FROM,
+      from: fromWith(email.senderName),
       to: email.to,
       subject: email.subject,
       html: email.html,

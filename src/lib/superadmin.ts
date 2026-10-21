@@ -8,28 +8,69 @@ import type { Json } from "@/lib/types/database.types";
 
 export type Superadmin = { userId: string; fullName: string; email: string };
 
-/** Whether this user is a platform superadmin (read with the service role: while impersonating, RLS hides their own profile). */
+/**
+ * Superadmins are their own accounts (platform_admins), separate from shops: no shop profile, signed
+ * in at /admin/login. The account's app_metadata.platform_admin mirrors the table so the proxy can
+ * route without a database read; the table is what grants access.
+ */
+export const PLATFORM_ADMIN_CLAIM = "platform_admin";
+
+/** Whether this account is an active platform superadmin (service role: the table has no RLS policies). */
 export async function isSuperadmin(userId: string) {
-  const { data } = await createAdminClient().from("profiles").select("is_superadmin").eq("id", userId).maybeSingle();
-  return data?.is_superadmin === true;
+  const { data } = await createAdminClient().from("platform_admins").select("id").eq("id", userId).is("removed_at", null).maybeSingle();
+  return data !== null;
+}
+
+/** Keeps the routing hint in the account's app_metadata in step with platform_admins. */
+export async function setPlatformAdminClaim(userId: string, on: boolean) {
+  const { error } = await createAdminClient().auth.admin.updateUserById(userId, { app_metadata: { [PLATFORM_ADMIN_CLAIM]: on } });
+  if (error) console.error("setPlatformAdminClaim failed:", error);
+  return !error;
 }
 
 /**
- * Guard for /admin pages and superadmin actions: the signed-in user must have profiles.is_superadmin.
- * Everyone else goes to /dashboard (the proxy does the same for /admin URLs). Cached per request.
+ * The signed-in superadmin and whether this session passed two-factor sign-in (RF-17.1), or null
+ * for anyone else. Cached per request.
  */
-export const requireSuperadmin = cache(async (): Promise<Superadmin> => {
+export const getSuperadminSession = cache(async () => {
   const { data: claims } = await (await createClient()).auth.getClaims();
   const userId = claims?.claims?.sub;
-  if (!userId) redirect("/login");
+  if (!userId) return null;
   const { data } = await createAdminClient()
-    .from("profiles")
-    .select("full_name, email, is_superadmin")
+    .from("platform_admins")
+    .select("full_name, email")
     .eq("id", userId)
+    .is("removed_at", null)
     .maybeSingle();
-  if (!data?.is_superadmin) redirect("/dashboard");
-  return { userId, fullName: data.full_name, email: data.email };
+  if (!data) return null;
+  return { userId, fullName: data.full_name, email: data.email, aal2: claims?.claims?.aal === "aal2" };
 });
+
+/**
+ * Guard for /admin pages and superadmin actions: the signed-in account must be an active platform
+ * admin with a two-factor (aal2) session. Anyone else goes to /admin/login; a superadmin who hasn't
+ * entered their code yet goes to /admin/mfa (the proxy does the same for /admin URLs). Cached per request.
+ */
+export const requireSuperadmin = cache(async (): Promise<Superadmin> => {
+  const session = await getSuperadminSession();
+  if (!session) redirect("/admin/login");
+  if (!session.aal2) redirect("/admin/mfa");
+  return { userId: session.userId, fullName: session.fullName, email: session.email };
+});
+
+/** Names for audit rows, notes and follow-ups: superadmins first, then shop users. */
+export async function peopleNames(ids: string[]) {
+  const unique = [...new Set(ids)];
+  const names = new Map<string, { fullName: string; email: string }>();
+  if (!unique.length) return names;
+  const admin = createAdminClient();
+  const [{ data: admins }, { data: users }] = await Promise.all([
+    admin.from("platform_admins").select("id, full_name, email").in("id", unique),
+    admin.from("profiles").select("id, full_name, email").in("id", unique),
+  ]);
+  for (const p of [...(users ?? []), ...(admins ?? [])]) names.set(p.id, { fullName: p.full_name, email: p.email });
+  return names;
+}
 
 /** The caller's IP for the audit log (first hop of x-forwarded-for), or null. */
 export async function requestIp() {
@@ -46,6 +87,8 @@ export async function audit(entry: {
   tenantId?: string | null;
   userId?: string | null;
   details?: Record<string, Json>;
+  /** Why (archive, overrides, deletes): shown in the audit log. */
+  reason?: string | null;
 }) {
   const { error } = await createAdminClient().from("superadmin_audit_logs").insert({
     admin_id: entry.adminId,
@@ -53,7 +96,17 @@ export async function audit(entry: {
     target_tenant_id: entry.tenantId ?? null,
     target_user_id: entry.userId ?? null,
     details: entry.details ?? {},
+    reason: entry.reason ?? null,
     ip_address: await requestIp(),
   });
   if (error) console.error("superadmin audit log failed:", error);
+}
+
+/** Only the keys whose value changed, as { before, after } for an audit row. */
+export function changedFields(before: Record<string, unknown>, after: Record<string, unknown>) {
+  const keys = Object.keys(after).filter((k) => JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null));
+  return {
+    before: Object.fromEntries(keys.map((k) => [k, (before[k] ?? null) as Json])),
+    after: Object.fromEntries(keys.map((k) => [k, (after[k] ?? null) as Json])),
+  };
 }

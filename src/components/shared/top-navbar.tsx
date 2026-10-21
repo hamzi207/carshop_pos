@@ -3,6 +3,7 @@ import { getShopSession } from "@/lib/auth";
 import { GlobalSearch } from "./global-search";
 import { MobileNavButton } from "./mobile-nav";
 import { NotificationBell } from "./notification-bell";
+import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 import { WhatsNew } from "./whats-new";
 
@@ -23,17 +24,18 @@ async function ProfileSection() {
       fullName={session.fullName}
       email={session.email}
       roleLabel={session.impersonating ? "Superadmin (acting)" : session.role === "admin" ? "Shop Administrator" : "Staff"}
-      isSuperadmin={session.isSuperadmin}
     />
   );
 }
 
 async function WhatsNewSection() {
   const session = await getShopSession();
+  // A superadmin acting as the shop doesn't get the shop's What's new.
+  if (session.impersonating) return null;
   return <WhatsNew seen={session.whatsNewSeen} />;
 }
 
-/** Top bar ported from design/figma-ui/src/App.tsx: global search (Ctrl/⌘ K), notifications, profile. */
+/** Top bar ported from design/figma-ui/src/App.tsx: global search (Ctrl/⌘ K), light/dark, notifications, profile. */
 export function TopNavbar() {
   return (
     <header className="topbar">
@@ -43,6 +45,7 @@ export function TopNavbar() {
         <Suspense fallback={null}>
           <WhatsNewSection />
         </Suspense>
+        <ThemeToggle />
         <NotificationBell />
         <Suspense fallback={<div className="profile"><div className="avatar" /></div>}>
           <ProfileSection />

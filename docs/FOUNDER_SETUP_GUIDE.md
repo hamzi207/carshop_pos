@@ -14,6 +14,7 @@
 6. [Step 4: Launching Claude Code & Starting Phase 1](#6-step-4-launching-claude-code--starting-phase-1)
 7. [Step 5: Testing & Git Commit Checklist (Phases 1 to 6)](#7-step-5-testing--git-commit-checklist-phases-1-to-6)
 8. [Beginner Troubleshooting & Emergency Playbook](#8-beginner-troubleshooting--emergency-playbook)
+9. [Going Live: Superadmin Console & Two-Factor](#9-going-live-superadmin-console--two-factor)
 
 ---
 
@@ -431,6 +432,17 @@ Whenever Claude Code finishes a phase, it will pause. Follow the exact testing s
 - Antigravity is your visual co-pilot. You can view all code files, see live diffs, and inspect your project tree while Claude Code runs in your terminal.
 - If Claude Code creates files or modifies code, Antigravity will automatically sync and display the changes in real time.
 - If you ever want Antigravity to write code or debug a file directly, simply ask in this chat!
+
+---
+
+## 9. Going Live: Superadmin Console & Two-Factor
+
+The admin console is separate from the shops. Superadmins have their own accounts (no shop) and sign in at **`/admin/login`**, never at the shops' `/login`; a shop account can't sign in to the console and a superadmin account can't sign in to a shop (Login As still opens any shop from the console). Supabase allows one account per email, so a superadmin uses its own address: for Gmail, `name+admin@gmail.com` reaches the same inbox. After the password, the console asks for a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 1Password). Nothing in the code changes between localhost and production; these are the only things to check:
+
+1. **Same Supabase project as now:** nothing to do. The authenticator you set up on localhost keeps working in production, because the factor is stored in Supabase, not in the app or the domain.
+2. **A new Supabase project for production:** run the migrations as usual. In the Supabase dashboard, check **Authentication → Multi-Factor → Authenticator app (TOTP)** is enabled (it is by default). Create the first superadmin account (Claude Code can do it: the console's Team page needs a superadmin to add others), then on the first sign-in at `/admin/login` you scan a new QR code once.
+3. **Don't lock yourself out:** make a second person a superadmin (Admin → Team), or keep the "Can't scan? Enter this key" text from setup somewhere safe (password manager). If the only superadmin loses their phone: Supabase dashboard → Authentication → Users → the user → remove the MFA factor, then sign in and scan a new QR code. Another superadmin can do the same from Admin → Team → Reset two-factor.
+4. **Phone clock:** codes depend on the time. If a correct-looking code is refused, set the phone's time to automatic.
 
 ---
 

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ShieldCheck, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { AdminFilters } from "@/components/admin/admin-filters";
 import { adminDate, statusBadge } from "@/components/admin/format";
 import { RoleSelect, UserActions } from "@/components/admin/user-actions";
@@ -53,7 +53,6 @@ async function UserList({ searchParams }: { searchParams: SearchParams }) {
                   <td className="primary-cell">
                     <strong>
                       {u.full_name}
-                      {u.is_superadmin && <span className="badge badge-purple admin-super"><ShieldCheck size={11} /> Superadmin</span>}
                     </strong>
                     <span>{u.email}</span>
                   </td>

@@ -783,3 +783,31 @@ Test steps:
   6. On an Android phone in Chrome: menu → Install app.
   7. Go through docs/regression-checklist.md.
   8. Commit: git add . && git commit -m "Phase 16 - productlogik rebrand, accent colour, urdu pdfs, whats new and dark mode"
+
+Phase 17 (Version 2: superadmin console, subscriptions, manual billing, separate superadmin accounts), 2026-10-21:
+  - Superadmins are their own accounts with no shop. They sign in at /admin/login, then enter a 6-digit code
+    from an authenticator app (/admin/mfa). Shop users sign in at /login. Neither sign-in accepts the other
+    kind of account, and there are no links between the console and a shop. Login As still opens any shop.
+  - Organization page tabs: overview with health score, notes, tags and follow-ups; profile, localization,
+    documents, printing, categories, users (CSV invite), subscription, data (full export, superadmin only,
+    audited) and activity. Suspend with a reason; archive and restore (never deleted); archived rows change
+    colour with age.
+  - Subscription plans (monthly or yearly), plan per organization, invoices, wallet or bank payments verified
+    by the superadmin, grace period and suspension when unpaid, Settings → Subscription in each shop, daily
+    run at /api/cron/subscriptions, billing overview.
+  - Console: Needs attention, Users, Plans, Billing, Audit, Team (add / remove superadmins, reset two-factor),
+    Platform settings and announcements, Vehicle catalog (search, add, edit, deactivate, merge).
+  - Light / dark button in the top bar of the shop and the console.
+  - Not built: document overrides, platform default lists and console imports (later phases), Login As
+    permission bypass (Phase 22).
+Typecheck, lint and production build pass. Browser tests with temporary accounts (deleted): two-factor 9/9,
+console separation 20/20 (see PROJECT_SPEC.md §7 Phase 17).
+
+Test steps:
+  1. /admin/login with your superadmin account (hamzi207+admin@gmail.com) → code from the authenticator → console.
+  2. /login with the same account: refused. /login with hamzi207@gmail.com → your shop, no console link.
+  3. Console → a shop → Login As → its dashboard with the banner → Exit returns to the console.
+  4. Theme button (sun / moon) in both top bars switches light and dark.
+  5. Plans → assign a plan to a shop → issue an invoice → record a payment.
+  6. Team → Add Superadmin with a new email: the invitation arrives.
+  7. Commit: git add . && git commit -m "Phase 17 - superadmin console, subscriptions, billing and separate superadmin accounts"

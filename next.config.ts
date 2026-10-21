@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": ["src/assets/fonts/*.ttf"],
   },
+  experimental: {
+    // Subscription payment screenshots (up to 5 MB) are sent through server actions (default 1 MB).
+    serverActions: { bodySizeLimit: "6mb" },
+  },
   turbopack: {
     rules: {
       "*.css": {

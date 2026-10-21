@@ -36,10 +36,16 @@ const GROUPS: { label: string; fields: (keyof DocumentSettingsValues)[] }[] = [
   { label: "Bank details", fields: ["bankName", "bankAccountTitle", "bankAccountNumber", "bankIban", "bankRaastId", "wallets"] },
 ];
 
-type Props = { initial: DocumentSettingsValues; floors: NumberFloors; canEdit: boolean };
+type Props = {
+  initial: DocumentSettingsValues;
+  floors: NumberFloors;
+  canEdit: boolean;
+  /** Superadmin console: save to this organization (audited). */
+  tenantId?: string;
+};
 
 /** Settings → Documents: number prefixes and "start from", terms per document, bank details for invoices. */
-export function DocumentSettingsForm({ initial, floors, canEdit }: Props) {
+export function DocumentSettingsForm({ initial, floors, canEdit, tenantId }: Props) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
@@ -57,7 +63,7 @@ export function DocumentSettingsForm({ initial, floors, canEdit }: Props) {
 
   const persist = async (values: Output) => {
     setServerError(null);
-    const result = await updateDocumentSettings(values);
+    const result = await updateDocumentSettings(values, tenantId);
     if (result.status === "error") {
       setServerError(result.message);
       notify.error("Document settings not saved", result.message);

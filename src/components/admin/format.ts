@@ -45,7 +45,68 @@ export function describeAction(action: string, details: Record<string, unknown>)
       return `Set a temporary password for ${d("email")}`;
     case "user.role":
       return `${d("email")}: role ${d("before")} → ${d("after")}`;
+    // Phase 17
+    case "tenant.settings":
+    case "tenant.documents":
+      return `Changed ${action === "tenant.documents" ? "document" : "shop"} settings (${Object.keys((details.after as object) ?? {}).join(", ") || "no changes"})`;
+    case "tenant.archive":
+      return "Archived the organization";
+    case "tenant.restore":
+      return "Restored the organization from the archive";
+    case "tenant.owner":
+      return `Made ${d("email")} the owner`;
+    case "tenant.export":
+      return "Downloaded a full export";
+    case "tenant.note_delete":
+      return "Deleted a note";
+    case "user.invite":
+      return `Invited ${d("email")} as ${d("role")}`;
+    case "user.invite_resent":
+      return `Resent the invitation to ${d("email")}`;
+    case "user.invite_cancelled":
+      return `Cancelled the invitation to ${d("email")}`;
+    case "user.deactivate":
+      return `Deactivated ${d("email")}`;
+    case "user.reactivate":
+      return `Reactivated ${d("email")}`;
+    case "user.delete":
+      return "Deleted the account of " + d("email");
+    case "user.force_sign_out":
+      return `Signed ${d("email")} out everywhere`;
+    case "superadmin.grant":
+      return `Made ${d("email")} a superadmin`;
+    case "superadmin.mfa_reset":
+      return `Reset two-factor sign-in for ${d("email")}`;
+    case "superadmin.revoke":
+      return `Removed superadmin from ${d("email")}`;
+    case "category.create":
+      return `Added the category “${d("name")}”`;
+    case "category.rename":
+      return `Renamed a category to “${d("name")}”`;
+    case "category.delete":
+      return `Deleted the category “${d("name")}”`;
+    case "tag.create":
+      return `Created the tag “${d("name")}”`;
+    case "tag.delete":
+      return `Deleted the tag “${d("name")}”`;
+    case "vehicle.create":
+      return "Added " + d("vehicle") + " to the vehicle catalog";
+    case "vehicle.update":
+      return "Changed " + d("before") + " to " + d("after");
+    case "vehicle.merge":
+      return "Merged duplicate vehicles into " + d("kept");
+    case "vehicle.deactivate":
+      return "Deactivated " + d("count") + " catalog vehicles";
+    case "vehicle.reactivate":
+      return "Reactivated " + d("count") + " catalog vehicles";
+    case "platform.settings":
+      return `Changed platform settings (${Object.keys((details.after as object) ?? {}).join(", ") || "no changes"})`;
+    case "announcement.create":
+      return "Posted an announcement";
+    case "announcement.end":
+      return "Ended an announcement";
     default:
+      if (action.startsWith("subscription.") || action.startsWith("plan.")) return `${action.replace(/[._]/g, " ").replace(/^\w/, (c) => c.toUpperCase())}`;
       return action;
   }
 }

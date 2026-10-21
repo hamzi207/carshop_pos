@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getImpersonation } from "@/lib/impersonation";
+import { isSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/types/database.types";
@@ -54,23 +55,21 @@ export type ShopSession = {
     /** A4 PDF or 80mm POS slip on the document screens. */
     printFormat: PrintFormat;
   };
-  /** Platform operator: the user menu links to /admin. */
-  isSuperadmin: boolean;
   /** Set while a superadmin is acting as this shop ("Login As"): the banner shows it. */
   impersonating: { tenantName: string; expiresAt: string } | null;
 };
 
-const TENANT_COLUMNS =
+export const TENANT_COLUMNS =
   "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, invoice_terms, quote_validity_days, phone, email, address, ntn, strn, logo_url, accent_color";
 
-type TenantRow = Pick<
+export type TenantRow = Pick<
   Tables<"tenants">,
   | "id" | "name" | "slug" | "currency" | "tax_rate" | "timezone" | "show_paisa" | "prices_include_tax"
   | "allow_international_phones" | "clock_style" | "show_clock" | "clock_24_hour" | "week_start" | "print_format"
   | "quote_footer_notes" | "invoice_terms" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url" | "accent_color"
 >;
 
-function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
+export function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
   return {
     id: tenant.id,
     name: tenant.name,
@@ -112,12 +111,12 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   const userId = claimsData?.claims?.sub;
   if (!userId) redirect("/login");
 
-  // Superadmin acting as a shop: RLS now shows that shop (not their own profile), so their name
-  // comes from the service role and they count as the shop's admin.
+  // Superadmin acting as a shop ("Login As"): superadmins have no shop profile, so their name comes
+  // from platform_admins (service role) and they count as the shop's admin.
   const impersonation = await getImpersonation(userId);
   if (impersonation) {
     const [{ data: own }, { data: tenant }] = await Promise.all([
-      createAdminClient().from("profiles").select("full_name, email, dashboard_prefs, whats_new_seen").eq("id", userId).single(),
+      createAdminClient().from("platform_admins").select("full_name, email").eq("id", userId).is("removed_at", null).maybeSingle(),
       supabase.from("tenants").select(TENANT_COLUMNS).eq("id", impersonation.tenantId).single(),
     ]);
     if (!own || !tenant) redirect("/admin/tenants");
@@ -126,10 +125,9 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
       fullName: own.full_name,
       email: own.email,
       role: "admin",
-      dashboardPrefs: parseDashboardPrefs(own.dashboard_prefs),
-      whatsNewSeen: own.whats_new_seen,
+      dashboardPrefs: parseDashboardPrefs(null),
+      whatsNewSeen: null,
       tenant: mapTenant(tenant),
-      isSuperadmin: true,
       impersonating: { tenantName: impersonation.tenantName, expiresAt: impersonation.expiresAt },
     };
   }
@@ -137,19 +135,24 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
   // RLS limits this to the caller's own profile/tenant.
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`full_name, email, role, is_superadmin, dashboard_prefs, whats_new_seen, tenants(${TENANT_COLUMNS})`)
+    .select(`full_name, email, role, dashboard_prefs, whats_new_seen, tenants!profiles_tenant_id_fkey(${TENANT_COLUMNS})`)
     .eq("id", userId)
     .single();
 
   const tenant = profile?.tenants;
   if (!profile || !tenant) {
-    // A suspended shop is hidden from its own users by RLS: sign them out with a polite message.
+    // A suspended or archived shop is hidden from its own users by RLS: sign them out with a polite
+    // message. Suspended for an unpaid subscription: the payment page instead.
     const { data: status } = await supabase.rpc("my_shop_status");
+    if (status === "unpaid") redirect("/subscription-due");
     if (status === "suspended") redirect("/auth/suspended");
+    if (status === "archived") redirect("/auth/suspended?reason=archived");
     // Turned off by a shop admin (Settings → Team).
     if (status === "deactivated") redirect("/auth/suspended?reason=deactivated");
-    // Signed in but not attached to any shop: shouldn't happen after registration.
-    redirect("/login?error=no_shop");
+    // A superadmin account (no shop) that isn't acting as one: back to the console.
+    if (await isSuperadmin(userId)) redirect("/admin");
+    // Signed in but not attached to any shop: sign out first, or /login would send them straight back here.
+    redirect("/auth/suspended?reason=no_shop");
   }
 
   return {
@@ -161,7 +164,6 @@ export const getShopSession = cache(async (): Promise<ShopSession> => {
     dashboardPrefs: parseDashboardPrefs(profile.dashboard_prefs),
     whatsNewSeen: profile.whats_new_seen,
     tenant: mapTenant(tenant),
-    isSuperadmin: profile.is_superadmin,
     impersonating: null,
   };
 });

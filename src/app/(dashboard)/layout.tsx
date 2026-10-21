@@ -1,5 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
+import { SubscriptionBanner } from "@/components/subscription/subscription-banner";
+import { AnnouncementBanner } from "@/components/shared/announcement-banner";
 import { AppSidebar } from "@/components/shared/app-sidebar";
 import { TopNavbar } from "@/components/shared/top-navbar";
 
@@ -18,6 +20,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <ImpersonationBanner />
         </Suspense>
         <TopNavbar />
+        {/* Admins: subscription due, past due, ending, or over a plan limit (Phase 17). */}
+        <Suspense>
+          <SubscriptionBanner />
+        </Suspense>
+        {/* Platform announcements, e.g. planned maintenance (Phase 17). */}
+        <AnnouncementBanner />
         <main>{children}</main>
       </div>
     </div>

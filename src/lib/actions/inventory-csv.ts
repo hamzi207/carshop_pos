@@ -18,6 +18,7 @@ import {
   type CsvItemRow,
 } from "@/lib/inventory-csv";
 import { createClient } from "@/lib/supabase/server";
+import { planLimitMessage } from "@/lib/plan-limits";
 import { inventoryItemSchema, type InventoryItemInput } from "@/lib/validations/inventory.schema";
 
 // Inventory CSV import / export (Phase 15). Every query runs with the caller's session (RLS: their
@@ -259,13 +260,15 @@ export async function importInventoryCsv(rows: CsvItemRow[], updateExisting: boo
       p_vehicle_ids: item.isUniversal ? [] : item.vehicleIds,
     });
     if (error) {
-      const message =
-        error.code === "23505"
+      const limit = planLimitMessage(error);
+      const message = limit
+        ? limit
+        : error.code === "23505"
           ? `SKU ${sku} is already used by another item.`
           : error.code === "23514" && error.message.includes("inventory_reserved_within_stock")
             ? "Stock can't go below what open quotations have reserved."
             : "This row couldn't be saved.";
-      if (!["23505", "23514"].includes(error.code)) console.error("importInventoryCsv row failed:", error.message);
+      if (!limit && !["23505", "23514"].includes(error.code)) console.error("importInventoryCsv row failed:", error.message);
       results.push({ line, sku, status: "error", message });
     } else results.push({ line, sku, status: p.existingId ? "updated" : "created" });
   }
