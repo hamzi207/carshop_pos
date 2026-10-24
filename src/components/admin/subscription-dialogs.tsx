@@ -7,6 +7,7 @@ import {
   addSubscriptionAdjustment,
   changeSubscriptionPlan,
   extendSubscription,
+  setSubscriptionStart,
   recordSubscriptionPayment,
   saveSubscriptionPricing,
 } from "@/lib/actions/subscriptions";
@@ -252,6 +253,33 @@ export function PricingDialog({ sub, icon, onClose }: { sub: TenantSubscription;
         </div>
       </label>
       <ReasonField value={v.reason} onChange={(reason) => set("reason", reason)} />
+    </SubscriptionDialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+export function StartDateDialog({ sub, icon, onClose }: { sub: TenantSubscription; icon: LucideIcon; onClose: () => void }) {
+  const [start, setStart] = useState(sub.startedAt);
+  const [reason, setReason] = useState("");
+  const { busy, error, run } = useSubmit(onClose, "Start date changed");
+  return (
+    <SubscriptionDialog
+      open
+      onClose={onClose}
+      icon={icon}
+      title="Change start date"
+      description="Where the first billing period begins. Only possible until the first invoice is issued."
+      submitLabel="Save"
+      busy={busy}
+      error={error}
+      onSubmit={() => void run(() => setSubscriptionStart(sub.tenantId, { until: start, reason }))}
+    >
+      <label className="span-two">
+        <span>STARTS ON</span>
+        <input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+      </label>
+      <ReasonField value={reason} onChange={setReason} />
     </SubscriptionDialog>
   );
 }

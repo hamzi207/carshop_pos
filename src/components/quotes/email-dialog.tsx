@@ -50,7 +50,7 @@ function EmailForm({ id, kind, number, customerEmail, canSendReceipt, onDone }: 
       return;
     }
     const sent = what === "receipt" ? `Payment receipt for ${number}` : `${kind} ${number}`;
-    if (result.status === "logged") notify.info("Email not sent", `Email isn't set up on this server, so ${sent.toLowerCase()} was only logged.`);
+    if (result.status === "logged") notify.warning("Email not sent", `Email isn't set up on this server, so ${sent.toLowerCase()} was only logged.`);
     else notify.success("Email sent", `${sent} was emailed to ${result.to}.`);
     onDone();
   };

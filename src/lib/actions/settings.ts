@@ -30,6 +30,7 @@ const SETTING_COLUMNS = {
   showClock: "show_clock",
   clockStyle: "clock_style",
   clock24Hour: "clock_24_hour",
+  showOverviewLogo: "show_overview_logo",
   weekStart: "week_start",
   quoteValidityDays: "quote_validity_days",
   printFormat: "print_format",

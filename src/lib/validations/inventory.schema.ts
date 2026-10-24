@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { attributeValuesSchema } from "@/lib/attributes";
 
 export const FITMENT_FILTERS = ["universal", "specific"] as const;
 export type FitmentFilter = (typeof FITMENT_FILTERS)[number];
@@ -54,6 +55,8 @@ export const inventoryItemSchema = z
     vehicleIds: z
       .array(z.number().int().positive())
       .max(500, "Link at most 500 vehicles to one item."),
+    /** Custom attribute values keyed by attribute key (RF-18.1); the database checks them against the definitions. */
+    attributes: attributeValuesSchema,
   })
   .superRefine((item, ctx) => {
     if (!item.isUniversal && item.vehicleIds.length === 0) {
@@ -67,6 +70,9 @@ export const inventoryItemSchema = z
 
 export type InventoryItemInput = z.infer<typeof inventoryItemSchema>;
 
+/** URL prefix of an attribute filter: ?attr.<key>=<option> (list) or yes / no (yes/no type). */
+export const ATTR_PARAM = "attr.";
+
 // URL search params for /inventory. Invalid values are dropped, not errors.
 export const inventoryFiltersSchema = z.object({
   /** A category id; includes everything below it. */
@@ -75,6 +81,8 @@ export const inventoryFiltersSchema = z.object({
   fitment: z.enum(FITMENT_FILTERS).optional().catch(undefined),
   stock: z.enum(STOCK_FILTERS).optional().catch(undefined),
   sort: z.enum(INVENTORY_SORTS).optional().catch(undefined),
+  /** Attribute filters (list and yes/no attributes), keyed by attribute key. */
+  attributes: z.record(z.string().regex(/^[a-z][a-z0-9_]{0,39}$/), z.string().max(100)).optional().catch(undefined),
 });
 
 export type InventoryFilters = z.infer<typeof inventoryFiltersSchema>;

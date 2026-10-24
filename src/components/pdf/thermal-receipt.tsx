@@ -55,7 +55,7 @@ export function ThermalReceipt({ doc, shareUrl }: Props) {
   const methods = [...new Set(doc.payments.map((p) => p.method))].join(", ");
 
   return (
-    <Document title={`${doc.title} ${doc.number} — POS slip`} author={doc.shop.name} creator="ProductLogik POS">
+    <Document title={`${doc.title} ${doc.number} — POS slip`} author={doc.shop.name} creator="ProductLogik Invoicing System">
       {/* No wrapping: a roll has no page breaks, so the page grows to fit everything. */}
       <Page size={{ width: WIDTH }} style={s.page} wrap={false}>
         {/* ---- Shop ---- */}
@@ -99,6 +99,7 @@ export function ThermalReceipt({ doc, shareUrl }: Props) {
         {doc.lines.map((l, i) => (
           <View key={i} style={s.item} wrap={false}>
             <Text style={s.itemName}>{l.description}</Text>
+            {l.details && <Text style={[s.muted, { fontSize: 7.5 }]}>{l.details}</Text>}
             <View style={s.itemSub}>
               <Text style={s.muted}>
                 {l.quantity} × {money(l.salePrice)}

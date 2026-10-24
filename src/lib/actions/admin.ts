@@ -92,10 +92,11 @@ export async function endImpersonation() {
 // ---------------------------------------------------------------------------
 
 /**
- * New shop + owner through the normal sign-up provisioning: an invited auth user with shop_name /
- * full_name metadata fires the on-signup trigger (tenant, admin profile, default categories,
- * walk-in customer). The owner gets a welcome email with a "Choose your password" link, or (Phase 17)
- * a temporary password returned once. Phase 17: the chosen plan and cycle replace the sign-up default.
+ * New shop + owner. Only the superadmin creates organizations (there is no self sign-up): an invited
+ * auth user, then public.admin_create_organization() (service role) makes the tenant and the admin
+ * profile; tenant triggers add the walk-in customer and the default-plan subscription. The owner gets
+ * a welcome email with a "Choose your password" link, or (Phase 17) a temporary password returned
+ * once. Phase 17: the chosen plan and cycle replace the default plan.
  */
 export async function createOrganization(
   input: CreateOrganizationInput,
@@ -103,7 +104,10 @@ export async function createOrganization(
   const me = await requireSuperadmin();
   const parsed = createOrganizationSchema.safeParse(input);
   if (!parsed.success) return { status: "error", message: parsed.error.issues[0]?.message ?? "Check the details." };
-  const { shopName, fullName, email, phone, status, planId, cycle, access } = parsed.data;
+  const { shopName, fullName, industryId, email, phone, status, planId, cycle, access } = parsed.data;
+  const { data: industry } = await createAdminClient().from("industries").select("name, is_active").eq("id", industryId).maybeSingle();
+  if (!industry) return { status: "error", message: "That industry doesn't exist." };
+  if (!industry.is_active) return { status: "error", message: `${industry.name} is closed for new organizations. Open it in Catalog → Industries first.` };
   if (planId) {
     const { data: plan } = await createAdminClient().from("subscription_plans").select("price_monthly, price_yearly, retired_at").eq("id", planId).maybeSingle();
     if (!plan || plan.retired_at) return { status: "error", message: "That plan isn't available." };
@@ -122,7 +126,7 @@ export async function createOrganization(
   const { data: link, error } = await admin.auth.admin.generateLink({
     type: "invite",
     email,
-    options: { data: { shop_name: shopName, full_name: fullName } },
+    options: { data: { full_name: fullName } },
   });
   if (error || !link.user) {
     if (error?.code === "email_exists" || /already been registered|already exists/i.test(error?.message ?? "")) {
@@ -131,14 +135,24 @@ export async function createOrganization(
     console.error("createOrganization failed:", error);
     return { status: "error", message: "We couldn't create the shop. Please try again." };
   }
-  const { data: profile } = await admin.from("profiles").select("tenant_id").eq("id", link.user.id).single();
-  if (!profile) return { status: "error", message: "The owner was created, but their shop wasn't. Check the database trigger." };
-  await admin.from("tenants").update({ phone: e164, status, updated_at: new Date().toISOString() }).eq("id", profile.tenant_id);
+  const { data: tenantId, error: orgError } = await admin.rpc("admin_create_organization", {
+    p_user: link.user.id,
+    p_shop_name: shopName,
+    p_full_name: fullName,
+    p_industry: industryId,
+  });
+  if (orgError || !tenantId) {
+    // No half-made owner left behind: the email can be used again.
+    await admin.auth.admin.deleteUser(link.user.id);
+    console.error("admin_create_organization failed:", orgError);
+    return { status: "error", message: orgError?.code === "22023" ? orgError.message : "We couldn't create the shop. Please try again." };
+  }
+  await admin.from("tenants").update({ phone: e164, status, updated_at: new Date().toISOString() }).eq("id", tenantId);
 
   // The chosen plan: from today, as a trial of the plan's length or billed from today.
   let planNote = "";
   if (planId) {
-    const changed = await changeSubscriptionPlan(profile.tenant_id, {
+    const changed = await changeSubscriptionPlan(tenantId, {
       planId,
       cycle,
       when: "now",
@@ -155,16 +169,16 @@ export async function createOrganization(
     await audit({
       adminId: me.userId,
       action: "tenant.create",
-      tenantId: profile.tenant_id,
+      tenantId,
       userId: link.user.id,
-      details: { shop: shopName, owner: email, status, plan: planId || "default", access: "temporary_password" },
+      details: { shop: shopName, owner: email, industry: industry.name, status, plan: planId || "default", access: "temporary_password" },
     });
     refresh();
     if (pwError) {
       console.error("createOrganization password failed:", pwError);
-      return { status: "success", tenantId: profile.tenant_id, message: `${shopName} was created, but the password couldn't be set. Use Users → Set a temporary password.${planNote}` };
+      return { status: "success", tenantId, message: `${shopName} was created, but the password couldn't be set. Use Users → Set a temporary password.${planNote}` };
     }
-    return { status: "success", tenantId: profile.tenant_id, password, message: `${shopName} was created.${planNote}` };
+    return { status: "success", tenantId, password, message: `${shopName} was created.${planNote}` };
   }
 
   const sent = await sendTransactionalEmail({
@@ -177,20 +191,20 @@ export async function createOrganization(
       loginUrl: `${await appOrigin()}/login`,
       setPasswordUrl: passwordLink(await appOrigin(), link.properties.hashed_token, "invite"),
     }),
-    tenantId: profile.tenant_id,
+    tenantId,
     sentBy: me.userId,
   });
   await audit({
     adminId: me.userId,
     action: "tenant.create",
-    tenantId: profile.tenant_id,
+    tenantId,
     userId: link.user.id,
-    details: { shop: shopName, owner: email, status, plan: planId || "default", welcomeEmail: sent.status },
+    details: { shop: shopName, owner: email, industry: industry.name, status, plan: planId || "default", welcomeEmail: sent.status },
   });
   refresh();
   return {
     status: "success",
-    tenantId: profile.tenant_id,
+    tenantId,
     message:
       sent.status === "failed"
         ? `${shopName} was created, but the welcome email couldn't be sent. Use Users → Reset password to send ${fullName} a link.`

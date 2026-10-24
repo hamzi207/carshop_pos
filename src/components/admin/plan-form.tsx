@@ -235,7 +235,7 @@ function PlanForm({ draft, title, onClose, onSaved, submitLabel }: Props & { dra
           <label>
             <span>VISIBILITY</span>
             <select value={v.visibility} onChange={(e) => set("visibility", e.target.value as "standard" | "custom")}>
-              <option value="standard">Standard: listed, can be the sign-up default</option>
+              <option value="standard">Standard: listed, can be the default plan</option>
               <option value="custom">Custom: one negotiated deal</option>
             </select>
           </label>

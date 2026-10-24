@@ -251,7 +251,7 @@ function CustomerForm({
           </label>
           <label className="span-two">
             <span>NOTES (OPTIONAL)</span>
-            <textarea rows={2} placeholder="Payment terms, preferred contact time, vehicles they usually bring…" {...invalid("notes")} {...register("notes")} />
+            <textarea rows={2} placeholder="Payment terms, preferred contact time, what they usually buy…" {...invalid("notes")} {...register("notes")} />
             {fieldError("notes")}
           </label>
         </div>

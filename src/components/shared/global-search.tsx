@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Dialog } from "radix-ui";
 import { FileText, Loader2, Package, Search, Users, type LucideIcon } from "lucide-react";
+import { LOOKUP_DELAY_MS } from "@/lib/search-delay";
 import type { SearchHit, SearchResponse } from "@/app/api/search/route";
 import { ShortcutHint } from "./shortcut-hint";
 
@@ -70,7 +71,7 @@ function SearchPanel({ onClose }: { onClose: () => void }) {
       setResults(body);
       setActive(0);
       setLoading(false);
-    }, 200);
+    }, LOOKUP_DELAY_MS);
     return () => clearTimeout(timer);
   }, [q]);
 

@@ -24,7 +24,6 @@ export async function getPlatformSettings(): Promise<PlatformSettingsInput> {
     defaultGraceDays: s.default_grace_days,
     reminderDays: s.reminder_days.join(", "),
     defaultPlanId: s.default_plan_id ?? "",
-    signupOpen: s.signup_open,
     signupDefaultStatus: s.signup_default_status === "active" ? "active" : "trial",
     impersonationTtlMinutes: s.impersonation_ttl_minutes,
     emailSenderName: s.email_sender_name,

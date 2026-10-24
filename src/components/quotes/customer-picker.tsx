@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Banknote, ChevronRight, Loader2, Search, UserPlus, Users, X } from "lucide-react";
 import { formatPhone } from "@/lib/phone";
+import { LOOKUP_DELAY_MS } from "@/lib/search-delay";
 import type { CustomerOption, CustomerOptionsResponse } from "@/lib/types/quote";
 import { CustomerAvatar, CustomerTypeBadge } from "@/components/customers/customer-badges";
 import { CustomerDialog } from "@/components/customers/customer-dialog";
@@ -44,7 +45,7 @@ function useCustomerSearch(enabled: boolean, query: string) {
         })
         .catch((err) => !ctrl.signal.aborted && setError(err.message))
         .finally(() => !ctrl.signal.aborted && setLoading(false));
-    }, 200);
+    }, LOOKUP_DELAY_MS);
     return () => {
       clearTimeout(timer);
       ctrl.abort();

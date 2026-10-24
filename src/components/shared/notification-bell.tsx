@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Popover } from "radix-ui";
-import { AlarmClock, Bell, CalendarClock, CheckCircle2, PackageX } from "lucide-react";
+import { AlarmClock, Bell, CalendarClock, CheckCircle2, FolderCheck, FolderX, PackageX } from "lucide-react";
 import type { AlertsResponse, ShopAlert } from "@/app/api/notifications/route";
 
 const SEEN_KEY = "productlogik.seenAlerts";
@@ -21,9 +21,17 @@ function readSeen(): string[] {
 }
 
 /** Icon by what the alert is about (the colour says how urgent it is). */
-const iconFor = (key: string) => (key.startsWith("stock:") ? PackageX : key.startsWith("overdue:") || key.startsWith("due:") ? AlarmClock : CalendarClock);
+function iconFor(key: string) {
+  if (key.startsWith("stock:")) return PackageX;
+  if (key.startsWith("overdue:") || key.startsWith("due:")) return AlarmClock;
+  if (key.startsWith("request:")) return key.endsWith(":rejected") ? FolderX : FolderCheck;
+  return CalendarClock;
+}
 
-/** Top-bar bell: live shop alerts (overdue / due invoices, low stock, expiring quotations). Unread = not opened yet in this browser. */
+/**
+ * Top-bar bell: live shop alerts (overdue / due invoices, low stock, expiring quotations) and the outcome of
+ * your category requests. Unread = not opened yet in this browser.
+ */
 export function NotificationBell() {
   const [alerts, setAlerts] = useState<ShopAlert[] | null>(null);
   // null until the first load (localStorage is browser-only).

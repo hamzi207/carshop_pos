@@ -1,74 +1,15 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { isSuperadmin, PLATFORM_ADMIN_CLAIM, setPlatformAdminClaim } from "@/lib/superadmin";
-import {
-  loginSchema,
-  newPasswordSchema,
-  registerSchema,
-  type LoginInput,
-  type NewPasswordInput,
-  type RegisterInput,
-} from "@/lib/validations/auth.schema";
+import { loginSchema, newPasswordSchema, type LoginInput, type NewPasswordInput } from "@/lib/validations/auth.schema";
 
-export type AuthActionResult =
-  | { status: "error"; message: string }
-  | { status: "confirm_email"; email: string };
+export type AuthActionResult = { status: "error"; message: string };
 
 function safeNext(next: string | null | undefined) {
   // Only allow same-site relative paths to avoid open redirects.
   return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
-}
-
-/**
- * Registers a new shop. The `on_auth_user_created_register_shop` database
- * trigger creates the `tenants` row and the linked admin `profiles` row in the
- * same transaction as the auth user, so the three always exist together.
- */
-export async function registerShop(input: RegisterInput): Promise<AuthActionResult> {
-  const parsed = registerSchema.safeParse(input);
-  if (!parsed.success) {
-    return { status: "error", message: parsed.error.issues[0]?.message ?? "Invalid details." };
-  }
-  const { shopName, fullName, email, password } = parsed.data;
-
-  const origin =
-    (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { shop_name: shopName, full_name: fullName },
-      emailRedirectTo: `${origin}/auth/callback?next=/dashboard`,
-    },
-  });
-
-  if (error) {
-    if (error.code === "user_already_exists") {
-      return { status: "error", message: "An account with this email already exists. Try signing in." };
-    }
-    if (error.code === "weak_password") {
-      return { status: "error", message: error.message };
-    }
-    console.error("registerShop failed:", error);
-    return { status: "error", message: "We couldn't create your shop. Please try again." };
-  }
-
-  // With email confirmation on, Supabase hides whether the email is taken by
-  // returning a user with no identities.
-  if (data.user && data.user.identities?.length === 0) {
-    return { status: "error", message: "An account with this email already exists. Try signing in." };
-  }
-
-  if (!data.session) {
-    return { status: "confirm_email", email };
-  }
-
-  redirect("/dashboard");
 }
 
 export async function signIn(input: LoginInput, next?: string): Promise<AuthActionResult> {
@@ -105,7 +46,7 @@ export async function signIn(input: LoginInput, next?: string): Promise<AuthActi
   }
   if (shopStatus === "archived") {
     await supabase.auth.signOut({ scope: "local" });
-    return { status: "error", message: "This organization has been archived. Please contact ProductLogik POS support." };
+    return { status: "error", message: "This organization has been archived. Please contact ProductLogik Invoicing System support." };
   }
   // Suspended for an unpaid subscription: signed in, but only the payment page opens.
   if (shopStatus === "unpaid") redirect("/subscription-due");
@@ -115,7 +56,7 @@ export async function signIn(input: LoginInput, next?: string): Promise<AuthActi
     await supabase.auth.signOut({ scope: "local" });
     return {
       status: "error",
-      message: `This shop's account is paused, so signing in isn't possible right now.${reason ? ` Reason: ${reason.replace(/\.+$/, "")}.` : ""} Please contact ProductLogik POS support to reactivate it.`,
+      message: `This shop's account is paused, so signing in isn't possible right now.${reason ? ` Reason: ${reason.replace(/\.+$/, "")}.` : ""} Please contact ProductLogik Invoicing System support to reactivate it.`,
     };
   }
 

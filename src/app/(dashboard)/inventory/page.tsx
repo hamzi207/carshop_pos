@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { getInventoryItems } from "@/lib/actions/inventory";
 import { getShopSession } from "@/lib/auth";
-import { getCategories, getCategoryCounts } from "@/lib/category-data";
+import { getAttributes, getCategories, getCategoryCounts } from "@/lib/category-data";
+import { hasModule } from "@/lib/module-data";
 import { parsePagination, pastEndRedirect } from "@/lib/pagination";
-import { inventoryFiltersSchema } from "@/lib/validations/inventory.schema";
+import { ATTR_PARAM, inventoryFiltersSchema } from "@/lib/validations/inventory.schema";
 import { AddItemButton } from "@/components/inventory/add-item-button";
 import { ExportInventoryButton, ImportInventoryButton } from "@/components/inventory/csv-import-dialog";
 import { InventoryFilters } from "@/components/inventory/inventory-filters";
@@ -18,40 +19,92 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
+/** ?attr.colour=Red&attr.boxed=yes → { colour: "Red", boxed: "yes" } (attribute filters, RF-18.1). */
+function attributeParams(raw: Record<string, string | string[] | undefined>) {
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const v = first(value);
+    if (key.startsWith(ATTR_PARAM) && v) out[key.slice(ATTR_PARAM.length)] = v;
+  }
+  return out;
+}
+
 async function AddItemAction() {
-  const [{ tenant }, categories] = await Promise.all([getShopSession(), getCategories()]);
-  return <AddItemButton currency={tenant.currency} pricesIncludeTax={tenant.pricesIncludeTax} categories={categories} />;
+  const [{ tenant }, categories, attributes, fitment] = await Promise.all([
+    getShopSession(),
+    getCategories(),
+    getAttributes(),
+    hasModule("vehicle_fitment"),
+  ]);
+  return (
+    <AddItemButton
+      currency={tenant.currency}
+      pricesIncludeTax={tenant.pricesIncludeTax}
+      categories={categories}
+      attributes={attributes}
+      fitment={fitment}
+    />
+  );
 }
 
 async function FiltersSection() {
-  const [categories, counts] = await Promise.all([getCategories(), getCategoryCounts()]);
-  return <InventoryFilters categories={categories} counts={counts} />;
+  const [categories, counts, attributes, fitment] = await Promise.all([
+    getCategories(),
+    getCategoryCounts(),
+    getAttributes(),
+    hasModule("vehicle_fitment"),
+  ]);
+  return <InventoryFilters categories={categories} counts={counts} attributes={attributes} fitment={fitment} />;
+}
+
+async function ImportAction() {
+  return <ImportInventoryButton fitment={await hasModule("vehicle_fitment")} />;
+}
+
+/** Heading: "Inventory & Fitment" only with the Vehicle Fitment module. */
+async function Heading() {
+  const fitment = await hasModule("vehicle_fitment");
+  return (
+    <div>
+      <span className="eyebrow">CATALOG MANAGEMENT</span>
+      <h1>{fitment ? "Inventory & Fitment" : "Inventory"}</h1>
+      <p>{fitment ? "Manage products, stock levels, margins, and vehicle compatibility." : "Manage products, stock levels and margins."}</p>
+    </div>
+  );
 }
 
 async function InventoryResults({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
+  const fitment = await hasModule("vehicle_fitment");
   const filters = inventoryFiltersSchema.parse({
     category: first(raw.category),
     search: first(raw.q) || undefined,
-    fitment: first(raw.fitment),
+    // The fitment filter only means something with the module on.
+    fitment: fitment ? first(raw.fitment) : undefined,
     stock: first(raw.stock),
     sort: first(raw.sort),
+    attributes: attributeParams(raw),
   });
   const pagination = parsePagination({ page: first(raw.page), limit: first(raw.limit) });
-  const [result, { tenant }, categories] = await Promise.all([
+  const [result, { tenant }, categories, attributes] = await Promise.all([
     getInventoryItems(filters, pagination),
     getShopSession(),
     getCategories(),
+    getAttributes(),
   ]);
   const pastEnd = pastEndRedirect("/inventory", raw, result);
   if (pastEnd) redirect(pastEnd);
-  const filtered = Boolean(filters.category || filters.search || filters.fitment || filters.stock);
+  const filtered = Boolean(
+    filters.category || filters.search || filters.fitment || filters.stock || Object.keys(filters.attributes ?? {}).length,
+  );
   return (
     <InventoryTable
       result={result}
       money={tenant.money}
       pricesIncludeTax={tenant.pricesIncludeTax}
       categories={categories}
+      attributes={attributes}
+      fitment={fitment}
       filtered={filtered}
     />
   );
@@ -70,14 +123,27 @@ export default function InventoryPage({ searchParams }: { searchParams: SearchPa
   return (
     <div className="page">
       <div className="page-heading inventory-heading">
-        <div>
-          <span className="eyebrow">CATALOG MANAGEMENT</span>
-          <h1>Inventory &amp; Fitment</h1>
-          <p>Manage products, stock levels, margins, and vehicle compatibility.</p>
-        </div>
+        <Suspense
+          fallback={
+            <div>
+              <span className="eyebrow">CATALOG MANAGEMENT</span>
+              <h1>Inventory</h1>
+            </div>
+          }
+        >
+          <Heading />
+        </Suspense>
         <div className="heading-actions">
           <ExportInventoryButton />
-          <ImportInventoryButton />
+          <Suspense
+            fallback={
+              <button type="button" className="button" disabled>
+                <Upload size={14} /> Import CSV
+              </button>
+            }
+          >
+            <ImportAction />
+          </Suspense>
           <Suspense
             fallback={
               <button type="button" className="button button-primary" disabled>

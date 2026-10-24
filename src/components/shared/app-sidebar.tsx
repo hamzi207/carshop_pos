@@ -16,7 +16,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { Brand } from "./brand";
+import { Brand, BuiltBy } from "./brand";
 import { MobileNavScrim } from "./mobile-nav";
 import { SidebarToggle } from "./sidebar-toggle";
 
@@ -106,7 +106,10 @@ export function AppSidebar() {
               Get support <ChevronRight size={13} />
             </button>
           </div>
-          <div className="version">ProductLogik POS</div>
+          <div className="version">
+            ProductLogik Invoicing System
+            <BuiltBy />
+          </div>
         </div>
       </aside>
       <SidebarToggle />

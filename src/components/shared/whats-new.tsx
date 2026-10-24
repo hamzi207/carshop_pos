@@ -42,7 +42,7 @@ export function WhatsNew({ seen }: { seen: string | null }) {
             <span className="header-icon blue"><Gift size={18} /></span>
             <div>
               <Dialog.Title asChild><h2>What&apos;s new</h2></Dialog.Title>
-              <Dialog.Description asChild><p>Recent improvements to ProductLogik POS.</p></Dialog.Description>
+              <Dialog.Description asChild><p>Recent improvements to ProductLogik Invoicing System.</p></Dialog.Description>
             </div>
           </div>
           <Dialog.Close asChild>

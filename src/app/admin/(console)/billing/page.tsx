@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Banknote, CalendarClock, TrendingUp, Wallet } from "lucide-react";
 import { BillingOverviewPanel } from "@/components/admin/billing-overview";
 import { Stat } from "@/components/admin/stat";
+import { SectionTabs } from "@/components/admin/section-tabs";
 import { getBillingOverview } from "@/lib/billing-data";
 import { pkr } from "@/lib/subscription";
 
@@ -30,11 +31,12 @@ export default function BillingPage() {
     <div className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">SUBSCRIPTIONS</span>
+          <span className="eyebrow">BILLING</span>
           <h1>Billing</h1>
           <p>Who owes what, payments to verify, and what&apos;s collected. Payments are by mobile wallet or bank transfer.</p>
         </div>
       </div>
+      <SectionTabs section="billing" />
       <Suspense fallback={<section className="card"><div className="empty-state">Loading billing…</div></section>}>
         <Billing />
       </Suspense>

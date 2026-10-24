@@ -56,8 +56,9 @@ export function DeleteItemDialog({ item, onOpenChange }: Props) {
             <div className="modal-body">
               {error && <div className="form-alert form-alert-error modal-alert" role="alert">{error}</div>}
               <p className="confirm-text">
-                <strong>{item?.name}</strong> <span className="mono">({item?.sku})</span> and its vehicle
-                fitment links will be removed. Existing quotes keep their line descriptions and prices.
+                <strong>{item?.name}</strong> <span className="mono">({item?.sku})</span>
+                {item?.vehicles.length ? " and its vehicle fitment links" : ""} will be removed. Existing documents keep their line
+                descriptions and prices.
               </p>
             </div>
             <div className="modal-footer">

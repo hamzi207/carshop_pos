@@ -92,8 +92,10 @@ type Props = {
   initialCustomer: CustomerOption | null;
   /** The shop's walk-in / cash customer. */
   walkIn: CustomerOption | null;
-  /** Main categories, for the phone part search's filter chips. */
+  /** Main categories, for the phone product search's filter chips. */
   categories: CategoryChip[];
+  /** The product search also matches linked vehicles (Vehicle Fitment module on). */
+  vehicleSearch: boolean;
 };
 
 type Action = {
@@ -175,6 +177,7 @@ function BuilderForm({
   initialCustomer,
   walkIn,
   categories,
+  vehicleSearch,
   onCreated,
 }: Props & { onCreated: () => void }) {
   const router = useRouter();
@@ -864,6 +867,7 @@ function BuilderForm({
         money={money}
         readOnly={!editable}
         categories={categories}
+        vehicleSearch={vehicleSearch}
       />
 
       {/* ---- Footer: notes / terms (left), totals / payments (right) ---- */}
@@ -1032,7 +1036,7 @@ function BuilderForm({
         onDiscard={() => {
           const target = leaving?.href ?? null;
           setLeaving(null);
-          notify.info("Changes discarded", doc ? `${doc.quote_number} was left as it was last saved.` : `The new ${SECTION[current].singular.toLowerCase()} was not saved.`);
+          notify.warning("Changes discarded", doc ? `${doc.quote_number} was left as it was last saved.` : `The new ${SECTION[current].singular.toLowerCase()} was not saved.`);
           leaveWith(() => {
             goTo(target)();
             // A new form is kept alive in the background; start it blank next time.

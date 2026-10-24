@@ -116,7 +116,7 @@ export async function setPlanRetired(id: string, retired: boolean): Promise<Plan
   ]);
   if (!plan) return { status: "error", message: "That plan wasn't found." };
   if (retired && settings?.default_plan_id === id) {
-    return { status: "error", message: `${plan.name} is the sign-up default. Choose another default in Platform settings first.` };
+    return { status: "error", message: `${plan.name} is the default plan. Choose another default in Platform settings first.` };
   }
   const { error } = await admin
     .from("subscription_plans")

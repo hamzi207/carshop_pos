@@ -5,9 +5,16 @@ import { useRouter } from "next/navigation";
 import { Dialog } from "radix-ui";
 import { CheckCircle2, Download, FileSpreadsheet, FileUp, Loader2, Upload, X } from "lucide-react";
 import { ModalSheet } from "@/components/shared/modal-sheet";
-import { checkInventoryCsv, exportInventoryCsv, importInventoryCsv, type CsvImportResult, type CsvRowCheck } from "@/lib/actions/inventory-csv";
+import {
+  checkInventoryCsv,
+  exportInventoryCsv,
+  importInventoryCsv,
+  inventoryCsvTemplate,
+  type CsvImportResult,
+  type CsvRowCheck,
+} from "@/lib/actions/inventory-csv";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import { IMPORT_BATCH, MAX_IMPORT_ROWS, readInventoryCsv, TEMPLATE_ROWS, type CsvItemRow } from "@/lib/inventory-csv";
+import { FITMENT_COLUMNS, IMPORT_BATCH, MAX_IMPORT_ROWS, readInventoryCsv, type CsvItemRow } from "@/lib/inventory-csv";
 import { notify } from "@/lib/notify";
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -31,7 +38,8 @@ export function ExportInventoryButton() {
   );
 }
 
-export function ImportInventoryButton() {
+/** `fitment`: the Vehicle Fitment module is on (Universal / Vehicles columns count). */
+export function ImportInventoryButton({ fitment }: { fitment: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -39,7 +47,7 @@ export function ImportInventoryButton() {
         <Upload size={14} /> Import CSV
       </button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
-        <ModalSheet className="modal modal-csv">{open && <CsvImport onClose={() => setOpen(false)} />}</ModalSheet>
+        <ModalSheet className="modal modal-csv">{open && <CsvImport fitment={fitment} onClose={() => setOpen(false)} />}</ModalSheet>
       </Dialog.Root>
     </>
   );
@@ -48,23 +56,23 @@ export function ImportInventoryButton() {
 type Step =
   | { kind: "choose"; error?: string }
   | { kind: "checking"; file: string }
-  | { kind: "preview"; file: string; rows: CsvItemRow[]; checks: CsvRowCheck[] }
+  | { kind: "preview"; file: string; rows: CsvItemRow[]; checks: CsvRowCheck[]; ignoredFitment: boolean }
   | { kind: "importing"; file: string; done: number; total: number }
   | { kind: "done"; results: CsvImportResult[] };
 
 /** Choose a file → preview (every row checked on the server, problems highlighted) → import in batches. */
-function CsvImport({ onClose }: { onClose: () => void }) {
+function CsvImport({ fitment, onClose }: { fitment: boolean; onClose: () => void }) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
   const [updateExisting, setUpdateExisting] = useState(false);
   const [step, setStep] = useState<Step>({ kind: "choose" });
   const busy = step.kind === "checking" || step.kind === "importing";
 
-  const check = async (file: string, rows: CsvItemRow[], update: boolean) => {
+  const check = async (file: string, rows: CsvItemRow[], update: boolean, ignoredFitment: boolean) => {
     setStep({ kind: "checking", file });
     const result = await checkInventoryCsv(rows, update).catch(() => null);
     if (!result || result.status === "error") return setStep({ kind: "choose", error: result?.message ?? "We couldn't check the file. Please try again." });
-    setStep({ kind: "preview", file, rows, checks: result.rows });
+    setStep({ kind: "preview", file, rows, checks: result.rows, ignoredFitment });
   };
 
   const choose = async (file: File) => {
@@ -72,12 +80,12 @@ function CsvImport({ onClose }: { onClose: () => void }) {
     if (file.size > 2 * 1024 * 1024) return setStep({ kind: "choose", error: "The file is larger than 2 MB. Split it into smaller files." });
     const parsed = readInventoryCsv(await file.text());
     if (parsed.error) return setStep({ kind: "choose", error: parsed.error });
-    await check(file.name, parsed.rows, updateExisting);
+    await check(file.name, parsed.rows, updateExisting, !fitment && parsed.columns.some((c) => FITMENT_COLUMNS.includes(c)));
   };
 
   const toggleUpdate = (value: boolean) => {
     setUpdateExisting(value);
-    if (step.kind === "preview") void check(step.file, step.rows, value);
+    if (step.kind === "preview") void check(step.file, step.rows, value, step.ignoredFitment);
   };
 
   const runImport = async () => {
@@ -97,10 +105,18 @@ function CsvImport({ onClose }: { onClose: () => void }) {
     setStep({ kind: "done", results });
     router.refresh();
     const saved = results.filter((r) => r.status !== "error").length;
-    if (saved) notify.success("Inventory imported", `${saved} ${saved === 1 ? "item" : "items"} saved.`);
+    const failed = results.length - saved;
+    // Green only when every row went in, amber when some did, red when none did.
+    if (!failed) notify.success("Inventory imported", `${saved} ${saved === 1 ? "item" : "items"} saved.`);
+    else if (saved) notify.warning("Inventory partly imported", `${saved} saved, ${failed} not saved. The list shows why.`);
+    else notify.error("Nothing imported", `${failed} ${failed === 1 ? "row" : "rows"} couldn't be saved. The list shows why.`);
   };
 
-  const template = () => downloadCsv("inventory-template.csv", toCsv(TEMPLATE_ROWS[0], TEMPLATE_ROWS.slice(1)));
+  const template = async () => {
+    const rows = await inventoryCsvTemplate().catch(() => null);
+    if (!rows) return notify.error("Template not downloaded", "Please try again.");
+    downloadCsv("inventory-template.csv", toCsv(rows[0], rows.slice(1)));
+  };
 
   return (
     <div className="csv-import">
@@ -147,15 +163,26 @@ function CsvImport({ onClose }: { onClose: () => void }) {
                 Update items with the same SKU
               </label>
             </div>
-            <p className="csv-help">
-              Columns: SKU, Name, Category (full path, e.g. <em>Exterior › Wrapping › PPF</em>), Cost Price, Sale Price, Stock, Universal
-              (Yes/No), Vehicles (<em>2018-2022 SUZUKI Alto; 2020 Honda Civic</em>), Vendor, and optionally Low Stock Alert, Price Includes Tax,
-              Description. When updating, empty cells keep the item&apos;s current value.
-            </p>
+            {fitment ? (
+              <p className="csv-help">
+                Columns: SKU, Name, Category (full path, e.g. <em>Exterior › Wrapping › PPF</em>), Cost Price, Sale Price, Stock, Universal
+                (Yes/No), Vehicles (<em>2018-2022 SUZUKI Alto; 2020 Honda Civic</em>), Vendor, and optionally Low Stock Alert, Price Includes Tax,
+                Description and one <em>attr:</em> column per product attribute. When updating, empty cells keep the item&apos;s current value.
+              </p>
+            ) : (
+              <p className="csv-help">
+                Columns: SKU, Name, Category (full path, e.g. <em>Main category › Subcategory</em>), Cost Price, Sale Price, Stock, Vendor, and
+                optionally Low Stock Alert, Price Includes Tax, Description and one <em>attr:</em> column per product attribute. Categories must
+                already be in your list (request new ones from Settings → Categories). When updating, empty cells keep the item&apos;s current value.
+              </p>
+            )}
             {step.kind === "choose" && step.error && <div className="form-alert form-alert-error" role="alert">{step.error}</div>}
           </div>
         )}
 
+        {step.kind === "preview" && step.ignoredFitment && (
+          <div className="form-alert" role="status">The Universal and Vehicles columns were ignored: Vehicle Fitment isn&apos;t switched on for your organization.</div>
+        )}
         {step.kind === "preview" && <Preview checks={step.checks} />}
 
         {step.kind === "importing" && (

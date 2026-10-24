@@ -1,10 +1,10 @@
 import "server-only";
 import { button, layout, muted, paragraph, type EmailContent } from "./layout";
 
-const PLATFORM = "ProductLogik POS";
+const PLATFORM = "ProductLogik Invoicing System";
 
 /**
- * A new shop's first email (Phase 13: shops created by a superadmin; also usable after sign-up).
+ * A new shop's first email (organizations are created by a superadmin).
  * With `setPasswordUrl` (the owner has no password yet) the button chooses one first.
  */
 export function welcomeEmail(p: { fullName: string; shopName: string; loginUrl: string; email: string; setPasswordUrl?: string }): EmailContent {

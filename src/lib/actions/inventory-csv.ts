@@ -1,12 +1,14 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { applicableAttributes, asValues, type Attribute, type AttrValues } from "@/lib/attributes";
 import { getShopSession } from "@/lib/auth";
 import { buildCategoryIndex, fullPath } from "@/lib/categories";
-import { getCategories } from "@/lib/category-data";
+import { getAttributes, getCategories } from "@/lib/category-data";
 import {
+  ATTR_COLUMN,
   CSV_COLUMN_LABEL,
-  CSV_COLUMNS,
+  csvColumns,
   formatVehiclesCell,
   IMPORT_BATCH,
   MAX_IMPORT_ROWS,
@@ -14,16 +16,22 @@ import {
   parseNumberCell,
   parseVehiclesCell,
   parseYesNo,
+  templateRows,
   type CsvColumnKey,
   type CsvItemRow,
 } from "@/lib/inventory-csv";
+import { hasModule } from "@/lib/module-data";
 import { createClient } from "@/lib/supabase/server";
 import { planLimitMessage } from "@/lib/plan-limits";
+import type { Json } from "@/lib/types/database.types";
 import { inventoryItemSchema, type InventoryItemInput } from "@/lib/validations/inventory.schema";
 
 // Inventory CSV import / export (Phase 15). Every query runs with the caller's session (RLS: their
 // own shop); rows are saved one by one through save_inventory_item, the same function as the
 // part dialog, so the same rules apply (SKU unique per shop, stock can't go below reservations).
+// Phase 18: import never creates categories (an unknown one is a row error), attr:<key> columns carry
+// custom attribute values, and without the Vehicle Fitment module the Universal / Vehicles columns are
+// ignored (the database keeps any stored fitment).
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -51,8 +59,11 @@ type Existing = {
   low_stock_threshold: number;
   is_universal: boolean;
   price_includes_tax: boolean;
+  attributes: Json;
   item_vehicle_compatibility: { vehicle_id: number }[];
 };
+
+const ITEM_COLUMNS = "id, sku, name, description, vendor_name, category_id, cost_price, selling_price, quantity_on_hand, low_stock_threshold, is_universal, price_includes_tax, attributes";
 
 const chunks = <T,>(list: T[], size: number) => Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, i * size + size));
 
@@ -62,7 +73,7 @@ async function existingBySku(supabase: Supabase, skus: string[]) {
   for (const part of chunks([...new Set(skus)].filter(Boolean), 200)) {
     const { data, error } = await supabase
       .from("inventory_items")
-      .select("id, sku, name, description, vendor_name, category_id, cost_price, selling_price, quantity_on_hand, low_stock_threshold, is_universal, price_includes_tax, item_vehicle_compatibility(vehicle_id)")
+      .select(`${ITEM_COLUMNS}, item_vehicle_compatibility(vehicle_id)`)
       .in("sku", part);
     if (error) throw new Error("Could not check existing SKUs.");
     for (const item of data as Existing[]) map.set(item.sku, item);
@@ -86,10 +97,37 @@ async function resolveVehicles(supabase: Supabase, cells: (string | undefined)[]
 
 type Prepared = { check: CsvRowCheck; input?: InventoryItemInput; existingId?: string };
 
-/** Validates every row against the shop (categories, SKUs, vehicles) and builds what would be saved. */
+/** "Red" for a list attribute is matched to its option ignoring capitals; returns the value to store or an error. */
+function attributeCell(a: Attribute, raw: string): { value: AttrValues[string] } | { error: string } {
+  switch (a.type) {
+    case "number": {
+      const n = parseNumberCell(raw);
+      return n === null || Number.isNaN(n) ? { error: `"${raw}" isn't a number.` } : { value: n };
+    }
+    case "boolean": {
+      const b = parseYesNo(raw);
+      return b === undefined || b === null ? { error: `Use Yes or No (not "${raw}").` } : { value: b };
+    }
+    case "date":
+      return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? { value: raw } : { error: `Write the date as YYYY-MM-DD (not "${raw}").` };
+    case "select": {
+      const option = a.options.find((o) => o.toLowerCase() === raw.toLowerCase());
+      return option ? { value: option } : { error: `"${raw}" isn't one of: ${a.options.join(", ")}.` };
+    }
+    default:
+      return raw.length > 200 ? { error: "Use 200 characters or fewer." } : { value: raw };
+  }
+}
+
+/** Validates every row against the shop (categories, SKUs, vehicles, attributes) and builds what would be saved. */
 async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Prepared[]> {
   const supabase = await createClient();
-  const [{ tenant }, categories] = await Promise.all([getShopSession(), getCategories()]);
+  const [{ tenant }, categories, attributes, fitment] = await Promise.all([
+    getShopSession(),
+    getCategories(),
+    getAttributes(),
+    hasModule("vehicle_fitment"),
+  ]);
   const index = buildCategoryIndex(categories);
   const byPath = new Map(index.flat.map((n) => [normalizeCategoryPath(fullPath(n)), n.id]));
   // A category's own name works too when only one category has it ("PPF").
@@ -101,7 +139,7 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
   const skuOf = (r: CsvItemRow) => (r.cells.sku ?? "").trim().toUpperCase();
   const [existing, vehicleIds] = await Promise.all([
     existingBySku(supabase, rows.map(skuOf)),
-    resolveVehicles(supabase, rows.map((r) => r.cells.vehicles)),
+    resolveVehicles(supabase, fitment ? rows.map((r) => r.cells.vehicles) : []),
   ]);
 
   const seen = new Map<string, number>();
@@ -111,6 +149,7 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
     const errors: CsvRowCheck["errors"] = [];
     const err = (column: CsvColumnKey | "row", message: string) =>
       errors.push({ column: column === "row" ? "" : CSV_COLUMN_LABEL[column], message });
+    const attrErr = (key: string, message: string) => errors.push({ column: ATTR_COLUMN + key, message });
     const has = (k: CsvColumnKey) => c[k] !== undefined && c[k] !== "";
     const current = sku ? existing.get(sku) : undefined;
     const update = Boolean(current && updateExisting);
@@ -124,7 +163,12 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
     if (has("category")) {
       const path = normalizeCategoryPath(c.category!);
       categoryId = byPath.get(path) ?? byName.get(path) ?? "";
-      if (!categoryId) err("category", `No category "${c.category}". Use the full path, e.g. Exterior › Wrapping › PPF.`);
+      const node = categoryId ? index.byId.get(categoryId) : undefined;
+      if (!categoryId) {
+        err("category", `"${c.category}" isn't in your categories. Use the full path, or request it from Settings → Categories.`);
+      } else if (node?.archived && categoryId !== current?.category_id) {
+        err("category", `"${fullPath(node)}" is archived. Choose another category.`);
+      }
     } else if (!update) err("category", "Enter a category.");
 
     // Numbers: blank keeps the current value on updates; new items get the defaults.
@@ -156,20 +200,55 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
     const priceIncludesTax = yesNo("priceIncludesTax", current && update ? current.price_includes_tax : tenant.pricesIncludeTax) ?? tenant.pricesIncludeTax;
 
     // Fitment: Universal Yes, or the listed vehicles. Blank on an update keeps the current fitment.
-    const { specs, invalid } = parseVehiclesCell(c.vehicles);
-    for (const text of invalid) err("vehicles", `Can't read "${text}". Write it as a year or years, then make and model: 2018-2022 SUZUKI Alto.`);
-    const ids = new Set<number>();
-    for (const s of specs) {
-      const found = vehicleIds.get(`${s.from}-${s.to} ${s.label}`) ?? [];
-      if (found.length === 0) err("vehicles", `No vehicle "${s.text}" in the vehicle list.`);
-      for (const id of found) ids.add(id);
+    // Without the module the columns are ignored and the stored fitment is kept as it is.
+    const currentVehicles = current ? current.item_vehicle_compatibility.map((v) => v.vehicle_id) : [];
+    let isUniversal: boolean;
+    let vehicles: number[];
+    if (!fitment) {
+      isUniversal = current && update ? current.is_universal : true;
+      vehicles = isUniversal ? [] : currentVehicles;
+    } else {
+      const { specs, invalid } = parseVehiclesCell(c.vehicles);
+      for (const text of invalid) err("vehicles", `Can't read "${text}". Write it as a year or years, then make and model: 2018-2022 SUZUKI Alto.`);
+      const ids = new Set<number>();
+      for (const s of specs) {
+        const found = vehicleIds.get(`${s.from}-${s.to} ${s.label}`) ?? [];
+        if (found.length === 0) err("vehicles", `No vehicle "${s.text}" in the vehicle list.`);
+        for (const id of found) ids.add(id);
+      }
+      const listed = specs.length > 0 || invalid.length > 0;
+      const universalCell = yesNo("universal", null);
+      isUniversal = universalCell ?? (current && update && !listed ? current.is_universal : !listed);
+      vehicles = [...ids];
+      if (!listed && current && update && !isUniversal) vehicles = currentVehicles;
+      if (isUniversal && listed) err("vehicles", "Universal products fit every vehicle: leave Vehicles empty, or set Universal to No.");
     }
-    const listed = specs.length > 0 || invalid.length > 0;
-    let isUniversal = yesNo("universal", null);
-    if (isUniversal === null) isUniversal = current && update && !listed ? current.is_universal : !listed;
-    let vehicles = [...ids];
-    if (!listed && current && update && !isUniversal) vehicles = current.item_vehicle_compatibility.map((v) => v.vehicle_id);
-    if (isUniversal && listed) err("vehicles", "Universal products fit every vehicle: leave Vehicles empty, or set Universal to No.");
+
+    // Attributes: attr:<key> cells. Blank keeps the current value on updates; required ones for the
+    // category must end up with a value.
+    const values: AttrValues = current && update ? { ...asValues(current.attributes) } : {};
+    for (const [key, raw] of Object.entries(row.attributes ?? {})) {
+      const def = attributes.find((a) => a.key === key);
+      if (!def) {
+        attrErr(key, `There's no attribute "${key}". Check the column name against the template.`);
+        continue;
+      }
+      if (raw === "") continue;
+      if (def.is_archived) {
+        attrErr(key, `${def.label} is archived and can't be set any more.`);
+        continue;
+      }
+      const parsed = attributeCell(def, raw);
+      if ("error" in parsed) attrErr(key, parsed.error);
+      else values[key] = parsed.value;
+    }
+    if (categoryId) {
+      for (const a of applicableAttributes(attributes, index, categoryId)) {
+        if (a.is_required && values[a.key] === undefined && !errors.some((e) => e.column === ATTR_COLUMN + a.key)) {
+          attrErr(a.key, `${a.label} is required for this category.`);
+        }
+      }
+    }
 
     const text = (k: CsvColumnKey, existingValue: string | null | undefined) => (c[k] !== undefined && (c[k] !== "" || !update) ? c[k]! : (existingValue ?? ""));
     const candidate = {
@@ -185,6 +264,7 @@ async function prepare(rows: CsvItemRow[], updateExisting: boolean): Promise<Pre
       priceIncludesTax,
       isUniversal,
       vehicleIds: isUniversal ? [] : vehicles,
+      attributes: values,
     };
 
     let input: InventoryItemInput | undefined;
@@ -258,17 +338,22 @@ export async function importInventoryCsv(rows: CsvItemRow[], updateExisting: boo
       p_price_includes_tax: item.priceIncludesTax,
       p_vendor_name: item.vendorName || undefined,
       p_vehicle_ids: item.isUniversal ? [] : item.vehicleIds,
+      p_attributes: item.attributes,
     });
     if (error) {
       const limit = planLimitMessage(error);
+      // Category, attribute and fitment checks in the database explain themselves.
+      const explained = ["22023", "23502"].includes(error.code) || (error.code === "23503" && error.message.includes("category"));
       const message = limit
         ? limit
         : error.code === "23505"
           ? `SKU ${sku} is already used by another item.`
           : error.code === "23514" && error.message.includes("inventory_reserved_within_stock")
             ? "Stock can't go below what open quotations have reserved."
-            : "This row couldn't be saved.";
-      if (!limit && !["23505", "23514"].includes(error.code)) console.error("importInventoryCsv row failed:", error.message);
+            : explained
+              ? error.message
+              : "This row couldn't be saved.";
+      if (!limit && !explained && !["23505", "23514"].includes(error.code)) console.error("importInventoryCsv row failed:", error.message);
       results.push({ line, sku, status: "error", message });
     } else results.push({ line, sku, status: p.existingId ? "updated" : "created" });
   }
@@ -276,17 +361,22 @@ export async function importInventoryCsv(rows: CsvItemRow[], updateExisting: boo
   return { status: "success", results };
 }
 
+/** Attribute keys that get an attr: column (template and export): every attribute that isn't archived. */
+const columnAttributes = (attributes: Attribute[]) => attributes.filter((a) => !a.is_archived);
+
 /** "Export Inventory (CSV)": every item in the shop (all pages), in the import template's columns. */
 export async function exportInventoryCsv(): Promise<{ status: "success"; header: string[]; rows: (string | number)[][] } | { status: "error"; message: string }> {
   const supabase = await createClient();
-  const index = buildCategoryIndex(await getCategories());
+  const [categories, attributeDefs, fitment] = await Promise.all([getCategories(), getAttributes(), hasModule("vehicle_fitment")]);
+  const index = buildCategoryIndex(categories);
+  const attrs = columnAttributes(attributeDefs);
   type Row = Omit<Existing, "item_vehicle_compatibility"> & { item_vehicle_compatibility: { vehicles: { year: number; make: string; model: string } | null }[] };
   const all: Row[] = [];
   // PostgREST returns at most 1000 rows per request: page through everything.
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from("inventory_items")
-      .select("id, sku, name, description, vendor_name, category_id, cost_price, selling_price, quantity_on_hand, low_stock_threshold, is_universal, price_includes_tax, item_vehicle_compatibility(vehicles(year, make, model))")
+      .select(`${ITEM_COLUMNS}, item_vehicle_compatibility(vehicles(year, make, model))`)
       .order("name")
       .order("id")
       .range(from, from + 999)
@@ -299,25 +389,41 @@ export async function exportInventoryCsv(): Promise<{ status: "success"; header:
     if (data.length < 1000) break;
   }
   const yes = (b: boolean) => (b ? "Yes" : "No");
+  const columns = csvColumns(fitment);
   return {
     status: "success",
-    header: CSV_COLUMNS.map((c) => c.label),
+    header: [...columns.map((c) => c.label), ...attrs.map((a) => ATTR_COLUMN + a.key)],
     rows: all.map((i) => {
       const node = index.byId.get(i.category_id);
+      const cell: Record<CsvColumnKey, string | number> = {
+        sku: i.sku,
+        name: i.name,
+        category: node ? fullPath(node) : "",
+        costPrice: Number(i.cost_price),
+        sellingPrice: Number(i.selling_price),
+        stock: i.quantity_on_hand,
+        universal: yes(i.is_universal),
+        vehicles: i.is_universal ? "" : formatVehiclesCell(i.item_vehicle_compatibility.flatMap((l) => (l.vehicles ? [l.vehicles] : []))),
+        vendor: i.vendor_name ?? "",
+        lowStock: i.low_stock_threshold,
+        priceIncludesTax: yes(i.price_includes_tax),
+        description: i.description ?? "",
+      };
+      const values = asValues(i.attributes);
       return [
-        i.sku,
-        i.name,
-        node ? fullPath(node) : "",
-        Number(i.cost_price),
-        Number(i.selling_price),
-        i.quantity_on_hand,
-        yes(i.is_universal),
-        i.is_universal ? "" : formatVehiclesCell(i.item_vehicle_compatibility.flatMap((l) => (l.vehicles ? [l.vehicles] : []))),
-        i.vendor_name ?? "",
-        i.low_stock_threshold,
-        yes(i.price_includes_tax),
-        i.description ?? "",
+        ...columns.map((c) => cell[c.key]),
+        ...attrs.map((a) => {
+          const v = values[a.key];
+          return v === undefined ? "" : typeof v === "boolean" ? yes(v) : v;
+        }),
       ];
     }),
   };
+}
+
+/** "Download template": the organization's columns (fitment ones only with the module) and its attr: columns. */
+export async function inventoryCsvTemplate(): Promise<string[][]> {
+  const [categories, attributeDefs, fitment] = await Promise.all([getCategories(), getAttributes(), hasModule("vehicle_fitment")]);
+  const example = buildCategoryIndex(categories).flat.find((n) => !n.archived && n.depth > 1) ?? null;
+  return templateRows(fitment, columnAttributes(attributeDefs).map((a) => a.key), example ? fullPath(example) : "");
 }

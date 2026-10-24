@@ -5,7 +5,7 @@ import { button, escapeHtml, facts, factsText, layout, muted, paragraph, type Em
 // Subscription emails (Phase 17, deliverable 9): what ProductLogik bills the organization, sent to
 // its owner admin; and the superadmin's notices (a payment to verify, a plan change request).
 
-const PLATFORM = "ProductLogik POS";
+const PLATFORM = "ProductLogik Invoicing System";
 
 function payToBlock(payTo: PayTo, reference: string) {
   const lines = payToLines(payTo);

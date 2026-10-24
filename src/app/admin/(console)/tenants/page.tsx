@@ -5,10 +5,12 @@ import { redirect } from "next/navigation";
 import { CalendarClock, Store } from "lucide-react";
 import { AdminFilters } from "@/components/admin/admin-filters";
 import { CreateOrganizationButton } from "@/components/admin/create-organization";
+import { getIndustryChoices, getSetupProgress } from "@/lib/admin-category-data";
 import { adminDate, adminMoney, statusBadge } from "@/components/admin/format";
 import { HealthBadge } from "@/components/admin/tenant-health";
 import { TenantActions } from "@/components/admin/tenant-actions";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { SectionTabs } from "@/components/admin/section-tabs";
 import { getAdminTags, getTenants, HEALTH_BANDS, parseTenantStatus, TENANT_SORTS, type TenantFilters, type TenantRow } from "@/lib/admin-data";
 import { ARCHIVE_PALETTE, archiveAge, archiveStyle } from "@/lib/archive-colour";
 import { parsePagination } from "@/lib/pagination";
@@ -16,13 +18,13 @@ import { getPlans } from "@/lib/plan-data";
 import { formatPhone } from "@/lib/phone";
 import { TENANT_STATUSES, TENANT_STATUS_LABEL } from "@/lib/validations/admin.schema";
 
-export const metadata: Metadata = { title: "Shops" };
+export const metadata: Metadata = { title: "Organizations" };
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 const STATUS_PILLS = [
-  { value: "", label: "All shops" },
+  { value: "", label: "All organizations" },
   ...TENANT_STATUSES.map((s) => ({ value: s, label: TENANT_STATUS_LABEL[s] })),
   { value: "archived", label: "Archived" },
 ];
@@ -75,7 +77,7 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
   const raw = await searchParams;
   const filters = parseFilters(raw);
   const pagination = parsePagination({ page: first(raw.page), limit: first(raw.limit) });
-  const result = await getTenants(filters, pagination);
+  const [result, setup] = await Promise.all([getTenants(filters, pagination), getSetupProgress()]);
   // Past the last page (a stale link): back to page 1 with the same filters.
   if (result.rows.length === 0 && pagination.page > 1) {
     const qs = new URLSearchParams(Object.entries(raw).flatMap(([k, v]) => (k !== "page" && typeof v === "string" && v ? [[k, v]] : [])));
@@ -87,7 +89,9 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
     return (
       <div className="empty-state">
         <span className="header-icon blue"><Store size={18} /></span>
-        <strong>{filters.archived ? (filtered ? "No archived shops match" : "Nothing is archived") : filtered ? "No shops match" : "No shops yet"}</strong>
+        <strong>
+          {filters.archived ? (filtered ? "No archived organizations match" : "Nothing is archived") : filtered ? "No organizations match" : "No organizations yet"}
+        </strong>
       </div>
     );
   }
@@ -108,10 +112,11 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
         <table className="admin-table">
           <thead>
             <tr>
-              <th>SHOP</th>
+              <th>ORGANIZATION</th>
               <th>OWNER</th>
               <th>STATUS</th>
               <th>HEALTH</th>
+              <th>SETUP</th>
               <th>USERS</th>
               <th>SALES</th>
               <th>LAST SIGN-IN</th>
@@ -141,6 +146,7 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
                     )}
                   </td>
                   <td>{t.archived_at ? "—" : <HealthBadge score={t.health_score} band={t.health_band} />}</td>
+                  <td><SetupCell progress={setup.get(t.id)} /></td>
                   <td>{t.users}</td>
                   <td className="amount">
                     {adminMoney(Number(t.sales), t.currency)}
@@ -155,7 +161,7 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
           </tbody>
         </table>
       </div>
-      <ul className="mobile-cards" aria-label="Shops">
+      <ul className="mobile-cards" aria-label="Organizations">
         {result.rows.map((t) => {
           const badge = statusBadge(t.status);
           return (
@@ -170,7 +176,10 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
                   {t.archived_at ? <span className="archive-age">{archiveAge(t.archived_at, now)}</span> : <span className={badge.tone}>{badge.label}</span>}
                 </span>
                 <span className="mobile-card-meta">
-                  <span className="mobile-card-muted">{t.owner_email ?? t.slug} · {t.users} {Number(t.users) === 1 ? "user" : "users"}</span>
+                  <span className="mobile-card-muted">
+                    {t.owner_email ?? t.slug} · {t.users} {Number(t.users) === 1 ? "user" : "users"}
+                    {setup.get(t.id)?.total ? ` · Setup ${setupPercent(setup.get(t.id)!)}%` : ""}
+                  </span>
                   <span>{adminMoney(Number(t.sales), t.currency)}</span>
                 </span>
                 <Tags row={t} />
@@ -182,25 +191,40 @@ async function TenantList({ searchParams }: { searchParams: SearchParams }) {
           );
         })}
       </ul>
-      <PaginationBar total={result.total} page={result.page} limit={result.limit} noun={["shop", "shops"]} />
+      <PaginationBar total={result.total} page={result.page} limit={result.limit} noun={["organization", "organizations"]} />
     </>
   );
 }
 
+/** Same rounding as percentDone() on the shop's own card. */
+const setupPercent = ({ done, total }: { done: number; total: number }) => (total ? Math.round((done / total) * 100) : 0);
+
+/** RF-18.3: "44%" with a small bar; the tooltip says how many steps. */
+function SetupCell({ progress }: { progress: { done: number; total: number } | undefined }) {
+  if (!progress?.total) return <span className="admin-muted">—</span>;
+  const pct = setupPercent(progress);
+  return (
+    <span className="setup-cell" title={`${progress.done} of ${progress.total} setup steps done`}>
+      <span className="setup-bar" style={{ "--pct": `${pct}%` } as CSSProperties} aria-hidden />
+      {pct}%
+    </span>
+  );
+}
+
 async function CreateButton() {
-  const plans = await getPlans();
+  const [plans, industries] = await Promise.all([getPlans(), getIndustryChoices()]);
   const choices = plans
     .filter((p) => !p.retiredAt)
     .map((p) => ({ id: p.id, name: p.name, monthly: p.priceMonthly !== null, yearly: p.priceYearly !== null, isDefault: p.isDefault }));
-  return <CreateOrganizationButton plans={choices} />;
+  return <CreateOrganizationButton plans={choices} industries={industries} />;
 }
 
 async function Filters() {
   const tags = await getAdminTags();
   return (
     <AdminFilters
-      placeholder="Search shop name, handle, phone or owner email..."
-      label="Search shops"
+      placeholder="Search organization name, handle, phone or owner email..."
+      label="Search organizations"
       statuses={STATUS_PILLS}
       selects={[
         { key: "tag", label: "Tag", options: [{ value: "", label: "Any tag" }, ...tags.map((g) => ({ value: g.id, label: g.name }))] },
@@ -216,8 +240,8 @@ export default function TenantsPage({ searchParams }: { searchParams: SearchPara
     <div className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">PLATFORM</span>
-          <h1>Shops</h1>
+          <span className="eyebrow">SHOPS</span>
+          <h1>Organizations</h1>
           <p>Every organization on the platform: open one, act as it, change its status, or archive it.</p>
         </div>
         <div className="heading-actions">
@@ -226,11 +250,12 @@ export default function TenantsPage({ searchParams }: { searchParams: SearchPara
           </Suspense>
         </div>
       </div>
+      <SectionTabs section="shops" />
       <section className="card customer-card">
         <Suspense>
           <Filters />
         </Suspense>
-        <Suspense fallback={<div className="empty-state">Loading shops…</div>}>
+        <Suspense fallback={<div className="empty-state">Loading organizations…</div>}>
           <TenantList searchParams={searchParams} />
         </Suspense>
       </section>

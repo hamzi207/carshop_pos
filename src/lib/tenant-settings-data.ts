@@ -1,7 +1,6 @@
 import "server-only";
 import { cache } from "react";
 import { mapTenant, TENANT_COLUMNS } from "@/lib/auth";
-import type { Category } from "@/lib/categories";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -33,16 +32,3 @@ export async function getTenantDocumentSettings(tenantId: string) {
   return t ? { row: t, floors: (floors ?? {}) as Record<string, unknown> } : null;
 }
 
-/** Settings → Categories: the organization's categories and items per category. */
-export async function getTenantCategories(tenantId: string): Promise<{ categories: Category[]; counts: Record<string, number> }> {
-  await requireSuperadmin();
-  const admin = createAdminClient();
-  const [{ data: categories, error }, { data: items }] = await Promise.all([
-    admin.from("categories").select("id, name, parent_id, sort_order").eq("tenant_id", tenantId),
-    admin.from("inventory_items").select("category_id").eq("tenant_id", tenantId),
-  ]);
-  if (error) throw new Error(`categories: ${error.message}`);
-  const counts: Record<string, number> = {};
-  for (const { category_id } of items ?? []) counts[category_id] = (counts[category_id] ?? 0) + 1;
-  return { categories: categories ?? [], counts };
-}

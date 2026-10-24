@@ -1,9 +1,10 @@
 "use client";
 
-import { createElement, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Popover } from "radix-ui";
 import { Check, ChevronDown, ChevronRight, Layers, Search, X } from "lucide-react";
-import { categoryIcon, fullPath, type CategoryIndex, type CategoryNode } from "@/lib/categories";
+import { CategoryMark } from "@/components/categories/category-tree";
+import { fullPath, pickable, type CategoryIndex, type CategoryNode } from "@/lib/categories";
 
 type Props = {
   index: CategoryIndex;
@@ -18,10 +19,8 @@ type Props = {
   disabled?: boolean;
 };
 
-/** The main category's icon (box for categories added later). */
-export function CategoryIcon({ node, size = 14 }: { node: CategoryNode | undefined; size?: number }) {
-  return createElement(categoryIcon(node), { size });
-}
+/** Main categories, and subcategories with their own colour or image, show their mark (RF-18.2). */
+const hasMark = (node: CategoryNode) => node.depth === 1 || Boolean(node.color || node.image_path);
 
 /** Ancestors of the selected category, so the tree opens on it. */
 function openPathOf(node: CategoryNode | undefined, index: CategoryIndex) {
@@ -36,7 +35,9 @@ function openPathOf(node: CategoryNode | undefined, index: CategoryIndex) {
 
 /**
  * Searchable category tree in a popover. Any level can be picked; in filter mode
- * picking a main category or subcategory includes everything below it.
+ * picking a main category or subcategory includes everything below it. Archived
+ * categories are left out, except the current value and (in filter mode) ones
+ * that still have items.
  */
 export function CategoryPicker({ index, value, onChange, allowAll, placeholder = "Choose a category", id, invalid, describedBy, disabled }: Props) {
   const selected = value ? index.byId.get(value) : undefined;
@@ -45,11 +46,14 @@ export function CategoryPicker({ index, value, onChange, allowAll, placeholder =
   const [expanded, setExpanded] = useState<Set<string>>(() => openPathOf(selected, index));
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const shown = (node: CategoryNode) => pickable(node, value) || (allowAll && node.itemCount > 0);
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return null;
-    return index.flat.filter((n) => fullPath(n).toLowerCase().includes(q)).slice(0, 60);
-  }, [query, index]);
+    return index.flat.filter((n) => shown(n) && fullPath(n).toLowerCase().includes(q)).slice(0, 60);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shown() only reads value and allowAll
+  }, [query, index, value, allowAll]);
 
   const pick = (next: string | null) => {
     onChange(next);
@@ -67,7 +71,8 @@ export function CategoryPicker({ index, value, onChange, allowAll, placeholder =
 
   const row = (node: CategoryNode, opts: { indent: number; showPath?: boolean }) => {
     const isOpen = expanded.has(node.id) || Boolean(matches);
-    const hasChildren = node.children.length > 0 && !opts.showPath;
+    const children = node.children.filter(shown);
+    const hasChildren = children.length > 0 && !opts.showPath;
     return (
       <li key={node.id}>
         <div className={`cat-row${node.id === value ? " selected" : ""}`} style={{ paddingLeft: 6 + opts.indent * 16 }}>
@@ -85,7 +90,7 @@ export function CategoryPicker({ index, value, onChange, allowAll, placeholder =
             <span className="cat-toggle-space" />
           )}
           <button type="button" aria-pressed={node.id === value} className="cat-pick" onClick={() => pick(node.id)}>
-            {node.depth === 1 && <CategoryIcon node={node} />}
+            {hasMark(node) && <CategoryMark node={node} size={13} />}
             <span className={node.depth === 1 ? "cat-main" : undefined}>
               {opts.showPath ? fullPath(node) : node.name}
             </span>
@@ -94,7 +99,7 @@ export function CategoryPicker({ index, value, onChange, allowAll, placeholder =
           </button>
         </div>
         {hasChildren && isOpen && (
-          <ul>{node.children.map((child) => row(child, { indent: opts.indent + 1 }))}</ul>
+          <ul>{children.map((child) => row(child, { indent: opts.indent + 1 }))}</ul>
         )}
       </li>
     );
@@ -121,7 +126,7 @@ export function CategoryPicker({ index, value, onChange, allowAll, placeholder =
           disabled={disabled}
           title={selected ? fullPath(selected) : undefined}
         >
-          {selected ? <CategoryIcon node={selected} /> : <Layers size={14} />}
+          {selected ? <CategoryMark node={selected} size={13} /> : <Layers size={14} />}
           <span>{selected ? fullPath(selected) : allowAll ? "All categories" : placeholder}</span>
           <ChevronDown size={14} className="range-chevron" />
         </button>
@@ -175,10 +180,10 @@ export function CategoryPicker({ index, value, onChange, allowAll, placeholder =
             )}
             {matches
               ? matches.map((node) => row(node, { indent: 0, showPath: true }))
-              : index.roots.map((node) => row(node, { indent: 0 }))}
+              : index.roots.filter(shown).map((node) => row(node, { indent: 0 }))}
             {matches?.length === 0 && <li className="cat-empty">No category matches “{query.trim()}”.</li>}
             {!matches && index.roots.length === 0 && (
-              <li className="cat-empty">No categories yet. Admins can add them in Settings.</li>
+              <li className="cat-empty">No categories yet. Request one from Settings → Categories.</li>
             )}
           </ul>
         </Popover.Content>

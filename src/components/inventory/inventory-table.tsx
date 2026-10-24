@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, Car, CheckCircle2, Package, Pencil, Plus, Trash2 } from "lucide-react";
+import type { Attribute } from "@/lib/attributes";
 import { buildCategoryIndex, categoryIcon, fullPath, shortPath, type Category } from "@/lib/categories";
 import { formatMoney, formatVehicleGroups, marginPercent, type MoneyFormat } from "@/lib/format";
 import type { InventoryPage } from "@/lib/actions/inventory";
 import type { InventoryListItem } from "@/lib/types/inventory";
+import { CategoryBadge } from "@/components/categories/category-tree";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import { DeleteItemDialog } from "./delete-item-dialog";
 import { InventoryItemDetails } from "./inventory-item-details";
@@ -18,6 +20,9 @@ type Props = {
   /** Shop default for new items (tenants.prices_include_tax). */
   pricesIncludeTax: boolean;
   categories: Category[];
+  attributes: Attribute[];
+  /** Vehicle Fitment module on: the fitment and vehicle columns show. */
+  fitment: boolean;
   /** True when a search/category/stock/fitment filter is active (changes the empty state). */
   filtered: boolean;
 };
@@ -86,7 +91,7 @@ function StockCell({ item }: { item: InventoryListItem }) {
   );
 }
 
-export function InventoryTable({ result, money, pricesIncludeTax, categories, filtered }: Props) {
+export function InventoryTable({ result, money, pricesIncludeTax, categories, attributes, fitment, filtered }: Props) {
   const items = result.rows;
   const index = useMemo(() => buildCategoryIndex(categories), [categories]);
   const [editing, setEditing] = useState<InventoryListItem | null>(null);
@@ -116,7 +121,7 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
           {filtered ? (
             <>
               <strong>No products match these filters</strong>
-              Try a different search, category, stock level or fitment type.
+              {fitment ? "Try a different search, category, stock level or fitment type." : "Try a different search, category or stock level."}
             </>
           ) : (
             <>
@@ -136,8 +141,8 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
             <thead>
               <tr>
                 <th>PRODUCT</th>
-                <th>FITMENT TYPE</th>
-                <th>VEHICLE</th>
+                {fitment && <th>FITMENT TYPE</th>}
+                {fitment && <th>VEHICLE</th>}
                 <th>COST</th>
                 <th>SELLING PRICE</th>
                 <th>MARGIN</th>
@@ -163,13 +168,13 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
                           </button>
                           <span>
                             <span className="mono">{item.sku}</span>
-                            {category && <span className="badge" title={fullPath(category)}>{shortPath(category)}</span>}
+                            {category && <CategoryBadge node={category} label={shortPath(category)} title={fullPath(category)} />}
                           </span>
                         </div>
                       </div>
                     </td>
-                    <td><FitmentBadge item={item} /></td>
-                    <td><VehicleCell item={item} /></td>
+                    {fitment && <td><FitmentBadge item={item} /></td>}
+                    {fitment && <td><VehicleCell item={item} /></td>}
                     <td>{formatMoney(cost, money)}</td>
                     <td className="amount">
                       {formatMoney(selling, money)}
@@ -212,7 +217,7 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
                     </span>
                     <span className="mobile-card-title">{item.name}</span>
                     <span className="mobile-card-meta">
-                      {category && <span className="badge" title={fullPath(category)}>{shortPath(category)}</span>}
+                      {category && <CategoryBadge node={category} label={shortPath(category)} title={fullPath(category)} />}
                       <span className={`badge ${low ? "badge-red" : "badge-green"}`}>
                         {low && <AlertTriangle size={11} />}
                         {available <= 0 ? "None available" : `${available} available`}
@@ -247,12 +252,16 @@ export function InventoryTable({ result, money, pricesIncludeTax, categories, fi
         currency={money.currency}
         pricesIncludeTax={pricesIncludeTax}
         categories={categories}
+        attributes={attributes}
+        fitment={fitment}
         item={editing ?? undefined}
       />
       <DeleteItemDialog item={deleting} onOpenChange={(open) => !open && setDeleting(null)} />
       <InventoryItemDetails
         item={viewing}
         money={money}
+        attributes={attributes}
+        fitment={fitment}
         categoryLabel={viewing ? (() => { const c = index.byId.get(viewing.category_id); return c ? fullPath(c) : "—"; })() : ""}
         onOpenChange={(open) => !open && setViewing(null)}
         onEdit={(item) => {

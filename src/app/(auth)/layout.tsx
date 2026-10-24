@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { FileText, Boxes, ShieldCheck } from "lucide-react";
-import { BrandLockup } from "@/components/shared/brand";
+import { BrandLockup, BuiltBy } from "@/components/shared/brand";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -29,7 +29,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             </li>
           </ul>
         </div>
-        <div className="version">ProductLogik POS</div>
+        <div className="version">
+          ProductLogik Invoicing System
+          <BuiltBy />
+        </div>
       </aside>
       <main className="auth-main">
         {/* Phones hide the dark side panel, so the logo sits above the form instead. */}

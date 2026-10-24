@@ -129,7 +129,7 @@ export function SubscriptionInvoicePdf({ data }: { data: SubscriptionInvoicePdfD
         )}
 
         <View style={s.footer} fixed>
-          <Text>{seller.name} · ProductLogik POS subscription</Text>
+          <Text>{seller.name} · ProductLogik Invoicing System subscription</Text>
           <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>

@@ -2,12 +2,19 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { UserMenu } from "@/components/shared/user-menu";
+import { pendingRequestCount } from "@/lib/admin-category-data";
 import { requireSuperadmin } from "@/lib/superadmin";
 import { BrandLockup } from "@/components/shared/brand";
 import { AdminNavLinks } from "./admin-nav-links";
 
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join("");
+
+/** The links, with pending category requests on Categories. */
+async function NavLinks() {
+  await requireSuperadmin();
+  return <AdminNavLinks pendingRequests={await pendingRequestCount()} />;
+}
 
 async function AdminProfile() {
   const me = await requireSuperadmin();
@@ -24,7 +31,7 @@ export function AdminNavbar() {
       </Link>
       {/* usePathname() is request data: it streams in after the static shell. */}
       <Suspense fallback={<nav className="admin-nav" aria-label="Superadmin" />}>
-        <AdminNavLinks />
+        <NavLinks />
       </Suspense>
       <div className="admin-navbar-end">
         <ThemeToggle className="icon-button theme-toggle admin-theme-toggle" />

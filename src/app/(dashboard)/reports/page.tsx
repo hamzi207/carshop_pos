@@ -219,7 +219,7 @@ async function ReportBody({ searchParams }: { searchParams: SearchParams }) {
       <Section
         title="Stock (today)"
         hint={`${r.stock.items} products · ${r.stock.units} units on hand (${r.stock.reserved} reserved on quotations).`}
-        action={<CsvButton filename={`low-stock-${localDate(tenant.timezone)}.csv`} header={["Product", "SKU", "Free units", "Low-stock level"]} rows={r.stock.low.map((l) => [l.name, l.sku, l.free, l.threshold])} />}
+        action={<CsvButton filename={`low-stock-${localDate(tenant.timezone)}.csv`} header={["Product", "SKU", "Available units", "Low-stock level"]} rows={r.stock.low.map((l) => [l.name, l.sku, l.free, l.threshold])} />}
       >
         <div className="stock-values">
           <div><Boxes size={16} /><span>Stock value at cost</span><strong>{money(r.stock.costValue)}</strong></div>
@@ -231,7 +231,7 @@ async function ReportBody({ searchParams }: { searchParams: SearchParams }) {
         ) : (
           <div className="table-wrap">
             <table className="report-table">
-              <thead><tr><th>LOW / OUT OF STOCK</th><th className="num">FREE UNITS</th><th className="num">LOW-STOCK LEVEL</th></tr></thead>
+              <thead><tr><th>LOW / OUT OF STOCK</th><th className="num">AVAILABLE</th><th className="num">LOW-STOCK LEVEL</th></tr></thead>
               <tbody>
                 {r.stock.low.map((l) => (
                   <tr key={l.sku}>

@@ -5,6 +5,7 @@ import { Download, ScrollText } from "lucide-react";
 import { AdminFilters } from "@/components/admin/admin-filters";
 import { adminDateTime, describeAction } from "@/components/admin/format";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { SectionTabs } from "@/components/admin/section-tabs";
 import { getSuperadmins } from "@/lib/admin-data";
 import { AUDIT_GROUPS, AUDIT_PERIODS, getAuditLog, parseAuditFilters } from "@/lib/audit-data";
 import { parsePagination } from "@/lib/pagination";
@@ -90,11 +91,12 @@ export default function AuditPage({ searchParams }: { searchParams: SearchParams
     <div className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">PLATFORM</span>
+          <span className="eyebrow">BILLING</span>
           <h1>Audit log</h1>
           <p>Everything superadmins did, from the console or while acting as an organization. Open a row for the full details.</p>
         </div>
       </div>
+      <SectionTabs section="billing" />
       <section className="card customer-card">
         <Suspense>
           <Filters searchParams={searchParams} />

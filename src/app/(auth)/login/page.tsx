@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -15,9 +14,7 @@ export default function LoginPage() {
       <Suspense fallback={<div className="auth-form" />}>
         <LoginForm />
       </Suspense>
-      <p className="auth-switch">
-        New here? <Link href="/register">Register your shop</Link>
-      </p>
+      <p className="auth-switch">New organizations are set up by the ProductLogik team. Ask your admin to invite you.</p>
     </section>
   );
 }

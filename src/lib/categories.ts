@@ -1,27 +1,20 @@
-import {
-  Archive,
-  Armchair,
-  Box,
-  Car,
-  Cpu,
-  Disc3,
-  Droplet,
-  Gauge,
-  Lightbulb,
-  ShieldCheck,
-  Speaker,
-  SprayCan,
-  Wrench,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { iconFor } from "@/lib/category-icons";
 import type { Tables } from "@/lib/types/database.types";
 
-// Product categories (docs/categories.md): a per-shop tree, at most 4 levels
-// (Exterior › Wrapping › Wrapping Tools › Heat Gun). An item can sit on any level;
-// filtering by a category includes everything below it.
+// Product categories (Phase 18): platform data. Each industry has a catalog (industry_id set) and the
+// superadmin can add categories for one organization (tenant_id set). An organization sees its industry's
+// catalog minus what was hidden for it, plus its own (RLS). At most 4 levels; an item can sit on any level
+// and filtering by a category includes everything below it. Archived categories stay readable (old items
+// and documents keep their names) but pickers leave them out.
 
-export type Category = Pick<Tables<"categories">, "id" | "name" | "parent_id" | "sort_order">;
+type Row = Tables<"categories">;
+
+export type Category = Pick<Row, "id" | "name" | "parent_id" | "sort_order"> &
+  Partial<Pick<Row, "tenant_id" | "industry_id" | "sku_prefix" | "icon" | "color" | "image_path" | "is_archived">>;
+
+/** Columns every category read selects. */
+export const CATEGORY_COLUMNS = "id, name, parent_id, sort_order, tenant_id, industry_id, sku_prefix, icon, color, image_path, is_archived";
 
 export const MAX_CATEGORY_DEPTH = 4;
 
@@ -33,6 +26,13 @@ export type CategoryNode = Category & {
   children: CategoryNode[];
   /** Items in this category and everything below it (when counts were given). */
   itemCount: number;
+  /** The main category's icon name and SKU prefix (they follow the main category). */
+  mainIcon: string | null;
+  mainSkuPrefix: string | null;
+  /** Own colour, or the nearest category above with one (RF-18.2). */
+  displayColor: string | null;
+  /** Archived itself or under an archived category. */
+  archived: boolean;
 };
 
 export type CategoryIndex = {
@@ -47,7 +47,9 @@ const bySortThenName = (a: Category, b: Category) => a.sort_order - b.sort_order
 /** Builds the tree from flat rows. `counts` = items per category id (directly on it). */
 export function buildCategoryIndex(categories: Category[], counts: Record<string, number> = {}): CategoryIndex {
   const byId = new Map<string, CategoryNode>();
-  for (const c of categories) byId.set(c.id, { ...c, depth: 1, path: [], children: [], itemCount: 0 });
+  for (const c of categories) {
+    byId.set(c.id, { ...c, depth: 1, path: [], children: [], itemCount: 0, mainIcon: null, mainSkuPrefix: null, displayColor: null, archived: false });
+  }
 
   const roots: CategoryNode[] = [];
   for (const node of byId.values()) {
@@ -57,19 +59,23 @@ export function buildCategoryIndex(categories: Category[], counts: Record<string
   }
 
   const flat: CategoryNode[] = [];
-  const walk = (nodes: CategoryNode[], depth: number, parentPath: string[]): number => {
+  const walk = (nodes: CategoryNode[], depth: number, parent: CategoryNode | null): number => {
     nodes.sort(bySortThenName);
     let total = 0;
     for (const node of nodes) {
       node.depth = depth;
-      node.path = [...parentPath, node.name];
+      node.path = parent ? [...parent.path, node.name] : [node.name];
+      node.mainIcon = parent ? parent.mainIcon : (node.icon ?? null);
+      node.mainSkuPrefix = parent ? parent.mainSkuPrefix : (node.sku_prefix ?? null);
+      node.displayColor = node.color ?? parent?.displayColor ?? null;
+      node.archived = Boolean(node.is_archived) || Boolean(parent?.archived);
       flat.push(node);
-      node.itemCount = (counts[node.id] ?? 0) + walk(node.children, depth + 1, node.path);
+      node.itemCount = (counts[node.id] ?? 0) + walk(node.children, depth + 1, node);
       total += node.itemCount;
     }
     return total;
   };
-  walk(roots, 1, []);
+  walk(roots, 1, null);
 
   return { roots, byId, flat };
 }
@@ -88,46 +94,15 @@ export function shortPath(node: CategoryNode) {
   return node.path.length > 1 ? `${node.path[0]} › ${node.path[node.path.length - 1]}` : node.path[0];
 }
 
-// Icons and SKU prefixes follow the main category. Main categories added later
-// fall back to a box icon and the first three letters of their name.
-const GROUP_ICON: Record<string, LucideIcon> = {
-  Interior: Armchair,
-  Exterior: Car,
-  Performance: Gauge,
-  Electrical: Zap,
-  "Cleaning & Detailing": SprayCan,
-  Audio: Speaker,
-  Electronics: Cpu,
-  Security: ShieldCheck,
-  Lighting: Lightbulb,
-  "Wheels & Tires": Disc3,
-  "Tools & Equipment": Wrench,
-  "Oils & Fluids": Droplet,
-  Storage: Archive,
-};
+/** The main category's icon (a box when it has none). */
+export const categoryIcon = (node: CategoryNode | undefined): LucideIcon => iconFor(node?.mainIcon);
 
-const GROUP_SKU_PREFIX: Record<string, string> = {
-  Interior: "INT",
-  Exterior: "EXT",
-  Performance: "PRF",
-  Electrical: "ELC",
-  "Cleaning & Detailing": "CLN",
-  Audio: "AUD",
-  Electronics: "ELX",
-  Security: "SEC",
-  Lighting: "LGT",
-  "Wheels & Tires": "WHL",
-  "Tools & Equipment": "TLS",
-  "Oils & Fluids": "OIL",
-  Storage: "STO",
-  Others: "OTH",
-};
-
-export const categoryIcon = (node: CategoryNode | undefined): LucideIcon =>
-  (node && GROUP_ICON[node.path[0]]) || Box;
-
+/** "Generate SKU" prefix: the main category's, else the first three letters of its name. */
 export function skuPrefix(node: CategoryNode | undefined) {
   if (!node) return "ITM";
-  const main = node.path[0];
-  return GROUP_SKU_PREFIX[main] ?? (main.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase() || "ITM");
+  if (node.mainSkuPrefix) return node.mainSkuPrefix;
+  return node.path[0].replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase() || "ITM";
 }
+
+/** Categories a picker offers: not archived (an item's current category is always kept). */
+export const pickable = (node: CategoryNode, currentId?: string | null) => !node.archived || node.id === currentId;

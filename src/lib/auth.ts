@@ -32,6 +32,8 @@ export type ShopSession = {
     clockStyle: ClockStyle;
     showClock: boolean;
     clock24Hour: boolean;
+    /** Shop logo beside the Overview greeting (Settings → Localization → Overview page). */
+    showOverviewLogo: boolean;
     /** First day of the week: 1 Monday, 6 Saturday, 7 Sunday. */
     weekStart: WeekStart;
     /** Printed on quotations and drafts (tenants.quote_footer_notes). */
@@ -54,19 +56,21 @@ export type ShopSession = {
     money: MoneyFormat;
     /** A4 PDF or 80mm POS slip on the document screens. */
     printFormat: PrintFormat;
+    /** Phase 18: decides the category catalog (see getMyModules() for the switched-on modules). */
+    industryId: string;
   };
   /** Set while a superadmin is acting as this shop ("Login As"): the banner shows it. */
   impersonating: { tenantName: string; expiresAt: string } | null;
 };
 
 export const TENANT_COLUMNS =
-  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, week_start, print_format, quote_footer_notes, invoice_terms, quote_validity_days, phone, email, address, ntn, strn, logo_url, accent_color";
+  "id, name, slug, currency, tax_rate, timezone, show_paisa, prices_include_tax, allow_international_phones, clock_style, show_clock, clock_24_hour, show_overview_logo, week_start, print_format, quote_footer_notes, invoice_terms, quote_validity_days, phone, email, address, ntn, strn, logo_url, accent_color, industry_id";
 
 export type TenantRow = Pick<
   Tables<"tenants">,
   | "id" | "name" | "slug" | "currency" | "tax_rate" | "timezone" | "show_paisa" | "prices_include_tax"
-  | "allow_international_phones" | "clock_style" | "show_clock" | "clock_24_hour" | "week_start" | "print_format"
-  | "quote_footer_notes" | "invoice_terms" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url" | "accent_color"
+  | "allow_international_phones" | "clock_style" | "show_clock" | "clock_24_hour" | "show_overview_logo" | "week_start" | "print_format"
+  | "quote_footer_notes" | "invoice_terms" | "quote_validity_days" | "phone" | "email" | "address" | "ntn" | "strn" | "logo_url" | "accent_color" | "industry_id"
 >;
 
 export function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
@@ -83,6 +87,7 @@ export function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
     clockStyle: tenant.clock_style === "analog" ? "analog" : "digital",
     showClock: tenant.show_clock,
     clock24Hour: tenant.clock_24_hour,
+    showOverviewLogo: tenant.show_overview_logo,
     weekStart: tenant.week_start === 6 || tenant.week_start === 7 ? tenant.week_start : 1,
     quoteTerms: tenant.quote_footer_notes,
     invoiceTerms: tenant.invoice_terms,
@@ -96,6 +101,7 @@ export function mapTenant(tenant: TenantRow): ShopSession["tenant"] {
     accentColor: tenant.accent_color,
     money: { currency: tenant.currency, showPaisa: tenant.show_paisa },
     printFormat: tenant.print_format === "pos" ? "pos" : "a4",
+    industryId: tenant.industry_id,
   };
 }
 

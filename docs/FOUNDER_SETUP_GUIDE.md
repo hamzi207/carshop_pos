@@ -443,6 +443,7 @@ The admin console is separate from the shops. Superadmins have their own account
 2. **A new Supabase project for production:** run the migrations as usual. In the Supabase dashboard, check **Authentication → Multi-Factor → Authenticator app (TOTP)** is enabled (it is by default). Create the first superadmin account (Claude Code can do it: the console's Team page needs a superadmin to add others), then on the first sign-in at `/admin/login` you scan a new QR code once.
 3. **Don't lock yourself out:** make a second person a superadmin (Admin → Team), or keep the "Can't scan? Enter this key" text from setup somewhere safe (password manager). If the only superadmin loses their phone: Supabase dashboard → Authentication → Users → the user → remove the MFA factor, then sign in and scan a new QR code. Another superadmin can do the same from Admin → Team → Reset two-factor.
 4. **Phone clock:** codes depend on the time. If a correct-looking code is refused, set the phone's time to automatic.
+5. **Email (during or after deployment):** Resend stays in test mode until then, so emails only reach hamzi207@gmail.com. At go-live, verify your domain in Resend (Domains → Add domain, then add the DNS records it shows) and set `RESEND_FROM_EMAIL` (e.g. `ProductLogik POS <billing@yourdomain.com>`) in the production environment. After that, invitations, category request emails and subscription reminders reach every address.
 
 ---
 

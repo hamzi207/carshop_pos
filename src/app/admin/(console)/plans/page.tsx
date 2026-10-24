@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { PlanManager } from "@/components/admin/plan-manager";
+import { SectionTabs } from "@/components/admin/section-tabs";
 import { getPlans } from "@/lib/plan-data";
 
 export const metadata: Metadata = { title: "Plans" };
@@ -15,11 +16,12 @@ export default function PlansPage() {
     <div className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">SUBSCRIPTIONS</span>
+          <span className="eyebrow">BILLING</span>
           <h1>Plans</h1>
           <p>What organizations pay ProductLogik: prices per cycle, limits, modules and trial days.</p>
         </div>
       </div>
+      <SectionTabs section="billing" />
       <Suspense fallback={<section className="card"><div className="empty-state">Loading plans…</div></section>}>
         <Plans />
       </Suspense>

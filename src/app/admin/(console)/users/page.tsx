@@ -7,6 +7,7 @@ import { AdminFilters } from "@/components/admin/admin-filters";
 import { adminDate, statusBadge } from "@/components/admin/format";
 import { RoleSelect, UserActions } from "@/components/admin/user-actions";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { SectionTabs } from "@/components/admin/section-tabs";
 import { getUsers } from "@/lib/admin-data";
 import { parsePagination } from "@/lib/pagination";
 
@@ -99,11 +100,12 @@ export default function UsersPage({ searchParams }: { searchParams: SearchParams
     <div className="page">
       <div className="page-heading">
         <div>
-          <span className="eyebrow">PLATFORM</span>
+          <span className="eyebrow">SHOPS</span>
           <h1>Users</h1>
           <p>Everyone who signs in, across all shops: reset passwords and change roles.</p>
         </div>
       </div>
+      <SectionTabs section="shops" />
       <section className="card customer-card">
         <Suspense>
           <AdminFilters placeholder="Search name, email or shop..." label="Search users" />

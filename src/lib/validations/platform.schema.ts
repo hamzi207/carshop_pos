@@ -56,7 +56,6 @@ export const platformSettingsSchema = z.object({
       return [...new Set(parts)].sort((a, b) => b - a);
     }),
   defaultPlanId: z.union([z.literal(""), z.uuid()]).transform((v) => (v === "" ? null : v)),
-  signupOpen: z.boolean(),
   signupDefaultStatus: z.enum(["active", "trial"]),
   impersonationTtlMinutes: z.coerce.number().int().min(15, "Login As: at least 15 minutes.").max(720, "Login As: 12 hours at most."),
   emailSenderName: z.string().trim().min(1, "Enter the sender name.").max(80),

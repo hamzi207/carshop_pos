@@ -82,9 +82,64 @@ export function describeAction(action: string, details: Record<string, unknown>)
     case "category.create":
       return `Added the category “${d("name")}”`;
     case "category.rename":
-      return `Renamed a category to “${d("name")}”`;
+      return `Renamed a category to “${String((details.after as Record<string, unknown> | undefined)?.name ?? d("name"))}”`;
     case "category.delete":
       return `Deleted the category “${d("name")}”`;
+    // Phase 18
+    case "category.update":
+      return `Changed a category (${Object.keys((details.after as object) ?? {}).join(", ") || "no changes"})`;
+    case "category.move":
+      return `Moved the category “${d("name")}”`;
+    case "category.archive":
+      return `Archived “${d("name")}” (${d("categories")} categories)`;
+    case "category.restore":
+      return `Restored “${d("name")}” (${d("categories")} categories)`;
+    case "category.hide":
+      return `Hid “${d("name")}” from the organization`;
+    case "category.show":
+      return `Showed “${d("name")}” to the organization again`;
+    case "category.image":
+      return `Uploaded an image for “${d("name")}”`;
+    case "category.image_remove":
+      return `Removed the image of “${d("name")}”`;
+    case "category.duplicate":
+      return `Copied ${d("categories")} categories from another industry`;
+    case "category.import":
+      return `Imported ${d("categories")} categories from CSV`;
+    case "category_request.approved_tenant":
+      return `Approved the request “${d("name")}” as the organization's own category`;
+    case "category_request.approved_industry":
+      return `Approved the request “${d("name")}” into the industry catalog`;
+    case "category_request.rejected":
+      return `Declined the request “${d("name")}”`;
+    case "attribute.create":
+      return `Added the attribute “${d("label")}”`;
+    case "attribute.update":
+      return `Changed the attribute ${d("key")}`;
+    case "attribute.archive":
+      return `Archived the attribute ${d("key")}`;
+    case "attribute.delete":
+      return `Deleted the attribute “${d("label")}”`;
+    case "attribute.restore":
+      return `Restored the attribute ${d("key")}`;
+    case "industry.create":
+      return `Added the industry “${d("name")}”`;
+    case "industry.update":
+      return `Changed the industry “${d("name")}”`;
+    case "industry.delete":
+      return `Deleted the industry “${d("name")}”`;
+    case "subscription.start_date":
+      return `Moved the subscription start to ${String((details.after as Record<string, unknown> | undefined)?.started_at ?? "")}`;
+    case "product.create":
+      return `Added the product ${d("sku")} “${d("name")}”`;
+    case "product.update":
+      return `Changed the product ${d("sku")} (${Object.keys((details.after as object) ?? {}).join(", ") || "no changes"})`;
+    case "product.delete":
+      return `Deleted the product ${d("sku")} “${d("name")}”`;
+    case "tenant.modules":
+      return `Modules: ${((details.after as { modules?: string[] } | undefined)?.modules ?? []).join(", ") || "none"}`;
+    case "tenant.industry":
+      return `Industry ${String((details.before as Record<string, unknown> | undefined)?.industry ?? "")} → ${String((details.after as Record<string, unknown> | undefined)?.industry ?? "")} (${d("items_moved")} items moved)`;
     case "tag.create":
       return `Created the tag “${d("name")}”`;
     case "tag.delete":

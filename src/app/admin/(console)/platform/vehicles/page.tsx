@@ -1,8 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import { AdminFilters } from "@/components/admin/admin-filters";
+import { SectionTabs } from "@/components/admin/section-tabs";
 import { VehicleCatalogManager } from "@/components/admin/vehicle-catalog-manager";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import { getVehicles, VEHICLE_SCOPES, type VehicleScope } from "@/lib/admin-data";
@@ -45,17 +44,18 @@ async function Filters({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
-/** /admin/platform/vehicles (Phase 17, deliverable 5): the year / make / model catalog every shop picks from. */
+/** /admin/platform/vehicles (Phase 17, deliverable 5; under Catalog since Phase 18): the Vehicle Fitment module's year / make / model catalog. */
 export default function VehicleCatalogPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <div className="page">
       <div className="page-heading">
         <div>
-          <Link href="/admin/platform" className="admin-crumb"><ArrowLeft size={13} /> Platform</Link>
+          <span className="eyebrow">CATALOG · VEHICLE FITMENT MODULE</span>
           <h1>Vehicle catalog</h1>
-          <p>The vehicles every shop picks for fitment. Deactivated rows are hidden from pickers; items already linked keep them.</p>
+          <p>Year / make / model for organizations with the Vehicle Fitment module (e.g. automotive). Deactivated rows are hidden from pickers; items already linked keep them.</p>
         </div>
       </div>
+      <SectionTabs section="catalog" />
       <section className="card customer-card">
         <Suspense>
           <Filters searchParams={searchParams} />

@@ -1,5 +1,7 @@
 // Inventory CSV (Phase 15): the columns, reading a file into rows, and the Vehicles cell format.
 // Shared by the import dialog (browser) and src/lib/actions/inventory-csv.ts (server).
+// Phase 18: custom attributes are extra "attr:<key>" columns, and the Universal / Vehicles columns
+// only count for organizations with the Vehicle Fitment module.
 import { parseCsv } from "@/lib/csv";
 
 export const CSV_COLUMNS = [
@@ -18,10 +20,24 @@ export const CSV_COLUMNS = [
 ] as const;
 
 export type CsvColumnKey = (typeof CSV_COLUMNS)[number]["key"];
+
+/** Columns that need the Vehicle Fitment module (left out of the template and export without it, ignored on import). */
+export const FITMENT_COLUMNS: readonly CsvColumnKey[] = ["universal", "vehicles"];
+
+/** Header prefix of an attribute column: "attr:colour". */
+export const ATTR_COLUMN = "attr:";
+
+/** The columns an organization's template and export use. */
+export const csvColumns = (fitment: boolean) => CSV_COLUMNS.filter((c) => fitment || !FITMENT_COLUMNS.includes(c.key));
 export const CSV_COLUMN_LABEL = Object.fromEntries(CSV_COLUMNS.map((c) => [c.key, c.label])) as Record<CsvColumnKey, string>;
 
 /** One data line of the file. A key is missing when the file has no such column. */
-export type CsvItemRow = { line: number; cells: Partial<Record<CsvColumnKey, string>> };
+export type CsvItemRow = {
+  line: number;
+  cells: Partial<Record<CsvColumnKey, string>>;
+  /** attr:<key> cells, keyed by attribute key. */
+  attributes?: Record<string, string>;
+};
 
 export const MAX_IMPORT_ROWS = 1000;
 /** Rows saved per server call, so the dialog can show progress. */
@@ -35,7 +51,14 @@ export function readInventoryCsv(text: string): { rows: CsvItemRow[]; columns: C
   if (table.length === 0) return { rows: [], columns: [], error: "The file is empty." };
   const [header, ...data] = table;
   const map = new Map<number, CsvColumnKey>();
+  const attrMap = new Map<number, string>();
   header.forEach((h, i) => {
+    const raw = h.trim().toLowerCase();
+    if (raw.startsWith(ATTR_COLUMN)) {
+      const key = raw.slice(ATTR_COLUMN.length).trim();
+      if (key && ![...attrMap.values()].includes(key)) attrMap.set(i, key);
+      return;
+    }
     const n = normalizeHeader(h);
     const col = CSV_COLUMNS.find((c) => normalizeHeader(c.label) === n || (c.aliases as readonly string[]).includes(n));
     if (col && ![...map.values()].includes(col.key)) map.set(i, col.key);
@@ -56,8 +79,10 @@ export function readInventoryCsv(text: string): { rows: CsvItemRow[]; columns: C
   const rows = data.map((r, i) => {
     const cells: Partial<Record<CsvColumnKey, string>> = {};
     for (const [index, key] of map) cells[key] = (r[index] ?? "").trim();
+    const attributes: Record<string, string> = {};
+    for (const [index, key] of attrMap) attributes[key] = (r[index] ?? "").trim();
     // Line numbers as a spreadsheet shows them: the header is line 1.
-    return { line: i + 2, cells };
+    return { line: i + 2, cells, ...(attrMap.size ? { attributes } : {}) };
   });
   return { rows, columns };
 }
@@ -132,9 +157,23 @@ export const normalizeCategoryPath = (path: string) =>
     .filter(Boolean)
     .join(" › ");
 
-/** The template's header and two example rows. */
-export const TEMPLATE_ROWS: string[][] = [
+/** The fitment template's header and two example rows (V1). */
+const FITMENT_TEMPLATE: string[][] = [
   CSV_COLUMNS.map((c) => c.label),
   ["PPF-CLR-001", "Clear PPF roll (1.5m x 15m)", "Exterior › Wrapping › PPF", "38000", "52000", "4", "Yes", "", "Lahore Wraps", "2", "Yes", "Self-healing clear film"],
   ["MAT-ALT-018", "Floor mats (Alto 2019+)", "Interior › Floor Mats", "2500", "4200", "12", "No", "2019-2026 SUZUKI Alto", "", "5", "", ""],
 ];
+
+/**
+ * The import template: the organization's columns, one attr:<key> column per attribute, and example
+ * rows (the automotive ones with the fitment module; one row using the organization's first category otherwise).
+ */
+export function templateRows(fitment: boolean, attributeKeys: string[], exampleCategory: string): string[][] {
+  const attrHeader = attributeKeys.map((k) => ATTR_COLUMN + k);
+  const blanks = attributeKeys.map(() => "");
+  if (fitment) return [[...FITMENT_TEMPLATE[0], ...attrHeader], ...FITMENT_TEMPLATE.slice(1).map((r) => [...r, ...blanks])];
+  return [
+    [...csvColumns(false).map((c) => c.label), ...attrHeader],
+    ["ITM-001", "Example product", exampleCategory || "Main category › Subcategory", "100", "150", "10", "Your supplier", "5", "Yes", "Notes for your team", ...blanks],
+  ];
+}

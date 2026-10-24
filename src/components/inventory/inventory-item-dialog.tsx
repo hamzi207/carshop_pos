@@ -8,7 +8,9 @@ import { Car, CheckCircle2, Loader2, Package, Plus, Save, Wand2, X } from "lucid
 import { createInventoryItem, updateInventoryItem } from "@/lib/actions/inventory";
 import { formatMoney, marginPercent } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import { applicableAttributes, asValues, attributeProblem, mergeAttributeValues, type Attribute } from "@/lib/attributes";
 import { buildCategoryIndex, skuPrefix, type Category, type CategoryIndex } from "@/lib/categories";
+import { AttributeFields } from "@/components/categories/attribute-fields";
 import { useDiscardGuard } from "@/components/shared/discard-changes";
 import { ModalSheet } from "@/components/shared/modal-sheet";
 import type { FitmentVehicle, InventoryListItem } from "@/lib/types/inventory";
@@ -29,12 +31,16 @@ type Props = {
   /** Shop default for "price includes tax" on new items. */
   pricesIncludeTax: boolean;
   categories: Category[];
+  /** The organization's attribute definitions (RF-18.1); the dialog shows the ones for the chosen category. */
+  attributes: Attribute[];
+  /** Vehicle Fitment module on: shows Universal Fit / Vehicle Specific and the vehicle picker. */
+  fitment: boolean;
   /** Edit this item; omit to create a new one. */
   item?: InventoryListItem;
 };
 
 /** Add / edit inventory product modal (Figma "Add inventory product"). */
-export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, categories, item }: Props) {
+export function InventoryItemDialog({ open, onOpenChange, currency, pricesIncludeTax, categories, attributes, fitment, item }: Props) {
   // Closing with unsaved edits asks first (Cancel, X, Escape, clicking outside).
   const guard = useDiscardGuard({
     onOpenChange,
@@ -52,6 +58,8 @@ export function InventoryItemDialog({ open, onOpenChange, currency, pricesInclud
               currency={currency}
               pricesIncludeTax={pricesIncludeTax}
               categories={categories}
+              attributes={attributes}
+              fitment={fitment}
               onDirtyChange={guard.setDirty}
               onDone={guard.close}
             />
@@ -68,6 +76,8 @@ function ItemForm({
   currency,
   pricesIncludeTax,
   categories,
+  attributes,
+  fitment,
   onDirtyChange,
   onDone,
 }: {
@@ -75,6 +85,8 @@ function ItemForm({
   currency: string;
   pricesIncludeTax: boolean;
   categories: Category[];
+  attributes: Attribute[];
+  fitment: boolean;
   onDirtyChange: (dirty: boolean) => void;
   onDone: () => void;
 }) {
@@ -107,6 +119,7 @@ function ItemForm({
           priceIncludesTax: item.price_includes_tax,
           isUniversal: item.is_universal,
           vehicleIds: item.vehicles.map((v) => v.id),
+          attributes: asValues(item.attributes),
         }
       : {
           sku: "",
@@ -118,15 +131,17 @@ function ItemForm({
           priceIncludesTax: pricesIncludeTax,
           isUniversal: true,
           vehicleIds: [],
+          attributes: {},
         },
   });
 
   useEffect(() => onDirtyChange(isDirty), [isDirty, onDirtyChange]);
 
-  const [cost, selling, isUniversal] = useWatch({
+  const [cost, selling, isUniversal, categoryId, attributeValues] = useWatch({
     control,
-    name: ["costPrice", "sellingPrice", "isUniversal"],
+    name: ["costPrice", "sellingPrice", "isUniversal", "categoryId", "attributes"],
   });
+  const attributeFields = applicableAttributes(attributes, index, categoryId);
   const margin =
     Number.isFinite(cost) && Number.isFinite(selling) ? marginPercent(cost, selling) : null;
 
@@ -135,26 +150,34 @@ function ItemForm({
     setValue("vehicleIds", next.map((v) => v.id), { shouldValidate: next.length > 0, shouldDirty: true });
   };
 
-  const onSubmit = handleSubmit(async (values) => {
+  const onSubmit = handleSubmit(async (form) => {
     setServerError(null);
+    const problem = attributeProblem(attributeFields, form.attributes);
+    if (problem) {
+      setServerError(problem);
+      notify.error(isEdit ? "Product not saved" : "Product not added", problem);
+      return;
+    }
+    // Values of attributes from another category stay stored, so switching back restores them.
+    const values = { ...form, attributes: mergeAttributeValues(item?.attributes, attributeFields, form.attributes) };
     const result = item
       ? await updateInventoryItem(item.id, values)
       : await createInventoryItem(values);
 
     if (result.status === "error") {
-      if (result.field) setError(result.field, { message: result.message });
+      if (result.field && result.field !== "attributes") setError(result.field, { message: result.message });
       else setServerError(result.message);
       notify.error(isEdit ? "Product not saved" : "Product not added", result.message);
       return;
     }
     notify.success(
       isEdit ? `${values.name} updated` : `${values.name} added to inventory`,
-      `${values.sku} · ${values.quantityOnHand} on hand · ${formatMoney(values.sellingPrice, { currency, showPaisa: true })}${values.isUniversal ? " · Universal Fit" : ` · fits ${values.vehicleIds.length} vehicle${values.vehicleIds.length === 1 ? "" : "s"}`}`,
+      `${values.sku} · ${values.quantityOnHand} on hand · ${formatMoney(values.sellingPrice, { currency, showPaisa: true })}${!fitment ? "" : values.isUniversal ? " · Universal Fit" : ` · fits ${values.vehicleIds.length} vehicle${values.vehicleIds.length === 1 ? "" : "s"}`}`,
     );
     onDone();
   });
 
-  const fieldError = (name: keyof InventoryItemInput) =>
+  const fieldError = (name: Exclude<keyof InventoryItemInput, "attributes">) =>
     errors[name]?.message ? (
       <span className="field-error" id={`${name}-error`}>{errors[name]?.message}</span>
     ) : null;
@@ -175,9 +198,13 @@ function ItemForm({
             </Dialog.Title>
             <Dialog.Description asChild>
               <p>
-                {isEdit
-                  ? "Update pricing, stock and vehicle fitment."
-                  : "Create a product and configure vehicle fitment."}
+                {fitment
+                  ? isEdit
+                    ? "Update pricing, stock and vehicle fitment."
+                    : "Create a product and configure vehicle fitment."
+                  : isEdit
+                    ? "Update pricing, stock and product details."
+                    : "Create a product with its pricing and starting stock."}
               </p>
             </Dialog.Description>
           </div>
@@ -232,19 +259,24 @@ function ItemForm({
             />
             {fieldError("categoryId")}
           </div>
+          <AttributeFields
+            fields={attributeFields}
+            values={attributeValues ?? {}}
+            onChange={(next) => setValue("attributes", next, { shouldDirty: true })}
+          />
           <label className="span-two">
             <span>PRODUCT NAME</span>
-            <input placeholder="e.g. Suntek Carbon 20% · 40in Roll" {...invalid("name")} {...register("name")} />
+            <input placeholder={fitment ? "e.g. Suntek Carbon 20% · 40in Roll" : "e.g. the name on the shelf label"} {...invalid("name")} {...register("name")} />
             {fieldError("name")}
           </label>
           <label className="span-two">
             <span>DESCRIPTION (OPTIONAL)</span>
-            <textarea rows={2} placeholder="Notes for your team: brand, spec, roll size…" {...invalid("description")} {...register("description")} />
+            <textarea rows={2} placeholder={fitment ? "Notes for your team: brand, spec, roll size…" : "Notes for your team: brand, size, pack…"} {...invalid("description")} {...register("description")} />
             {fieldError("description")}
           </label>
           <label className="span-two">
             <span>VENDOR / SUPPLIER (OPTIONAL)</span>
-            <input placeholder="e.g. Lahore Auto Traders" {...invalid("vendorName")} {...register("vendorName")} />
+            <input placeholder={fitment ? "e.g. Lahore Auto Traders" : "e.g. the supplier you buy it from"} {...invalid("vendorName")} {...register("vendorName")} />
             {fieldError("vendorName")}
           </label>
           <label>
@@ -290,51 +322,53 @@ function ItemForm({
           </label>
         </div>
 
-        <div className="compatibility">
-          <div>
-            <h3>Compatibility mode</h3>
-            <p>Choose how this product should match to vehicles.</p>
-          </div>
-          <Controller
-            control={control}
-            name="isUniversal"
-            render={({ field }) => (
-              <div className="radio-cards" role="radiogroup" aria-label="Compatibility mode">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={field.value}
-                  className={field.value ? "selected" : ""}
-                  onClick={() => field.onChange(true)}
-                >
-                  <span className="radio-dot" />
-                  <div className="choice-icon universal"><CheckCircle2 size={16} /></div>
-                  <strong>Universal Fit</strong>
-                  <p>Applies to all vehicles. Ideal for film rolls and generic accessories.</p>
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={!field.value}
-                  className={!field.value ? "selected" : ""}
-                  onClick={() => field.onChange(false)}
-                >
-                  <span className="radio-dot" />
-                  <div className="choice-icon vehicle"><Car size={16} /></div>
-                  <strong>Vehicle Specific</strong>
-                  <p>Link this product to specific Year, Make, and Model records.</p>
-                </button>
-              </div>
-            )}
-          />
-          {!isUniversal && (
-            <YmmCompatibilitySelector
-              value={vehicles}
-              onChange={setVehicleList}
-              error={errors.vehicleIds?.message}
+        {fitment && (
+          <div className="compatibility">
+            <div>
+              <h3>Compatibility mode</h3>
+              <p>Choose how this product should match to vehicles.</p>
+            </div>
+            <Controller
+              control={control}
+              name="isUniversal"
+              render={({ field }) => (
+                <div className="radio-cards" role="radiogroup" aria-label="Compatibility mode">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={field.value}
+                    className={field.value ? "selected" : ""}
+                    onClick={() => field.onChange(true)}
+                  >
+                    <span className="radio-dot" />
+                    <div className="choice-icon universal"><CheckCircle2 size={16} /></div>
+                    <strong>Universal Fit</strong>
+                    <p>Applies to all vehicles. Ideal for film rolls and generic accessories.</p>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!field.value}
+                    className={!field.value ? "selected" : ""}
+                    onClick={() => field.onChange(false)}
+                  >
+                    <span className="radio-dot" />
+                    <div className="choice-icon vehicle"><Car size={16} /></div>
+                    <strong>Vehicle Specific</strong>
+                    <p>Link this product to specific Year, Make, and Model records.</p>
+                  </button>
+                </div>
+              )}
             />
-          )}
-        </div>
+            {!isUniversal && (
+              <YmmCompatibilitySelector
+                value={vehicles}
+                onChange={setVehicleList}
+                error={errors.vehicleIds?.message}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <div className="modal-footer">

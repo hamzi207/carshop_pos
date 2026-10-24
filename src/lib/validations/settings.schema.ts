@@ -33,6 +33,7 @@ export const shopSettingsSchema = z.object({
   showClock: z.boolean(),
   clockStyle: z.enum(CLOCK_STYLES, { error: "Choose digital or analog." }),
   clock24Hour: z.boolean(),
+  showOverviewLogo: z.boolean(),
   weekStart: z.union([z.literal(1), z.literal(6), z.literal(7)], { error: "Choose the first day of the week." }),
   quoteValidityDays: z
     .number({ error: "Enter a number of days." })

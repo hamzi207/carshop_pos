@@ -10,12 +10,12 @@ import { loginSchema, type LoginInput } from "@/lib/validations/auth.schema";
 import { FormField } from "./form-field";
 
 const QUERY_ERRORS: Record<string, string> = {
-  confirmation_failed: "That confirmation link is invalid or has expired. Try signing in or registering again.",
+  confirmation_failed: "That confirmation link is invalid or has expired. Ask for a new link, or try signing in.",
   no_shop: "Your account isn't linked to a shop yet. Please contact your shop admin.",
   link_expired: "That link is invalid or has expired. Ask for a new one.",
   deactivated: "Your access to this shop has been turned off. Please ask your shop admin if you think this is a mistake.",
-  archived: "This organization has been archived. Please contact ProductLogik POS support.",
-  suspended: "This shop's account is paused, so signing in isn't possible right now. Please contact ProductLogik POS support to reactivate it.",
+  archived: "This organization has been archived. Please contact ProductLogik Invoicing System support.",
+  suspended: "This shop's account is paused, so signing in isn't possible right now. Please contact ProductLogik Invoicing System support to reactivate it.",
 };
 
 /** The shop sign-in (/login), or with `admin` the superadmin console's own (/admin/login). */

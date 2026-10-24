@@ -56,7 +56,7 @@ export function useDiscardGuard({ onOpenChange, discardedNote }: Options) {
                 onClick={() => {
                   setAsking(false);
                   close();
-                  notify.info("Changes discarded", discardedNote);
+                  notify.warning("Changes discarded", discardedNote);
                 }}
               >
                 <Undo2 size={14} /> Discard changes

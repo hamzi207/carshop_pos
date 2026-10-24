@@ -55,7 +55,7 @@ export function UnsavedSettings({ children }: { children: ReactNode }) {
   };
   const discardAll = () => {
     for (const { id } of dirty) entries.current.get(id)?.discard();
-    notify.info("Changes discarded", "Your settings were left as they were last saved.");
+    notify.warning("Changes discarded", "Your settings were left as they were last saved.");
   };
   const goTo = (href: string | null) => () => (href ? router.push(href) : window.history.back());
   const labels = dirty.map((d) => d.label).join(" · ");

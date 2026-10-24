@@ -1,14 +1,11 @@
 "use client";
 
-import { ChevronDown, LogOut, Monitor, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ChevronDown, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -21,15 +18,8 @@ type UserMenuProps = {
   roleLabel: string;
 };
 
-const THEMES = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
-] as const;
-
+/** Profile menu in the top bar. The theme is switched with the top-bar button (theme-toggle.tsx). */
 export function UserMenu({ initials, fullName, email, roleLabel }: UserMenuProps) {
-  // RF-16.4: theme for this browser (see theme-provider.tsx).
-  const { theme, setTheme } = useTheme();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -47,16 +37,6 @@ export function UserMenu({ initials, fullName, email, roleLabel }: UserMenuProps
           <div className="text-sm font-semibold">{fullName}</div>
           <div className="text-xs font-normal text-muted-foreground">{email}</div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Theme</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme} onValueChange={setTheme}>
-          {THEMES.map(({ value, label, icon: Icon }) => (
-            <DropdownMenuRadioItem key={value} value={value} onSelect={(e) => e.preventDefault()}>
-              <Icon />
-              {label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => void signOut()}>
           <LogOut />

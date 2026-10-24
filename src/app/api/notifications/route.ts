@@ -13,10 +13,28 @@ type Raw = { lowStock: Stock[]; overdue: Doc[]; dueSoon: Doc[]; expiring: Doc[];
 
 const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 
-/** The notification bell's alerts, worked out live by public.shop_alerts() (RLS: caller's shop only). */
+/** Category request outcomes stay in the bell this long after the superadmin decides (Phase 18). */
+const REQUEST_RESULT_DAYS = 14;
+
+/**
+ * The notification bell's alerts, worked out live by public.shop_alerts() (RLS: caller's shop only), plus
+ * the outcome of the caller's own category requests from the last two weeks.
+ */
 export async function GET() {
   const [session, supabase] = await Promise.all([getShopSession(), createClient()]);
-  const { data, error } = await supabase.rpc("shop_alerts");
+  const since = new Date(Date.now() - REQUEST_RESULT_DAYS * 86_400_000).toISOString();
+  const [{ data, error }, { data: requests, error: requestError }] = await Promise.all([
+    supabase.rpc("shop_alerts"),
+    supabase
+      .from("category_requests")
+      .select("id, name, status, resolution_note, resolved_at")
+      .eq("requested_by", session.userId)
+      .neq("status", "pending")
+      .gte("resolved_at", since)
+      .order("resolved_at", { ascending: false })
+      .limit(10),
+  ]);
+  if (requestError) console.error("category request alerts failed:", requestError.message);
   if (error) {
     console.error("shop_alerts failed:", error.message);
     return Response.json({ error: "Couldn't load notifications." }, { status: 500 });
@@ -25,6 +43,17 @@ export async function GET() {
   const money = (n: number) => formatMoney(Number(n), session.tenant.money);
 
   const alerts: ShopAlert[] = [
+    ...(requests ?? []).map((q) => {
+      const approved = q.status !== "rejected";
+      const note = q.resolution_note ? ` · “${q.resolution_note}”` : "";
+      return {
+        key: `request:${q.id}:${approved ? "approved" : "rejected"}`,
+        tone: approved ? ("blue" as const) : ("amber" as const),
+        title: approved ? `“${q.name}” was added to your categories` : `Your request for “${q.name}” was declined`,
+        detail: (approved ? "Category request approved" : "Category request") + note,
+        href: "/settings/categories",
+      };
+    }),
     ...r.overdue.map((d) => ({
       key: `overdue:${d.id}`,
       tone: "red" as const,
@@ -36,7 +65,7 @@ export async function GET() {
       key: `stock:${s.id}:${s.free <= 0 ? "out" : "low"}`,
       tone: s.free <= 0 ? ("red" as const) : ("amber" as const),
       title: s.free <= 0 ? `${s.name} is out of stock` : `${s.name} is running low`,
-      detail: `${s.sku} · ${s.free <= 0 ? "none free" : `${s.free} free`} (low-stock level ${s.threshold})`,
+      detail: `${s.sku} · ${s.free <= 0 ? "none available" : `${s.free} available`} (low-stock level ${s.threshold})`,
       href: `/inventory?q=${encodeURIComponent(s.sku)}`,
     })),
     ...r.dueSoon.map((d) => ({

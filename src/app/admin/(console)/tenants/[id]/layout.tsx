@@ -20,7 +20,7 @@ async function TenantHeader({ params }: { params: Params }) {
     <>
       <div className="page-heading">
         <div>
-          <Link href="/admin/tenants" className="admin-crumb"><ArrowLeft size={13} /> Shops</Link>
+          <Link href="/admin/tenants" className="admin-crumb"><ArrowLeft size={13} /> Organizations</Link>
           <div className="quote-title-line">
             <h1>{tenant.name}</h1>
             {tenant.archived_at ? <span className="badge badge-amber">Archived</span> : <span className={badge.tone}>{badge.label}</span>}
@@ -45,7 +45,7 @@ async function TenantHeader({ params }: { params: Params }) {
 /** /admin/tenants/[id]: the organization's header and tabs (Phase 17, deliverable 3); each tab is a route. */
 export default function TenantLayout({ children, params }: { children: ReactNode; params: Params }) {
   return (
-    <div className="page settings-page">
+    <div className="page tenant-page">
       <Suspense fallback={<section className="card"><div className="empty-state">Loading shop…</div></section>}>
         <TenantHeader params={params} />
       </Suspense>

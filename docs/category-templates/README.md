@@ -1,6 +1,6 @@
 # Category Templates (Draft for Review)
 
-> **Status**: DRAFT, 2026-10-20. Written during planning for the product owner to review **before Phase 18**. Nothing has been seeded. Once approved, Phase 18 loads these files into the global category catalog (one catalog per industry); after that the superadmin maintains them in `/admin/categories`.
+> **Status**: APPROVED as-is by the product owner on 2026-10-21 (drafted 2026-10-20). Written during planning for the product owner to review **before Phase 18**. Nothing has been seeded. Once approved, Phase 18 loads these files into the global category catalog (one catalog per industry); after that the superadmin maintains them in `/admin/categories`.
 
 ## Files
 

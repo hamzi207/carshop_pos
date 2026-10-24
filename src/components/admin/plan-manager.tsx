@@ -82,7 +82,7 @@ export function PlanManager({ plans }: { plans: Plan[] }) {
                   <td className="primary-cell">
                     <strong>
                       {p.name}
-                      {p.isDefault && <span className="badge badge-blue">Sign-up default</span>}
+                      {p.isDefault && <span className="badge badge-blue">Default plan</span>}
                       {p.visibility === "custom" && <span className="badge badge-purple">Custom</span>}
                       {p.retiredAt && <span className="badge">Retired</span>}
                     </strong>

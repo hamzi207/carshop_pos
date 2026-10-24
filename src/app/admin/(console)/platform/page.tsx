@@ -1,7 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import Link from "next/link";
-import { CarFront } from "lucide-react";
 import { AnnouncementManager } from "@/components/admin/announcement-manager";
 import { PlatformSettingsForm } from "@/components/admin/platform-settings-form";
 import { getPlans } from "@/lib/plan-data";
@@ -31,10 +29,7 @@ export default function PlatformPage() {
         <div>
           <span className="eyebrow">PLATFORM</span>
           <h1>Platform</h1>
-          <p>Settings that apply to every organization: billing details, payment instructions, sign-up, email and announcements.</p>
-        </div>
-        <div className="heading-actions">
-          <Link href="/admin/platform/vehicles" className="button"><CarFront size={14} /> Vehicle Catalog</Link>
+          <p>Settings that apply to every organization: billing details, payment instructions, new organizations, email and announcements.</p>
         </div>
       </div>
       <div className="settings-form">

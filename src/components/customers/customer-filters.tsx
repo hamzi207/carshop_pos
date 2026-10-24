@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, X } from "lucide-react";
+import { SEARCH_DELAY_MS } from "@/lib/search-delay";
 import { CUSTOMER_TYPES, type CustomerType } from "@/lib/validations/customer.schema";
 
 const PILL_LABEL: Record<CustomerType, string> = {
@@ -35,7 +36,7 @@ export function CustomerFilters() {
 
   useEffect(() => {
     if (search.trim() === urlSearch) return;
-    const timer = setTimeout(() => update({ q: search.trim() }), 300);
+    const timer = setTimeout(() => update({ q: search.trim() }), SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on typing
   }, [search]);

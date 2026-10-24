@@ -24,8 +24,8 @@ async function loadStep(): Promise<Step> {
   }
   const { data: enrolled, error: enrolError } = await supabase.auth.mfa.enroll({
     factorType: "totp",
-    friendlyName: "ProductLogik POS admin",
-    issuer: "ProductLogik POS",
+    friendlyName: "ProductLogik Invoicing System admin",
+    issuer: "ProductLogik Invoicing System",
   });
   if (enrolError || !enrolled) {
     console.error("mfa enroll failed:", enrolError);

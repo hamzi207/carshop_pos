@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { AdminNavbar } from "@/components/admin/admin-navbar";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 
-export const metadata: Metadata = { title: { default: "Superadmin", template: "%s · Superadmin · ProductLogik POS" } };
+export const metadata: Metadata = { title: { default: "Superadmin", template: "%s · Superadmin · ProductLogik Invoicing System" } };
 
 /**
  * Platform control plane (Phase 13). The proxy sends non-superadmins to /dashboard;

@@ -19,7 +19,7 @@ export type Plan = {
   retiredAt: string | null;
   /** Organizations on it now. */
   organizations: number;
-  /** The sign-up default (Platform settings). */
+  /** The default plan for new organizations (Platform settings). */
   isDefault: boolean;
 };
 

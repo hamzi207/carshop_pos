@@ -11,6 +11,7 @@ export function shopSettingsValues(tenant: Awaited<ReturnType<typeof getShopSess
     showClock: tenant.showClock,
     clockStyle: tenant.clockStyle,
     clock24Hour: tenant.clock24Hour,
+    showOverviewLogo: tenant.showOverviewLogo,
     weekStart: tenant.weekStart,
     quoteValidityDays: tenant.quoteValidityDays,
     printFormat: tenant.printFormat,

@@ -125,18 +125,14 @@ export function PlatformSettingsForm({ initial, plans }: { initial: Values; plan
           </Field>
         </Card>
 
-        <Card icon={UserPlus} title="Sign-up & access" text="Self-registration on the sign-up page, and how long Login As lasts.">
-          <label className="settings-row">
-            <span className="settings-label">Open sign-up<small>Off: only you can create organizations.</small></span>
-            <input type="checkbox" className="switch" checked={v.signupOpen} onChange={(e) => set("signupOpen", e.target.checked)} />
-          </label>
-          <Field label="New sign-ups start as" hint="Trial uses the default plan's trial length.">
+        <Card icon={UserPlus} title="New organizations & access" text="What Create Organization starts from, and how long Login As lasts.">
+          <Field label="Default plan starts as" hint="When Create Organization keeps the default plan. Trial uses the plan's trial length.">
             <select className="settings-input" value={v.signupDefaultStatus} onChange={(e) => set("signupDefaultStatus", e.target.value as Values["signupDefaultStatus"])}>
               <option value="trial">Trial</option>
               <option value="active">Active</option>
             </select>
           </Field>
-          <Field label="Default plan" hint="The plan new sign-ups get.">
+          <Field label="Default plan" hint="The plan a new organization gets unless you pick another.">
             <select className="settings-input" value={v.defaultPlanId ?? ""} onChange={(e) => set("defaultPlanId", e.target.value)}>
               <option value="">None</option>
               {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

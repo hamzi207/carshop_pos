@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { CategoryManager } from "@/components/settings/category-manager";
+import { AttributeManager } from "@/components/admin/attribute-manager";
+import { CategoryCatalogEditor } from "@/components/admin/category-catalog-editor";
 import { SettingsLoading } from "@/components/settings/shop-settings-section";
+import { getTenantCategoryView } from "@/lib/admin-category-data";
 import { tenantParam } from "@/lib/admin-params";
-import { getTenantCategories } from "@/lib/tenant-settings-data";
 
 export const metadata: Metadata = { title: "Shop · Categories" };
 
@@ -11,11 +12,16 @@ type Params = Promise<{ id: string }>;
 
 async function Categories({ params }: { params: Params }) {
   const id = await tenantParam(params);
-  const { categories, counts } = await getTenantCategories(id);
-  return <CategoryManager tenantId={id} categories={categories} counts={counts} canEdit />;
+  const view = await getTenantCategoryView(id);
+  return (
+    <>
+      <CategoryCatalogEditor scope={{ tenantId: id }} categories={view.categories} counts={view.counts} hiddenIds={view.hiddenIds} />
+      <AttributeManager scope={{ tenantId: id }} attributes={view.attributes} categories={view.categories} inheritedKeys={view.industryKeys} />
+    </>
+  );
 }
 
-/** Categories tab: the organization's own category tree. */
+/** Categories tab (Phase 18, deliverable 4): the industry's catalog as this organization sees it, plus its own categories and attributes. */
 export default function TenantCategoriesPage({ params }: { params: Params }) {
   return (
     <Suspense fallback={<SettingsLoading />}>

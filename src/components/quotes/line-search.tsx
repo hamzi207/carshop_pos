@@ -2,12 +2,14 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { Box, Check, Loader2, PenLine, Plus, Search } from "lucide-react";
+import { colorStyle } from "@/lib/category-colors";
 import { formatMoney, type MoneyFormat } from "@/lib/format";
+import { LOOKUP_DELAY_MS } from "@/lib/search-delay";
 import type { PickerItem, PickerItemsResponse } from "@/lib/types/quote";
 import { MobileSheet } from "./mobile-sheet";
 
-/** A main category, for the filter chips in the phone search. */
-export type CategoryChip = { id: string; name: string };
+/** A main category, for the filter chips in the phone search (`color`: its RF-18.2 colour). */
+export type CategoryChip = { id: string; name: string; color: string | null };
 
 type Props = {
   money: MoneyFormat;
@@ -17,6 +19,8 @@ type Props = {
   /** A line for something not in inventory, with this description. */
   onAddCustom: (description: string) => void;
   categories: CategoryChip[];
+  /** The search also matches linked vehicles (Vehicle Fitment module on). */
+  vehicleSearch: boolean;
 };
 
 /** Available = on hand − reserved on open quotations. */
@@ -27,7 +31,7 @@ function Stock({ item }: { item: PickerItem }) {
   return <span className={tone}>{available <= 0 ? "None available" : `${available} available`}{reserved}</span>;
 }
 
-/** Parts matching the query (and category), fetched while `enabled`, 200ms after the last keystroke. */
+/** Products matching the query (and category), fetched while `enabled`, 200ms after the last keystroke. */
 function usePartSearch(enabled: boolean, query: string, category: string | null) {
   const q = query.trim();
   const params = new URLSearchParams();
@@ -53,7 +57,7 @@ function usePartSearch(enabled: boolean, query: string, category: string | null)
           setActive(0);
         })
         .catch((err) => !ctrl.signal.aborted && setResult({ request, items: [], error: err.message }));
-    }, 200);
+    }, LOOKUP_DELAY_MS);
     return () => {
       clearTimeout(timer);
       ctrl.abort();
@@ -64,11 +68,11 @@ function usePartSearch(enabled: boolean, query: string, category: string | null)
 }
 
 /**
- * Search box at the top of the line items: type a name or SKU, click a part
+ * Search box at the top of the line items: type a name or SKU, click a product
  * to add it. Anything not in inventory can be added as a custom item.
  * On phones the box opens a full-screen search sheet instead.
  */
-export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: Props) {
+export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories, vehicleSearch }: Props) {
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -152,6 +156,7 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: 
         onAdd={onAdd}
         onAddCustom={onAddCustom}
         categories={categories}
+        vehicleSearch={vehicleSearch}
       />
 
       {open && (
@@ -200,9 +205,9 @@ export function LineSearch({ money, addedIds, onAdd, onAddCustom, categories }: 
 }
 
 /**
- * Full-screen part search for phones: the field is focused on open, main
- * categories filter the list, and each tap adds a part (tapping again adds 1).
- * The sheet stays open so several parts can be added in a row.
+ * Full-screen product search for phones: the field is focused on open, main
+ * categories filter the list, and each tap adds a product (tapping again adds 1).
+ * The sheet stays open so several products can be added in a row.
  */
 function PartSearchSheet({
   open,
@@ -212,6 +217,7 @@ function PartSearchSheet({
   onAdd,
   onAddCustom,
   categories,
+  vehicleSearch,
 }: Props & { open: boolean; onOpenChange: (open: boolean) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -251,7 +257,7 @@ function PartSearchSheet({
           type="search"
           enterKeyHint="search"
           aria-label="Search products"
-          placeholder="Name, SKU or vehicle…"
+          placeholder={vehicleSearch ? "Name, SKU or vehicle…" : "Name or SKU…"}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           maxLength={100}
@@ -270,6 +276,7 @@ function PartSearchSheet({
               aria-pressed={category === c.id}
               onClick={() => setCategory(category === c.id ? null : c.id)}
             >
+              {c.color && <span className="chip-dot" style={colorStyle(c.color)} aria-hidden />}
               {c.name}
             </button>
           ))}

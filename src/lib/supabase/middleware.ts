@@ -11,7 +11,7 @@ const PLATFORM_ADMIN_CLAIM = "platform_admin";
 const ADMIN_LOGIN = "/admin/login";
 const ADMIN_MFA = "/admin/mfa";
 
-const AUTH_PAGES = ["/login", "/register"];
+const AUTH_PAGES = ["/login"];
 // /share/<token>: the customer's view-only link to a quotation or invoice.
 // /manifest.webmanifest: read by the browser before sign-in (Install app).
 // /api/cron/: scheduled jobs, which check CRON_SECRET themselves.
@@ -23,7 +23,7 @@ function isPublic(pathname: string) {
 
 /**
  * Refreshes the Supabase session cookie on every request and guards routes:
- * signed-out users are sent to /login, signed-in users skip /login and /register,
+ * signed-out users are sent to /login, signed-in users skip /login,
  * and /admin is for superadmin accounts only, signed in at /admin/login, after two-factor sign-in
  * (aal2, else /admin/mfa; the pages check again with requireSuperadmin()). Superadmins have no shop.
  * While a superadmin is acting as a shop, every change they send (non-GET request) is

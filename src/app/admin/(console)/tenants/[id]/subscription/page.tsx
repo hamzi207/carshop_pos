@@ -18,7 +18,7 @@ async function Subscription({ params }: { params: Params }) {
   if (!sub) {
     return (
       <section className="card admin-section">
-        <div className="empty-state">This organization has no subscription. Set a sign-up default plan in Platform settings.</div>
+        <div className="empty-state">This organization has no subscription. Set a default plan in Platform settings, or pick a plan here.</div>
       </section>
     );
   }

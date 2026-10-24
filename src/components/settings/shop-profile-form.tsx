@@ -109,7 +109,7 @@ export function ShopProfileForm({ initial, logoUrl, facts, canEdit, tenantId }: 
     setUploading(false);
     if (result.status === "error") return notify.error("Logo not removed", result.message);
     setLogo(null);
-    notify.info("Logo removed", "Quotations and invoices show the shop name instead.");
+    notify.success("Logo removed", "Quotations and invoices show the shop name instead.");
   };
 
   const field = (name: keyof ShopProfileValues, label: string, hint: string, opts: { placeholder?: string; type?: string } = {}) => (

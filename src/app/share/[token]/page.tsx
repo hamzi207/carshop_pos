@@ -63,6 +63,7 @@ async function SharedDocument({ params }: { params: Params }) {
           <div key={i} className="share-line">
             <div>
               <strong>{l.description}</strong>
+              {l.details && <span>{l.details}</span>}
               <span>
                 {l.quantity} × {money(l.salePrice)}
                 {l.discount > 0 && <s>{money(l.unitPrice)}</s>}
@@ -145,7 +146,7 @@ export default function SharePage({ params }: { params: Params }) {
       <Suspense fallback={<div className="share-sheet share-loading">Loading…</div>}>
         <SharedDocument params={params} />
       </Suspense>
-      <p className="share-foot">Sent with ProductLogik POS</p>
+      <p className="share-foot">Sent with ProductLogik Invoicing System</p>
     </main>
   );
 }

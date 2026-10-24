@@ -2,12 +2,16 @@
 
 import { Dialog } from "radix-ui";
 import { Package, Pencil, X } from "lucide-react";
+import { asValues, attributeText, type Attribute } from "@/lib/attributes";
 import { formatMoney, formatVehicleGroups, marginPercent, type MoneyFormat } from "@/lib/format";
 import type { InventoryListItem } from "@/lib/types/inventory";
 
 type Props = {
   item: InventoryListItem | null;
   money: MoneyFormat;
+  /** Attribute definitions; the item's stored values show by label (archived ones too, so nothing is hidden). */
+  attributes: Attribute[];
+  fitment: boolean;
   /** Full category path, e.g. "Exterior › Wrapping › Tinting Film". */
   categoryLabel: string;
   onOpenChange: (open: boolean) => void;
@@ -27,11 +31,13 @@ function Row({ label, value, mono }: { label: string; value: React.ReactNode; mo
  * Read-only product details, opened from the product name. The vendor shows
  * here only, not in the inventory table (docs/changes.md §6).
  */
-export function InventoryItemDetails({ item, money, categoryLabel, onOpenChange, onEdit }: Props) {
+export function InventoryItemDetails({ item, money, attributes, fitment, categoryLabel, onOpenChange, onEdit }: Props) {
   const cost = Number(item?.cost_price ?? 0);
   const selling = Number(item?.selling_price ?? 0);
   const margin = marginPercent(cost, selling);
   const available = item ? item.quantity_on_hand - item.reserved_quantity : 0;
+  const values = asValues(item?.attributes);
+  const shownAttributes = attributes.filter((a) => values[a.key] !== undefined);
 
   return (
     <Dialog.Root open={item !== null} onOpenChange={onOpenChange}>
@@ -56,7 +62,12 @@ export function InventoryItemDetails({ item, money, categoryLabel, onOpenChange,
               <div className="modal-body">
                 <div className="product-details">
                   <Row label="Vendor / supplier" value={item.vendor_name || "—"} />
-                  <Row label="Fitment" value={item.is_universal ? "Universal Fit (all vehicles)" : formatVehicleGroups(item.vehicles).join(", ")} />
+                  {fitment && (
+                    <Row label="Fitment" value={item.is_universal ? "Universal Fit (all vehicles)" : formatVehicleGroups(item.vehicles).join(", ")} />
+                  )}
+                  {shownAttributes.map((a) => (
+                    <Row key={a.id} label={a.label} value={attributeText(a, values[a.key])} />
+                  ))}
                   <Row label="Cost price" value={formatMoney(cost, money)} />
                   <Row
                     label="Selling price"

@@ -4,7 +4,7 @@ import { SettingsTabList, SettingsTabs } from "@/components/settings/settings-ta
 // Settings sections (Phase 14): each tab is its own page with its own Save Settings bar.
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="page settings-page">
+    <div className="page settings-page shop-settings">
       <div className="page-heading">
         <div>
           <span className="eyebrow">SHOP SETTINGS</span>

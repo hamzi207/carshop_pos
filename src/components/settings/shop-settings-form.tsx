@@ -39,6 +39,7 @@ const CHANGE_TEXT: Record<keyof ShopSettingsInput, [label: string, value: (v: Sh
   showClock: ["Show clock on dashboard", (v) => onOff(v.showClock)],
   clockStyle: ["Clock design", (v) => (v.clockStyle === "analog" ? "Analog" : "Digital")],
   clock24Hour: ["Time format", (v) => (v.clock24Hour ? "24-hour" : "12-hour")],
+  showOverviewLogo: ["Show logo on Overview", (v) => onOff(v.showOverviewLogo)],
 };
 
 /** One line per changed setting, e.g. "Print format updated to 80mm POS slip."; empty when nothing changed. */
@@ -59,7 +60,7 @@ const SECTION_FIELDS: Record<SettingsSection, (keyof ShopSettingsInput)[]> = {
   printFormat: ["printFormat"],
   phones: ["allowInternationalPhones"],
   timezone: ["timezone", "weekStart"],
-  clock: ["showClock", "clockStyle", "clock24Hour"],
+  clock: ["showOverviewLogo", "showClock", "clockStyle", "clock24Hour"],
 };
 
 type Props = {
@@ -372,10 +373,17 @@ export function ShopSettingsForm({ sections, label, initial, timeZoneGroups, can
           <div className="settings-card-head">
             <span className="header-icon blue"><AlarmClock size={18} /></span>
             <div>
-              <h2>Dashboard clock</h2>
-              <p>A live clock on the Overview page, in the shop timezone.</p>
+              <h2>Overview page</h2>
+              <p>Your logo beside the greeting and a live clock in the shop timezone.</p>
             </div>
           </div>
+          <label className="settings-row">
+            <span className="settings-label">
+              Show logo on Overview
+              <small>Uses the logo from Settings → Profile. Nothing shows until one is uploaded.</small>
+            </span>
+            <input type="checkbox" className="switch" {...register("showOverviewLogo")} />
+          </label>
           <label className="settings-row">
             <span className="settings-label">Show clock on dashboard</span>
             <input type="checkbox" className="switch" {...register("showClock")} />

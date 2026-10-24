@@ -21,7 +21,7 @@ async function Overview() {
         <Stat
           tone="blue"
           icon={<Store size={16} />}
-          title="Shops"
+          title="Organizations"
           value={count(m.shops.total)}
           detail={`${m.shops.active} active · ${m.shops.trial} trial · ${m.shops.suspended} suspended · ${m.shops.newThisMonth} new this month`}
         />
@@ -51,7 +51,7 @@ async function Overview() {
         <section className="card">
           <div className="card-header">
             <div>
-              <h2>Shop sign-ups</h2>
+              <h2>New organizations</h2>
               <p>New shops per month, last 12 months</p>
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function AdminOverviewPage() {
         <div>
           <span className="eyebrow">PLATFORM</span>
           <h1>Overview</h1>
-          <p>Every organization on ProductLogik POS at a glance.</p>
+          <p>Every organization on ProductLogik Invoicing System at a glance.</p>
         </div>
       </div>
       <Suspense fallback={<section className="card"><div className="empty-state">Loading platform figures…</div></section>}>

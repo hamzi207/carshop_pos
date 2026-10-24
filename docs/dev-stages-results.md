@@ -811,3 +811,39 @@ Test steps:
   5. Plans → assign a plan to a shop → issue an invoice → record a payment.
   6. Team → Add Superadmin with a new email: the invitation arrives.
   7. Commit: git add . && git commit -m "Phase 17 - superadmin console, subscriptions, billing and separate superadmin accounts"
+
+Phase 18 (Version 2: industries, superadmin category catalogs, attributes, onboarding checklist), 2026-10-24:
+  - 14 industries, each with its own category catalog (Automotive from V1, 13 new trees, 1,052 categories).
+    Every organization has one industry and sees only that catalog plus categories made for it alone.
+  - No self sign-up: /register is gone and the superadmin creates every organization (Create Organization
+    picks the industry).
+  - Categories are superadmin-only. Console → Catalog: industries, category trees (colour, image, prefix,
+    icon, move, archive), duplicate a tree, CSV import with preview and export, attributes, request queue.
+  - Organization page: Products, Categories (hide catalog categories, add its own, own attributes),
+    Industry & modules (change-industry wizard, Vehicle Fitment switch, setup checklist), setup % on the
+    Overview and in the Organizations list.
+  - Shop: Settings → Categories is read-only with "Request a category"; the answer arrives in the bell.
+    Vehicle fitment shows only for organizations with the module (Automotive by default).
+  - Custom attributes (e.g. Storage, Colour) in the product dialog, filters, search, CSV attr: columns and
+    on invoices when flagged. Category colours and images in pickers and chips. Get started card with 9 steps.
+  - Fixed in the browser checks: "first customer" was ticked by the automatic walk-in customer; changing an
+    organization's industry lost its attributes; the Settings tab row cut off "Subscription".
+  - Not built: a notification bell in the console (requests show as a count on Catalog, plus the email).
+  - From the owner's fitment test (2026-10-24/25, fitment steps 1–4 match V1): the UI is called "ProductLogik
+    Invoicing System" (repo stays productlogik-pos); "Built by Hamza Latif" in the sidebar and sign-in footers;
+    shop logo beside the Overview greeting (switch in Settings → Localization → Overview page); shop Settings
+    full width like the console, with a bottom save bar styled like the top bar; search boxes wait 0.5 s;
+    "free" → "available"; discard toasts amber and toast colours checked against their purpose.
+Typecheck, lint and production build pass. SQL isolation test 36/36. Browser checks with temporary
+organizations and a temporary superadmin, deleted afterwards (see PROJECT_SPEC.md §7 Phase 18).
+
+Test steps:
+  1. Console → Catalog → Categories: pick an industry, add a category, give it a colour; archive it again.
+  2. Console → Organizations → Create Organization with a grocery industry → sign in as that owner:
+     grocery categories in Add New Product, no vehicle fields, Get started card at 0 of 9.
+  3. Your shop: Inventory still shows fitment type and vehicles; Add New Product has Universal / Vehicle Specific.
+  4. Your shop → Settings → Categories → Request a category → console Catalog → Requests → Approve →
+     the shop's bell shows it and the picker has it.
+  5. Console → Attributes: add a list attribute to a category → it appears in that category's product
+     dialog, the inventory filters and Export CSV.
+  6. Commit: git add . && git commit -m "Phase 18 - industries, category catalogs, attributes and onboarding"

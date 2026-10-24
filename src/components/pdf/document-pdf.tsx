@@ -99,7 +99,7 @@ export function DocumentPdf({ doc, logo }: Props) {
   const accent = doc.shop.accent;
 
   return (
-    <Document title={`${doc.title} ${doc.number} — ${doc.shop.name}`} author={doc.shop.name} creator="ProductLogik POS">
+    <Document title={`${doc.title} ${doc.number} — ${doc.shop.name}`} author={doc.shop.name} creator="ProductLogik Invoicing System">
       <Page size="A4" style={s.page}>
         {/* ---- Header: shop (left), document title (right) ---- */}
         <View style={[s.header, { borderBottomColor: accent }]}>
@@ -157,6 +157,7 @@ export function DocumentPdf({ doc, logo }: Props) {
             <Text style={s.cNo}>{i + 1}</Text>
             <View style={s.cItem}>
               <Text style={{ fontFamily: FONT_BOLD }}>{l.description}</Text>
+              {l.details && <Text style={s.sku}>{l.details}</Text>}
               {l.sku && <Text style={s.sku}>{l.sku}</Text>}
             </View>
             <Text style={s.cQty}>{l.quantity}</Text>

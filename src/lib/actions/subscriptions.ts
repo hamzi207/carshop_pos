@@ -277,6 +277,38 @@ export async function extendSubscription(tenantId: string, input: { until: strin
   return done(tenantId, trial ? `The trial now ends on ${billingDate(until)}.` : `Payment is now due by ${billingDate(until)}.`);
 }
 
+/**
+ * Moves the start date while nothing has been invoiced yet (it only decides where the first billing
+ * period begins). After the first invoice, extend the due date instead.
+ */
+export async function setSubscriptionStart(tenantId: string, input: { until: string; reason: string }): Promise<SubscriptionActionResult> {
+  const me = await requireSuperadmin();
+  if (!isUuid(tenantId)) return fail("That organization wasn't found.");
+  const parsed = extendSchema.safeParse(input);
+  if (!parsed.success) return fail(firstIssue(parsed.error));
+  const { until: start, reason } = parsed.data;
+  const admin = createAdminClient();
+  const sub = await loadSubscription(admin, tenantId);
+  if (!sub) return fail("This organization has no subscription.");
+  if (sub.status === "cancelled") return fail("The subscription has ended. Resume it instead.");
+  const { count } = await admin.from("subscription_invoices").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).neq("status", "void");
+  if (count) return fail("It has invoices already, so the start date is fixed. Extend the due date instead.");
+
+  // Billing starts on the start date unless a trial still covers it; free plans have no due date.
+  const trialCovers = sub.trial_ends_at !== null && sub.trial_ends_at >= start;
+  const row = { started_at: start, ...(sub.next_due_date !== null && !trialCovers ? { next_due_date: start } : {}) };
+  const { error } = await admin
+    .from("tenant_subscriptions")
+    .update({ ...row, updated_by: me.userId, change_reason: reason, updated_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId);
+  if (error) {
+    console.error("setSubscriptionStart failed:", error);
+    return fail("We couldn't change the start date. Please try again.");
+  }
+  await audit({ adminId: me.userId, action: "subscription.start_date", tenantId, reason, details: { before: { started_at: sub.started_at }, after: { started_at: start } } });
+  return done(tenantId, `The subscription now starts on ${billingDate(start)}.`);
+}
+
 /** Usable until the end of the paid period (or trial), then "Subscription ended". */
 export async function cancelSubscription(tenantId: string, reason: string): Promise<SubscriptionActionResult> {
   const me = await requireSuperadmin();

@@ -15,7 +15,9 @@ export type EmailTemplate =
   | "subscription_reminder"
   | "subscription_receipt"
   | "subscription_notice"
-  | "superadmin_notice";
+  | "superadmin_notice"
+  | "category_request"
+  | "category_request_result";
 
 /** Per shop, so a mistake (or abuse) can't burn through the Resend quota. Platform settings can change it. */
 const HOURLY_LIMIT_PER_SHOP = 100;

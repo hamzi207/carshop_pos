@@ -4,7 +4,10 @@ import Link from "next/link";
 import { BarChart3, CheckCircle2, FilePlus2, ReceiptText, Settings, Store } from "lucide-react";
 import { getShopSession } from "@/lib/auth";
 import { DashboardMetrics, DashboardMetricsSkeleton } from "@/components/dashboard/dashboard-metrics";
+import { GetStartedCard } from "@/components/dashboard/get-started-card";
 import { ShopClock } from "@/components/dashboard/shop-clock";
+import type { OnboardingProgress } from "@/lib/onboarding";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Overview" };
 
@@ -14,15 +17,39 @@ async function Greeting() {
   const firstName = session.fullName.split(" ")[0];
   return (
     <div className="page-heading overview-heading">
-      <div>
-        <span className="eyebrow">STORE OVERVIEW</span>
-        <h1>Welcome, {firstName}</h1>
-        <p>Here&apos;s what&apos;s happening across {session.tenant.name}.</p>
+      <div className="overview-greeting">
+        {/* Settings → Localization → Overview page turns the logo on/off; nothing shows without one. */}
+        {tenant.showOverviewLogo && tenant.logoUrl && (
+          <span className="overview-logo">
+            {/* eslint-disable-next-line @next/next/no-img-element -- shop logo from Supabase Storage */}
+            <img src={tenant.logoUrl} alt={`${tenant.name} logo`} />
+          </span>
+        )}
+        <div>
+          <span className="eyebrow">STORE OVERVIEW</span>
+          <h1>Welcome, {firstName}</h1>
+          <p>Here&apos;s what&apos;s happening across {session.tenant.name}.</p>
+        </div>
       </div>
-      {/* Settings → Dashboard clock turns this on/off and picks the design. */}
+      {/* Settings → Localization → Overview page turns this on/off and picks the design. */}
       {tenant.showClock && <ShopClock timeZone={tenant.timezone} clockStyle={tenant.clockStyle} hour24={tenant.clock24Hour} />}
     </div>
   );
+}
+
+/** RF-18.3: org admins only, until every step is done or the card is dismissed. */
+async function GetStarted() {
+  const { role } = await getShopSession();
+  if (role !== "admin") return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("my_onboarding");
+  if (error) {
+    console.error("my_onboarding failed:", error.message);
+    return null;
+  }
+  const progress = data as unknown as OnboardingProgress;
+  if (progress.dismissed || !progress.steps.length || progress.steps.every((s) => s.done)) return null;
+  return <GetStartedCard steps={progress.steps} />;
 }
 
 async function ShopReadyCard() {
@@ -79,6 +106,9 @@ export default function DashboardPage({ searchParams }: { searchParams: SearchPa
     <div className="page">
       <Suspense fallback={<div className="page-heading"><div><span className="eyebrow">STORE OVERVIEW</span><h1>Welcome</h1></div></div>}>
         <Greeting />
+      </Suspense>
+      <Suspense fallback={null}>
+        <GetStarted />
       </Suspense>
       <Suspense fallback={<DashboardMetricsSkeleton />}>
         <DashboardMetrics searchParams={searchParams} />

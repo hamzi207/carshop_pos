@@ -123,15 +123,15 @@ export async function inviteTeamMember(input: TeamInviteInput, tenantId?: string
   if (existing) {
     return {
       status: "error",
-      message: existing.tenant_id === ctx.tenantId ? `${email} is already on this team.` : `${email} already has a ProductLogik POS account with another business.`,
+      message: existing.tenant_id === ctx.tenantId ? `${email} is already on this team.` : `${email} already has a ProductLogik Invoicing System account with another business.`,
     };
   }
 
-  // No shop_name in the metadata, so the sign-up trigger doesn't create a shop: the profile below
-  // joins this one. Confirmed up front because the invitation link proves the address.
+  // A new auth user gets no shop by itself: the profile below joins this one.
+  // Confirmed up front because the invitation link proves the address.
   const { data: created, error } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { full_name: fullName } });
   if (error || !created.user) {
-    if (error?.code === "email_exists") return { status: "error", message: `${email} already has a ProductLogik POS account.` };
+    if (error?.code === "email_exists") return { status: "error", message: `${email} already has a ProductLogik Invoicing System account.` };
     console.error("inviteTeamMember createUser failed:", error);
     return { status: "error", message: "We couldn't create the invitation. Please try again." };
   }

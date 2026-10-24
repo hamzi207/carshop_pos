@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/types/database.types";
 import { localDate, sectionForStatus, statusDisplay, statusKey, type DocumentSection } from "@/lib/documents";
 import { documentAccent } from "@/lib/accent";
+import { applicableAttributes, asValues, documentAttributeLine } from "@/lib/attributes";
+import { buildCategoryIndex, CATEGORY_COLUMNS } from "@/lib/categories";
 import { formatDate, type MoneyFormat } from "@/lib/format";
 import { formatPhone } from "@/lib/phone";
 import { formatStrn } from "@/lib/tax-id";
@@ -14,6 +16,8 @@ import { formatIban, formatWalletNumber, parseWallets } from "@/lib/validations/
 
 export type PrintableLine = {
   description: string;
+  /** RF-18.1: "Warranty: 12 months · Colour: Black" from the product's attributes flagged "show on documents". */
+  details: string | null;
   sku: string | null;
   quantity: number;
   unitPrice: number;
@@ -92,7 +96,7 @@ export type PrintableDocument = {
 };
 
 const SELECT =
-  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(name, address, phone, email, ntn, strn, logo_url, accent_color, quote_footer_notes, invoice_terms, bank_name, bank_account_title, bank_account_number, bank_iban, bank_raast_id, bank_wallets, currency, show_paisa, timezone)";
+  "*, customers(name, contact_person, whatsapp_number, phone, email, billing_address, cnic_or_ntn, strn, is_walk_in), quote_items(*, inventory_items(sku, category_id, attributes)), invoice_payments(*, invoice_payment_items(description, quantity)), tenants(industry_id, name, address, phone, email, ntn, strn, logo_url, accent_color, quote_footer_notes, invoice_terms, bank_name, bank_account_title, bank_account_number, bank_iban, bank_raast_id, bank_wallets, currency, show_paisa, timezone)";
 
 const TITLE: Record<DocumentSection, string> = { drafts: "Estimate", quotations: "Quotation", invoices: "Invoice" };
 
@@ -127,8 +131,10 @@ export async function loadPrintable(
     { label: "Due date", value: section === "invoices" ? day(q.due_date) : null },
   ].filter((d): d is { label: string; value: string } => Boolean(d.value));
 
-  const lines = q.quote_items.map((l) => ({
+  const details = await attributeDetails(supabase, q.tenant_id, t.industry_id, q.quote_items.map((l) => l.inventory_items));
+  const lines = q.quote_items.map((l, i) => ({
     description: l.description,
+    details: details[i],
     sku: l.inventory_items?.sku ?? null,
     quantity: Number(l.quantity),
     unitPrice: Number(l.unit_price),
@@ -218,4 +224,34 @@ export async function loadPrintable(
     paid,
     balance,
   };
+}
+
+type LineProduct = { category_id: string | null; attributes: unknown } | null;
+
+/**
+ * Per line, the "show on documents" attribute values of its product (null for custom lines and products
+ * without such values). Read at print time like the SKU. The share link uses the admin client, so the
+ * definitions and categories are limited to the document's organization by hand, as RLS would.
+ */
+async function attributeDetails(supabase: SupabaseClient<Database>, tenantId: string, industryId: string, products: LineProduct[]) {
+  const none = products.map(() => null);
+  if (!products.some((p) => p && Object.keys(asValues(p.attributes)).length)) return none;
+  const scope = `industry_id.eq.${industryId},tenant_id.eq.${tenantId}`;
+  const { data: attributes, error } = await supabase
+    .from("category_attributes")
+    .select("*")
+    .eq("show_on_documents", true)
+    .eq("is_archived", false)
+    .or(scope);
+  if (error) console.error("Document attributes failed:", error.message);
+  if (!attributes?.length) return none;
+
+  let categories: Parameters<typeof buildCategoryIndex>[0] = [];
+  if (attributes.some((a) => a.category_id)) {
+    const { data, error: catError } = await supabase.from("categories").select(CATEGORY_COLUMNS).or(scope);
+    if (catError) console.error("Document categories failed:", catError.message);
+    categories = data ?? [];
+  }
+  const index = buildCategoryIndex(categories);
+  return products.map((p) => (p ? documentAttributeLine(applicableAttributes(attributes, index, p.category_id), p.attributes) || null : null));
 }

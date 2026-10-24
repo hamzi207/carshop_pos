@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { z } from "zod";
+import { hasModule } from "@/lib/module-data";
 import { createClient } from "@/lib/supabase/server";
 import type {
   VehicleMakesResponse,
@@ -16,6 +17,7 @@ import type {
  * Vehicles are global reference data, but RLS only lets signed-in users read
  * them, so this runs with the caller's session. Answers are never cached: the
  * catalog grows when the seed runs or a shop adds its own vehicle.
+ * 403 when the organization doesn't have the Vehicle Fitment module (Phase 18).
  */
 const querySchema = z.object({
   year: z.coerce.number().int().min(1960).max(2035).optional(),
@@ -39,6 +41,9 @@ export async function GET(request: NextRequest) {
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims) {
     return Response.json({ error: "Not signed in." }, { status: 401 });
+  }
+  if (!(await hasModule("vehicle_fitment"))) {
+    return Response.json({ error: "Vehicle Fitment isn't switched on for your organization." }, { status: 403 });
   }
 
   if (year === undefined) {

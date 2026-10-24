@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, X } from "lucide-react";
+import { applicableAttributes, type Attribute } from "@/lib/attributes";
 import { buildCategoryIndex, fullPath, type Category } from "@/lib/categories";
+import { SEARCH_DELAY_MS } from "@/lib/search-delay";
+import { ATTR_PARAM } from "@/lib/validations/inventory.schema";
 import { CategoryPicker } from "./category-picker";
 
 const STOCK_LABEL: Record<string, string> = { in: "In stock", low: "Low stock", out: "Out of stock" };
@@ -13,14 +16,18 @@ type Props = {
   categories: Category[];
   /** Items per category id, for the counts in the category picker. */
   counts: Record<string, number>;
+  /** Attribute definitions: list and yes/no ones become filters (RF-18.1). */
+  attributes: Attribute[];
+  /** Vehicle Fitment module on: shows the fitment filter. */
+  fitment: boolean;
 };
 
 /**
- * Search / category / stock / fitment filters and sort. State lives in the URL
- * (?q=&category=&stock=&fitment=&sort=) so a filtered view can be refreshed,
+ * Search / category / stock / fitment / attribute filters and sort. State lives in the URL
+ * (?q=&category=&stock=&fitment=&sort=&attr.<key>=) so a filtered view can be refreshed,
  * bookmarked or shared; the server page re-queries whenever it changes.
  */
-export function InventoryFilters({ categories, counts }: Props) {
+export function InventoryFilters({ categories, counts, attributes, fitment: fitmentModule }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -33,12 +40,14 @@ export function InventoryFilters({ categories, counts }: Props) {
   const sort = params.get("sort") ?? "";
   const urlSearch = params.get("q") ?? "";
   const [search, setSearch] = useState(urlSearch);
+  // The last search the box itself sent, so its own URL update can't overwrite newer typing.
+  const [typedSearch, setTypedSearch] = useState(urlSearch);
 
   // Keep the box in step when the URL changes elsewhere (bell, global search, Clear all).
   const [lastUrlSearch, setLastUrlSearch] = useState(urlSearch);
   if (urlSearch !== lastUrlSearch) {
     setLastUrlSearch(urlSearch);
-    setSearch(urlSearch);
+    if (urlSearch !== typedSearch) setSearch(urlSearch);
   }
 
   const update = (changes: Record<string, string>) => {
@@ -55,17 +64,30 @@ export function InventoryFilters({ categories, counts }: Props) {
   // Debounce typing into the URL.
   useEffect(() => {
     if (search.trim() === urlSearch) return;
-    const timer = setTimeout(() => update({ q: search.trim() }), 300);
+    const timer = setTimeout(() => {
+      setTypedSearch(search.trim());
+      update({ q: search.trim() });
+    }, SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on typing
   }, [search]);
 
   const selectedCategory = category ? index.byId.get(category) : undefined;
+
+  // List and yes/no attributes for the chosen category (the unscoped ones when none is chosen), plus any
+  // already in the URL so their chip can be removed.
+  const filterable = (a: Attribute) => a.type === "select" || a.type === "boolean";
+  const offered = (selectedCategory ? applicableAttributes(attributes, index, category) : attributes.filter((a) => !a.category_id && !a.is_archived)).filter(filterable);
+  const activeAttributes = attributes.filter((a) => filterable(a) && params.get(ATTR_PARAM + a.key));
+  const attributeFilters = [...offered, ...activeAttributes.filter((a) => !offered.includes(a))];
+  const attrLabel = (a: Attribute, value: string) => `${a.label}: ${a.type === "boolean" ? (value === "yes" ? "Yes" : "No") : value}`;
+
   const chips = [
     urlSearch && { key: "q", label: `“${urlSearch}”` },
     category && { key: "category", label: selectedCategory ? fullPath(selectedCategory) : "Unknown category" },
     stock && { key: "stock", label: STOCK_LABEL[stock] ?? stock },
-    fitment && { key: "fitment", label: FITMENT_LABEL[fitment] ?? fitment },
+    fitmentModule && fitment && { key: "fitment", label: FITMENT_LABEL[fitment] ?? fitment },
+    ...activeAttributes.map((a) => ({ key: ATTR_PARAM + a.key, label: attrLabel(a, params.get(ATTR_PARAM + a.key) ?? "") })),
   ].filter(Boolean) as { key: string; label: string }[];
 
   return (
@@ -77,7 +99,7 @@ export function InventoryFilters({ categories, counts }: Props) {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search SKU, product name, category or vehicle (e.g. Corolla 2025)..."
+            placeholder={fitmentModule ? "Search SKU, product name, category or vehicle (e.g. Corolla 2025)..." : "Search SKU, product name or category..."}
             aria-label="Search inventory"
             maxLength={100}
           />
@@ -100,11 +122,34 @@ export function InventoryFilters({ categories, counts }: Props) {
           <option value="low">Low stock</option>
           <option value="out">Out of stock</option>
         </select>
-        <select className="filter-select" aria-label="Fitment type" value={fitment} onChange={(e) => update({ fitment: e.target.value })}>
-          <option value="">All fitment types</option>
-          <option value="universal">Universal Fit</option>
-          <option value="specific">Vehicle Specific</option>
-        </select>
+        {fitmentModule && (
+          <select className="filter-select" aria-label="Fitment type" value={fitment} onChange={(e) => update({ fitment: e.target.value })}>
+            <option value="">All fitment types</option>
+            <option value="universal">Universal Fit</option>
+            <option value="specific">Vehicle Specific</option>
+          </select>
+        )}
+        {attributeFilters.map((a) => (
+          <select
+            key={a.id}
+            className="filter-select"
+            aria-label={a.label}
+            value={params.get(ATTR_PARAM + a.key) ?? ""}
+            onChange={(e) => update({ [ATTR_PARAM + a.key]: e.target.value })}
+          >
+            <option value="">{`${a.label}: any`}</option>
+            {a.type === "boolean" ? (
+              <>
+                <option value="yes">{`${a.label}: Yes`}</option>
+                <option value="no">{`${a.label}: No`}</option>
+              </>
+            ) : (
+              a.options.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))
+            )}
+          </select>
+        ))}
         <select className="filter-select" aria-label="Sort by" value={sort} onChange={(e) => update({ sort: e.target.value })}>
           <option value="">Sort: Name A–Z</option>
           <option value="newest">Sort: Newest first</option>
@@ -134,7 +179,7 @@ export function InventoryFilters({ categories, counts }: Props) {
             className="filter-clear"
             onClick={() => {
               setSearch("");
-              update({ q: "", category: "", stock: "", fitment: "" });
+              update({ q: "", category: "", stock: "", fitment: "", ...Object.fromEntries(activeAttributes.map((a) => [ATTR_PARAM + a.key, ""])) });
             }}
           >
             Clear all

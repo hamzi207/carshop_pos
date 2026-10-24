@@ -6,9 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import type { PickerItemsResponse } from "@/lib/types/quote";
 
 /**
- * Parts for the line-item search on drafts, quotations and invoices.
- *   GET /api/quote-items?q=tint   → up to 20 parts matching "tint" (SKU, name or linked vehicle)
- *   GET /api/quote-items          → the first 20 parts by name
+ * Products for the line-item search on drafts, quotations and invoices.
+ *   GET /api/quote-items?q=tint   → up to 20 products matching "tint" (SKU, name, attribute values,
+ *                                   or a linked vehicle when the Vehicle Fitment module is on)
+ *   GET /api/quote-items          → the first 20 products by name
  *   GET /api/quote-items?category=<id> → only that category and everything below it (phone chips)
  * Search uses search_inventory_items. Runs with the caller's session, so RLS
  * limits it to their shop.

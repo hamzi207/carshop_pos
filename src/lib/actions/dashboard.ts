@@ -44,3 +44,22 @@ export async function saveDashboardPrefs(
   refresh();
   return { status: "success" };
 }
+
+/** RF-18.3: hides the dashboard's "Get started" card for the whole organization (org admins only). */
+export async function dismissOnboarding(): Promise<{ status: "success" } | { status: "error"; message: string }> {
+  const { tenant, role } = await getShopSession();
+  if (role !== "admin") return { status: "error", message: "Only an admin can hide the setup steps." };
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("tenants")
+    .update({ onboarding_dismissed_at: now, updated_at: now })
+    .eq("id", tenant.id)
+    .select("id");
+  if (error || data.length === 0) {
+    if (error) console.error("dismissOnboarding failed:", error);
+    return { status: "error", message: "We couldn't hide the setup steps. Please try again." };
+  }
+  refresh();
+  return { status: "success" };
+}

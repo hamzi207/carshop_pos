@@ -34,7 +34,6 @@ export async function savePlatformSettings(input: PlatformSettingsInput): Promis
     default_grace_days: v.defaultGraceDays,
     reminder_days: v.reminderDays,
     default_plan_id: v.defaultPlanId,
-    signup_open: v.signupOpen,
     signup_default_status: v.signupDefaultStatus,
     impersonation_ttl_minutes: v.impersonationTtlMinutes,
     email_sender_name: v.emailSenderName,
@@ -53,7 +52,7 @@ export async function savePlatformSettings(input: PlatformSettingsInput): Promis
   const diff = changedFields((before ?? {}) as Record<string, unknown>, JSON.parse(JSON.stringify(row)) as Record<string, unknown>);
   if (Object.keys(diff.after).length) await audit({ adminId: me.userId, action: "platform.settings", details: diff });
   refresh();
-  return { status: "success", message: "New settings apply from the next sign-up, invoice, email and Login As." };
+  return { status: "success", message: "New settings apply from the next new organization, invoice, email and Login As." };
 }
 
 /** datetime-local in Pakistan time (UTC+5, no daylight saving) → ISO. */

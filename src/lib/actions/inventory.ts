@@ -3,7 +3,7 @@
 import { refresh } from "next/cache";
 import { z } from "zod";
 import { buildCategoryIndex, descendantIds } from "@/lib/categories";
-import { getCategories } from "@/lib/category-data";
+import { getAttributes, getCategories } from "@/lib/category-data";
 import { isRangePastEnd, pageRange, type Paged, type Pagination } from "@/lib/pagination";
 import { createClient } from "@/lib/supabase/server";
 import { planLimitMessage } from "@/lib/plan-limits";
@@ -41,8 +41,16 @@ export type InventoryPage = Paged<InventoryListItem> & {
  * the counts agree; available / low stock are generated columns (Phase 9 migration).
  */
 export async function getInventoryItems(filters: InventoryFilters = {}, pagination: Pagination = { page: 1, limit: 25 }): Promise<InventoryPage> {
-  const { category, search, fitment, stock, sort } = inventoryFiltersSchema.parse(filters);
+  const { category, search, fitment, stock, sort, attributes } = inventoryFiltersSchema.parse(filters);
   const supabase = await createClient();
+
+  // Attribute filters: a list option matches the stored text; "no" on a yes/no attribute also matches
+  // items that never had it set. Keys that aren't list or yes/no attributes are ignored.
+  const definitions = attributes && Object.keys(attributes).length ? await getAttributes() : [];
+  const attributeFilters = Object.entries(attributes ?? {}).flatMap(([key, value]) => {
+    const def = definitions.find((a) => a.key === key && (a.type === "select" || a.type === "boolean"));
+    return def ? [{ key, type: def.type, value }] : [];
+  });
 
   // The category and everything below it; an unknown id matches nothing.
   let categoryIds: string[] | null = null;
@@ -64,6 +72,11 @@ export async function getInventoryItems(filters: InventoryFilters = {}, paginati
     if (stockFilter === "in") query = query.gt("available_quantity", 0);
     else if (stockFilter === "out") query = query.lte("available_quantity", 0);
     else if (stockFilter === "low") query = query.eq("is_low_stock", true);
+    for (const f of attributeFilters) {
+      if (f.type === "select") query = query.eq(`attributes->>${f.key}`, f.value);
+      else if (f.value === "yes") query = query.eq(`attributes->${f.key}`, true);
+      else query = query.or(`attributes->${f.key}.is.null,attributes->${f.key}.eq.false`);
+    }
     return query;
   };
 
@@ -138,6 +151,7 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
     p_price_includes_tax: item.priceIncludesTax,
     p_vendor_name: item.vendorName || undefined,
     p_vehicle_ids: item.isUniversal ? [] : item.vehicleIds,
+    p_attributes: item.attributes,
   });
 
   if (error) {
@@ -160,9 +174,16 @@ async function saveInventoryItem(id: string | undefined, input: InventoryItemInp
         if (error.message.includes("inventory_items_category_fkey")) {
           return { status: "error", field: "categoryId", message: "That category no longer exists. Choose another one." };
         }
+        if (error.message.includes("category")) return { status: "error", field: "categoryId", message: error.message };
         return { status: "error", field: "vehicleIds", message: "One of the selected vehicles no longer exists. Remove it and try again." };
       case "22023":
-        return { status: "error", field: "vehicleIds", message: error.message };
+        // Fitment, archived-category and attribute checks explain themselves.
+        if (error.message.startsWith("Vehicle")) return { status: "error", field: "vehicleIds", message: error.message };
+        if (error.message.includes("category")) return { status: "error", field: "categoryId", message: error.message };
+        return { status: "error", message: error.message };
+      case "23502":
+        // A required attribute left empty.
+        return { status: "error", message: error.message };
       case "P0002":
         return { status: "error", message: "This item no longer exists. It may have been deleted." };
       case "42501":

@@ -7,8 +7,8 @@ import { useTheme } from "next-themes";
 const noop = () => () => {};
 
 /**
- * Light / dark switch in the top bar (shop dashboard and superadmin console). Flips what's on screen
- * now; "System" (follow the device) stays in the user menu. Renders an empty button until mounted:
+ * Light / dark switch in the top bar (shop dashboard and superadmin console), the only theme control.
+ * Follows the device until it's first clicked. Renders an empty button until mounted:
  * the server can't know the theme, which lives in this browser.
  */
 export function ThemeToggle({ className = "icon-button theme-toggle" }: { className?: string }) {

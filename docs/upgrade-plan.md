@@ -22,6 +22,11 @@
   - Phase 18 says how categories for the other industries are drafted, reviewed, seeded and then maintained by the superadmin.
 - **Rev 5 (2026-10-20, during Phase 16)**: the product owner added **dark mode with a theme switcher** to Phase 16 (RF-16.4, deliverable 9). Version 1 had no dark theme, so deliverable 4 and the checkpoint, which already said "dark mode" and "light and dark", now point to a real deliverable. RF-16.1–16.3 were accepted when Phase 16 started.
 - **Rev 6 (2026-10-20, before Phase 17)**: the product owner added **subscription plans with manual payments** to Phase 17 (deliverable 9). Organizations pay for ProductLogik POS by mobile wallet (JazzCash, Easypaisa and similar) or bank transfer, never online. The superadmin creates and manages the plans (price, billing cycle, number of stores, users, products and modules), assigns one to each organization, issues subscription invoices, and records or verifies payments. Plan limits replace the separate per-organization limits in deliverable 1 (the per-organization values stay as overrides). This takes in and replaces RF-17.3 "Subscription tracking". Online payment gateways stay out of scope.
+- **Rev 7 (2026-10-22, during Phase 18)**: three decisions from the product owner on what the other industries need:
+  1. **Batch & expiry tracking is now part of Phase 24** (deliverable 6), no longer an optional extra. Pharmacy is a launch industry and can't work without it. The former RF-24.1 is closed.
+  2. **Serial numbers / IMEI per unit** is a new recommended feature, **RF-24.4**, offered when Phase 24 starts. Mobile phone and computer shops need it for warranty claims and theft checks.
+  3. **Counter sales stay out** (Appendix A). ProductLogik POS is a hosted web app. It can't run locally at the counter, and over the internet it would be too slow for a scan-and-pay checkout queue. Walk-in invoices, barcodes (Phase 23), the quick counter invoice (Phase 26 deliverable 8) and the POS slip cover counter needs.
+- **Rev 8 (2026-10-22, during Phase 18)**: **the superadmin creates every organization; there is no self sign-up.** `/register`, the "Open sign-up" platform switch and the on-signup database trigger are removed. Create Organization provisions the organization through the service-role function `admin_create_organization()`, so a direct call to the public sign-up API can't create one. The other platform settings stay and now apply to new organizations (default plan, its starting status). An industry's active flag now means "open for new organizations" (offered in Create Organization). Open question 5 (§8) is answered by this.
 
 ---
 
@@ -73,7 +78,7 @@ Each phase has a short list of **recommended features** (§10) that are in scope
 - When the product owner says *"proceed with Phase N"*, the **first step**, before any code, is to list Phase N's recommended features, each with a one-line description, and ask which to build with this phase.
 - **Accepted** features are added to that phase's deliverables and checkpoint and built in that phase.
 - **Declined** ones are marked in §10 and not offered again.
-- Features are **never offered before their phase starts, and never built after it ends**, unless the product owner asks for one by ID (e.g. "add RF-24.1").
+- Features are **never offered before their phase starts, and never built after it ends**, unless the product owner asks for one by ID (e.g. "add RF-24.2").
 
 ---
 
@@ -130,7 +135,7 @@ Each one below is the recommended option.
    - **Sales**: Sales Order `SO`, Delivery Challan `DC`, Credit Note `CN`, Receipt Voucher `RV`.
    - **Purchasing**: Purchase Order `PO`, Goods Receipt `GRN`, Supplier Bill `BILL`, Debit Note `DN`, Payment Voucher `PV`.
    - **Stock**: Adjustment `ADJ`, Stock Count `SC`, Transfer `TR`.
-12. **No checkout register in V2.** Fast counter sales are covered by the V1 builder plus barcode scan-to-add (Phase 23), the V1 quick-cash payment dialog and the 80mm slip. The cashier-terminal features are kept in **Appendix A** for a later version.
+12. **No checkout register in V2.** Fast counter sales are covered by the V1 builder plus barcode scan-to-add (Phase 23), the V1 quick-cash payment dialog and the 80mm slip. The cashier-terminal features are listed in **Appendix A** and are not planned (Rev 7: a hosted web app is too slow for a scan-and-pay checkout queue).
 
 13. **The superadmin is a superset of every organization admin**, plus platform owner:
    - One implementation per setting: each server action takes an optional target `tenantId` resolved by `resolveTarget()` (own organization via RLS, or any organization via the service role when `requireSuperadmin()` passes, with a before/after audit row). The console reuses the organization's own forms.
@@ -291,7 +296,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 5. **Platform settings & global data** (`/admin/platform`):
    - **Global catalogs**: industries and category catalogs (built in Phase 18), and the **vehicle catalog** (search, add, edit, merge duplicates, deactivate YMM rows in the global `vehicles` table; today this is only possible with scripts).
    - **Defaults new organizations start with**: units of measure, tax categories, customer types, stock adjustment reasons, payment methods, document terms text, numbering prefixes, and the **default permission matrix** (`private.role_permissions`).
-   - **Sign-up**: open self-registration on/off, default status for new sign-ups (active / trial), default industry, **default plan and trial length** for new sign-ups (deliverable 9).
+   - **New organizations**: default status (active / trial), default industry, **default plan and trial length** (deliverable 9). *(Rev 8: the self-registration switch was removed; the superadmin creates every organization.)*
    - **Payment instructions**: the mobile wallet accounts (JazzCash, Easypaisa, others: account title and number) and bank accounts (bank, account title, account number, IBAN) organizations pay into. They're printed on subscription invoices and shown on the organization's Subscription page (deliverable 9).
    - **Email**: sender name and reply-to default, per-organization hourly limit (V1: 100), the email log across organizations (V1 table) with resend.
    - **Announcements**: a banner message to all organizations or chosen industries/organizations, with dates (e.g. maintenance).
@@ -449,10 +454,9 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 - **What an organization sees** = its industry's catalog (minus anything the superadmin hid for that organization) + categories the superadmin made for that organization only. Nothing from other industries, nothing from other organizations' own categories.
 
 **Deliverables**
-1. **Industries** (global, superadmin-managed, `/admin/industries`): name, slug, description, icon, sort order, active flag, default modules, default UOM codes, default settings (e.g. prices include tax, negative-stock policy). Starting list: the **14 launch industries in §11.1**: General Retail & Departmental Stores; Supermarket, Grocery & Kiryana; Wholesale & FMCG Distribution; Apparel & Footwear; Textile, Fabric & Cloth Houses; Electronics, Mobile Phones & Accessories; Computers & IT Equipment; Pharmacy & Medical Supplies; Cosmetics, Beauty & Personal Care; Hardware, Building Materials & Sanitary; Electrical & Lighting; Automotive Accessories & Parts; Books, Stationery & School Supplies; Toys, Gifts & Party Supplies. The superadmin can add industries later without code changes. An industry that has organizations can be deactivated (hidden at sign-up) but not deleted.
-2. **Organization ↔ industry**: every tenant has one `industry_id` (required).
-   - **Self sign-up** (`/register`) asks for the industry (active industries only, with icons).
-   - **Superadmin Create Organization** (`/admin/tenants`) picks the industry too.
+1. **Industries** (global, superadmin-managed, `/admin/industries`): name, slug, description, icon, sort order, active flag, default modules, default UOM codes, default settings (e.g. prices include tax, negative-stock policy). Starting list: the **14 launch industries in §11.1**: General Retail & Departmental Stores; Supermarket, Grocery & Kiryana; Wholesale & FMCG Distribution; Apparel & Footwear; Textile, Fabric & Cloth Houses; Electronics, Mobile Phones & Accessories; Computers & IT Equipment; Pharmacy & Medical Supplies; Cosmetics, Beauty & Personal Care; Hardware, Building Materials & Sanitary; Electrical & Lighting; Automotive Accessories & Parts; Books, Stationery & School Supplies; Toys, Gifts & Party Supplies. The superadmin can add industries later without code changes. An industry that has organizations can be closed for new organizations (not offered in Create Organization) but not deleted.
+2. **Organization ↔ industry**: every tenant has one `industry_id` (required). An organization that sells across industries uses organization-specific categories (item 4); linking extra industry catalogs is a later item (RF-18.4).
+   - **Superadmin Create Organization** (`/admin/tenants`) picks the industry (open industries only). There is no self sign-up (Rev 8).
    - **Changing an organization's industry** is superadmin-only (shop page in `/admin`), through a **re-mapping wizard**: every item whose category isn't in the new catalog gets mapped to a new category. The wizard auto-matches by full path, then by name, and the superadmin picks the rest or uses a fallback category. The change can't be saved until every item is mapped, and it's audited.
    - Org admins see the industry read-only in Settings → Profile.
 3. **Category catalog editor** (`/admin/categories`, superadmin only): pick an industry → tree editor (the V1 `category-manager.tsx` moved into the admin console). Search, expand, add, rename, move to another parent, reorder, at most 4 levels.
@@ -475,7 +479,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
    - When it's off, these are hidden: the inventory dialog's Universal Fit / Vehicle Specific + `ymm-compatibility-selector.tsx`, the fitment column and filter, vehicle search hits, the CSV `Universal` / `Vehicles` columns (ignored on import with a notice), `/api/vehicles` (403) and `add_vehicle`. `save_inventory_item` then treats every item as universal. Fitment data is kept, so switching the module back on restores it.
 7. **Wording**: "parts" → "products" everywhere; "Universal fit" only appears in fitment organizations.
 8. **How the other industries get their categories** (the automotive tree already exists in `docs/categories.md`):
-   1. **Draft** (*done 2026-10-20, awaiting review*: 13 files, 1,052 categories in total, in `docs/category-templates/`; see its README): Claude writes a starting tree for each of the 13 new launch industries (§11.1) in `docs/category-templates/<industry>.md`. It uses the same plain format as `docs/categories.md`: a main category, then `- ` for each level down, at most 4 levels, roughly 80–160 categories per industry, with SKU prefixes and icons noted per main category. The trees are tuned to how Pakistani shops in that trade group their stock. For example, **Supermarket & Grocery**: Fresh Produce › Fruits / Vegetables; Dairy & Eggs; Bakery; Rice, Flour & Pulses (Atta, Chawal, Daal); Cooking Oil & Ghee; Spices & Masala; Beverages › Tea / Juices / Soft Drinks; Snacks & Confectionery; Household & Cleaning; Personal Care; Baby Care. **Apparel & Footwear**: Men › Shalwar Kameez / Shirts / Trousers; Women › Unstitched / Stitched / Dupattas; Kids; Footwear; Accessories.
+   1. **Draft** (*done 2026-10-20, approved as-is 2026-10-21*: 13 files, 1,052 categories in total, in `docs/category-templates/`; see its README): Claude writes a starting tree for each of the 13 new launch industries (§11.1) in `docs/category-templates/<industry>.md`. It uses the same plain format as `docs/categories.md`: a main category, then `- ` for each level down, at most 4 levels, roughly 80–160 categories per industry, with SKU prefixes and icons noted per main category. The trees are tuned to how Pakistani shops in that trade group their stock. For example, **Supermarket & Grocery**: Fresh Produce › Fruits / Vegetables; Dairy & Eggs; Bakery; Rice, Flour & Pulses (Atta, Chawal, Daal); Cooking Oil & Ghee; Spices & Masala; Beverages › Tea / Juices / Soft Drinks; Snacks & Confectionery; Household & Cleaning; Personal Care; Baby Care. **Apparel & Footwear**: Men › Shalwar Kameez / Shirts / Trousers; Women › Unstitched / Stitched / Dupattas; Kids; Footwear; Accessories.
    2. **Review**: the product owner edits these files (add, rename, remove, reorder) before anything is seeded. This review is a pause point at the start of Phase 18.
    3. **Seed**: the approved files are loaded by the Phase 18 migration into the global catalog (`categories` rows with `industry_id`), the same way the automotive tree is.
    4. **Maintain afterwards**, without code or migrations, in `/admin/categories`:
@@ -485,9 +489,19 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
       - **export** a tree to CSV, to edit in Excel and import again
    5. **Grow from real use**: category requests from organizations (item 5) can be approved straight into their industry's catalog, so the trees improve as organizations use them.
    6. **New industries later** (e.g. Furniture, Agriculture supplies): the superadmin adds the industry in `/admin/industries` and builds its tree with steps 4–5. No developer is needed.
+9. **Custom product attributes** (RF-18.1, accepted 2026-10-21):
+   - The superadmin defines attributes per **industry** (apply to every item) or per **category** (apply to items in that category and its children) in `/admin/categories` → Attributes. Each has a label, key, type (text, number, date, yes/no, list of options), required flag, "show on documents" flag and sort order. An organization-specific attribute can be added from the shop page → Categories tab.
+   - Values live in `inventory_items.attributes jsonb` (keyed by attribute key), validated by a trigger against the definitions visible to the item.
+   - They appear in the product dialog (under the category picker, changing with the category), as inventory filters (list and yes/no types), as CSV columns (`attr:<key>`), and on PDFs / slips under the line description when "show on documents" is on.
+   - Archiving an attribute hides it from the dialog and filters but keeps stored values.
+10. **Category images & colours** (RF-18.2, accepted 2026-10-21): each category can have a colour (from a fixed palette that reads in light and dark themes) and an optional image (public storage bucket `category-images`, 1 MB, PNG / JPG / WebP). They show in the category picker, the catalog editor, the org's read-only browser and category chips in inventory and document search. No colour or image → the icon as today.
+11. **Industry onboarding checklist** (RF-18.3, accepted 2026-10-21):
+   - Each industry has an ordered list of setup steps (edited in `/admin/industries`; default, 9 steps: business profile (address and phone), logo, bank or wallet details for invoices, products added or imported, opening stock, first customer, team invited, first quotation, first invoice). Steps for features from later phases (stores, opening balances) are added when those phases ship.
+   - Progress is computed from the organization's own data, never ticked by hand. Org admins see a dismissible "Get started" card on the dashboard with a link per step; it disappears when every step is done.
+   - The superadmin sees the same progress on the shop page Overview and as a "Setup %" column in the shops list.
 
 **Migration outline** — `…_phase17_industries_categories.sql`:
-- `public.industries` (*global*; RLS: any signed-in user reads active industries; anonymous users read the active list for the sign-up page through a security-definer `public.signup_industries()`; no client writes).
+- `public.industries` (*global*; RLS: any signed-in user reads active industries; no client writes. *(Rev 8: the anonymous `public.signup_industries()` was dropped with self sign-up.)*).
 - `tenants.industry_id uuid not null references industries` (backfilled), `tenants.modules text[] not null default '{}'`. Both are left out of the `authenticated` column grants, so org admins can't change them.
 - `categories`:
   - add `industry_id` (nullable) and `sku_prefix`, `icon`, `is_archived`, `created_by`.
@@ -506,13 +520,13 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
   4. Default categories the shop had deleted become `tenant_hidden_categories` rows, so the shop's tree looks exactly as before.
   5. Delete the per-tenant copies of the catalog.
   6. Check: every item's category path is unchanged, and per-tenant category counts as the shop sees them are unchanged.
-- Drop trigger `tenants_seed_categories` and functions `private.seed_default_categories` / `private.insert_category_tree` (new organizations need no seeding: they see their industry catalog at once). `handle_new_shop_registration` reads `industry_id` from sign-up metadata (falls back to General Retail) and copies the industry's default modules.
+- Drop trigger `tenants_seed_categories` and functions `private.seed_default_categories` / `private.insert_category_tree` (new organizations need no seeding: they see their industry catalog at once). New organizations get the industry's default modules (trigger `tenants_industry_defaults`). *(Rev 8: `handle_new_shop_registration` and its trigger were dropped; Create Organization calls the service-role `public.admin_create_organization(user, name, full name, industry)`.)*
 - `search_inventory_items` and `match_vehicles` / CSV category matching keep working through RLS (visible categories only).
 - Service-role-only RPCs for the console: `admin_category_usage(p_industry)`, `admin_remap_tenant_industry(p_tenant, p_new_industry, p_mapping jsonb)`.
 
 **Affected files**:
 - **New (admin)**: `src/app/admin/industries/*`, `src/app/admin/categories/*`, `src/app/admin/tenants/[id]` (Categories + Modules tabs, industry change wizard), `src/components/admin/industry-manager.tsx`, `category-catalog-editor.tsx` (from `src/components/settings/category-manager.tsx`), `tenant-categories.tsx`, `industry-remap-wizard.tsx`, `category-requests.tsx`, `src/lib/actions/admin-categories.ts`, `admin-industries.ts`.
-- **Changed**: `src/lib/actions/categories.ts` (org side: read + `requestCategory` only), `src/app/(dashboard)/settings/categories/page.tsx` (read-only + request form), `src/components/settings/settings-tabs.tsx`, `src/lib/categories.ts` (prefix and icon from the row, icon-name → Lucide map), `src/lib/category-data.ts`, `src/components/inventory/category-picker.tsx`, `inventory-filters.tsx`, `inventory-item-dialog.tsx`, `src/lib/actions/inventory.ts`, `inventory-csv.ts`, `src/lib/inventory-csv.ts`, `src/app/api/quote-items/route.ts`, `src/components/quotes/document-pages.tsx`, `src/app/(auth)/register/*` + `src/lib/actions/auth.ts` (industry picker), `src/components/admin/create-organization.tsx` + `src/lib/actions/admin.ts`, `src/lib/auth.ts` (`tenant.industry`, `tenant.modules`), new `src/lib/modules.ts`, `src/app/api/vehicles/route.ts`, notification bell (category request outcomes), email templates (`category_request` to superadmin, `category_request_result` to the requester), `src/lib/types/database.types.ts`.
+- **Changed**: `src/lib/actions/categories.ts` (org side: read + `requestCategory` only), `src/app/(dashboard)/settings/categories/page.tsx` (read-only + request form), `src/components/settings/settings-tabs.tsx`, `src/lib/categories.ts` (prefix and icon from the row, icon-name → Lucide map), `src/lib/category-data.ts`, `src/components/inventory/category-picker.tsx`, `inventory-filters.tsx`, `inventory-item-dialog.tsx`, `src/lib/actions/inventory.ts`, `inventory-csv.ts`, `src/lib/inventory-csv.ts`, `src/app/api/quote-items/route.ts`, `src/components/quotes/document-pages.tsx`, `src/app/(auth)/register/*` + `src/lib/actions/auth.ts` (removed in Rev 8), `src/components/admin/create-organization.tsx` + `src/lib/actions/admin.ts`, `src/lib/auth.ts` (`tenant.industry`, `tenant.modules`), new `src/lib/modules.ts`, `src/app/api/vehicles/route.ts`, notification bell (category request outcomes), email templates (`category_request` to superadmin, `category_request_result` to the requester), `src/lib/types/database.types.ts`.
 - **Docs**: `docs/category-templates/` (one file per industry; see item 8; `docs/categories.md` stays the Automotive tree).
 
 **Checkpoint**:
@@ -525,12 +539,16 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
   - Impersonating a shop shows that shop's tree.
 - **Migration check on the real data**: every V1 item keeps its exact category path; the shop's Settings → Categories tree matches V1 (same names, same count).
 - **Browser**:
-  - Sign up as a grocery shop → grocery categories in product dialog, filters and CSV; no vehicle UI anywhere.
+  - Superadmin creates a grocery organization (Create Organization) → grocery categories in its product dialog, filters and CSV; no vehicle UI anywhere.
   - Superadmin adds an org-specific category → appears for that shop only.
+  - `/register` is gone; a public sign-up API call creates no organization (Rev 8).
   - Org admin requests a category → superadmin approves it → it shows in the requester's picker and notification.
   - Superadmin changes an organization's industry through the wizard → no item is left unmapped.
   - Archived category hidden from pickers, still printed on old invoices.
   - The automotive shop is pixel-identical to V1 for fitment.
+  - RF-18.1: a category attribute appears in the dialog only for that category's items, is required when marked so, filters the list, round-trips through CSV and prints on documents when flagged; an org admin can't create or change definitions.
+  - RF-18.2: a category colour and image show in the picker, editor and chips in both themes; an oversized or wrong-type image is rejected.
+  - RF-18.3: a new grocery shop sees the Get started card, steps tick off as data is added, and the superadmin sees the same percentage.
 
 ---
 
@@ -778,11 +796,11 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 
 ---
 
-### PHASE 24 · Stock Ledger, Adjustments with Reason Codes, Stock Counts & Transfers  *(M3)*
+### PHASE 24 · Stock Ledger, Adjustments with Reason Codes, Stock Counts, Transfers and Batch & Expiry  *(M3)*
 
-**Goal**: no stock number changes without a reason and an audit trail.
+**Goal**: no stock number changes without a reason and an audit trail, and stock that expires is tracked by batch.
 
-**Recommended features (offered when this phase starts, §10)**: RF-24.1 Batch / lot & expiry tracking · RF-24.2 Scheduled cycle counts · RF-24.3 Stock ageing report.
+**Recommended features (offered when this phase starts, §10)**: RF-24.2 Scheduled cycle counts · RF-24.3 Stock ageing report · RF-24.4 Serial numbers / IMEI per unit.
 
 **Deliverables**
 1. **Stock history** per item and per store: every `stock_movements` row in words ("Invoiced 2 on INV-1045 by Ayesha", "Damaged −1, ADJ-1003"), with a running balance. Filters by type and date; CSV export.
@@ -799,6 +817,28 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
    - Partial counts; printable count sheets.
 4. **Transfers between stores**: request → dispatch (leaves the source, "in transit") → receive (any discrepancy is recorded). Transfer documents `TR-…`, printable with or without cost.
 5. **Valuation**: weighted-average cost per item, maintained by goods receipts (Phase 25) and used for adjustment/count values and cost of goods sold. Stock value per store and per category.
+6. **Batch / lot & expiry tracking** (Rev 7; was RF-24.1):
+   - **Switching it on**:
+     - an organization setting "Track batches & expiry", on by default for organizations in industries whose defaults say so (Pharmacy, Grocery, Cosmetics)
+     - a **Tracks batches** flag per item; an expiry date can be required or optional per item
+   - **Where batches are recorded**:
+     - opening stock, adjustments and counts
+     - stock transfers (the batch moves with the stock)
+     - goods receipts (Phase 25)
+     - CSV import (Batch and Expiry columns)
+   - **Stock per batch**:
+     - quantity per batch, per store
+     - the item's on-hand quantity is the sum of its batches
+   - **Selling**:
+     - invoice lines pick batches **earliest expiry first (FEFO)** automatically; staff can choose another batch
+     - an expired batch can't be sold without manager approval (Phase 22)
+     - one line can draw from several batches
+   - **On documents**: the batch number and expiry print under the line on invoices, POS slips and delivery challans.
+   - **Alerts**:
+     - an "Expiring soon" list, with a per-organization warning period (default 90 days)
+     - expired stock is shown and can be written off with the reason "Spoilage / Expired"
+     - expiry warnings in the notification bell
+   - **Returns** (Phase 28) go back into the batch they were sold from.
 
 **Migration outline** — `…_phase23_stock_ops.sql`:
 - `stock_adjustment_reasons`; `stock_adjustments` / `_items`; `stock_counts` / `_items`; `stock_transfers` / `_items` (statuses draft / dispatched / received / cancelled).
@@ -806,16 +846,18 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 - `inventory_items.average_cost numeric(14,4)`, backfilled from `cost_price`; `stock_levels.in_transit`.
 - Numbering `ADJ`, `SC`, `TR`.
 - `save_inventory_item` refuses quantity changes on existing items.
+- Batches: `tenants.track_batches`, `tenants.expiry_warning_days`; `inventory_items.tracks_batches`, `expiry_required`; `item_batches` (item, store, batch number, expiry date, quantity, unique per item + store + batch number); `stock_movements.batch_id`; a `document_line_batches` table (line, batch, quantity), because one line can draw from several batches. `private.apply_stock` posts per batch and picks FEFO when no batch is given. Existing stock of items switched to batch tracking moves into a batch called "Opening".
 
 **Affected files**:
-- **New**: `src/app/(dashboard)/inventory/{adjustments,counts,transfers}/**`, `src/components/stock/*`, `src/lib/actions/stock.ts`.
-- **Changed**: the item details page (History tab), the sidebar ("Stock" group), reports.
+- **New**: `src/app/(dashboard)/inventory/{adjustments,counts,transfers}/**`, `src/components/stock/*`, `src/lib/actions/stock.ts`, `src/app/(dashboard)/inventory/expiring/**`, `src/components/stock/batch-picker.tsx`.
+- **Changed**: the item details page (History and Batches tabs), the item dialog (Tracks batches), Settings → Inventory, document line items (batch choice), PDF / slip / challan line rendering, CSV import/export, the notification bell, the sidebar ("Stock" group), reports.
 
 **Checkpoint**:
 - After a scripted day of activity, the ledger sum equals on-hand for every item.
 - A count with a variance posts the right deltas.
 - Stock in transit can't be sold.
 - Permissions are enforced per role.
+- Batches: two batches with different expiries → an invoice takes the earlier one first, then spills into the next; the batch and expiry print on the PDF and slip; an expired batch is refused without approval; the batch quantities always add up to on-hand.
 
 ---
 
@@ -839,6 +881,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
    - Receive against a PO (partial, over, under or damaged) or directly without one; scanning works here.
    - Updates the **weighted average cost** and prompts for a selling-price update ("cost rose 12%, update price?").
    - Can print labels for the received items.
+   - Batch-tracked items (Phase 24) need a batch number, and an expiry where the item requires one, on every received line.
 4. **Supplier bills** (`BILL-…`): the supplier's invoice number and date, linked to one or more GRNs (or standalone for expenses with no stock), with due date and tax. Posts to the **supplier ledger**.
 5. **Supplier payments** (`PV-…`): cash, bank or cheque issued; allocated to bills oldest-first or chosen by hand; advances to suppliers.
 6. **Purchase returns / debit notes** (`DN-…`): from a GRN or ad hoc. Reduces stock (reason Return to Vendor) and the supplier balance.
@@ -1197,7 +1240,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
 2. **Performance**: index review (advisors + `pg_stat_statements`); barcode lookup p95 < 150 ms; `save_quote` p95 < 400 ms on a realistic organization.
 3. **Clean-up**: drop the compat items (old impersonation header/cookie names, `vendor_name`, the old `print_format` column), dead code; regenerate types.
 4. **End-to-end regression suite** (Playwright), run at the five viewports:
-   - sign-up per industry (categories correct)
+   - organization created per industry (categories correct)
    - superadmin category management + a category request
    - PO → GRN → bill → payment
    - quotation → order → partial DCs → invoice → receipt voucher with a cheque → statement
@@ -1211,6 +1254,7 @@ Each phase lists its **Goal**, **Deliverables**, **Database migration outline**,
    - Hardware guide (scanners, thermal/label printers).
    - V1 → V2 migration notes.
 6. **Release**: version `2.0.0`, tag `v2.0.0`, release notes.
+7. **Go-live email** (product owner, 2026-10-24: Resend stays in test mode until then, so this is done during or after deployment): verify the sending domain in Resend and set `RESEND_FROM_EMAIL` to an address on it. Until then every email (invitations, category requests and results, subscription reminders, documents) only reaches the Resend account owner's address (hamzi207@gmail.com); other recipients fail with a logged error.
 
 **Checkpoint**:
 - All suites are green.
@@ -1276,7 +1320,7 @@ No payment gateways, native shells or paid print services. `qrcode`, `@react-pdf
 2. **Product name**: keep "ProductLogik POS" as the brief says, or something closer to the new positioning (e.g. "ProductLogik Inventory & Billing")? *(Phase 16)*
 3. ~~**Local folder rename** to `productlogik-pos`: do you do it by hand after Phase 16, or leave it?~~ **Decided 2026-10-20: renamed by hand to `productlogik-pos`**; `FOUNDER_SETUP_GUIDE.md` and `MAC_SETUP_CHECKLIST.md` paths updated to match. *(Phase 16)*
 4. **Industry list**: are the 14 launch industries in §11.1 right (anything to add, merge or move to "later")? The category trees for the 13 new launch industries are drafted by Claude in `docs/category-templates/` for your review (Phase 18 item 8). **Drafted 2026-10-20** in `docs/category-templates/`, waiting for your review before Phase 18. *(Phase 18)*
-5. **Industry at sign-up**: may a self-registering organization pick its industry, or should the superadmin assign it (the organization waits as "trial" until then)? *(Phase 18)*
+5. ~~**Industry at sign-up**~~: answered by Rev 8. There is no self sign-up; the superadmin picks the industry in Create Organization. *(Phase 18)*
 6. **Modules**: superadmin-only (planned), or may organization admins switch optional modules like Vehicle Fitment themselves? *(Phase 18)*
 7. **"Billing"**: does it mean recurring/batch invoicing (Phase 31), or something else, e.g. supplier bills (Phase 25) or utility-style billing? *(Phase 25/30)*
 8. **Tax**: is FBR/PRA invoice integration needed later? (The sales tax invoice and tax report are laid out to allow it.) *(Phase 26)*
@@ -1316,9 +1360,10 @@ Ideas are drawn from what comparable inventory/invoicing products offer: custome
 | RF-17.3 | 17 | Subscription tracking (no gateway) | Plan name, fee, renewal date and manually recorded payments per organization, with renewal reminders and an optional auto-suspend after a grace period. | Accepted and expanded (Rev 6, 2026-10-20): now Phase 17 deliverable 9, subscription plans & manual payments |
 | RF-17.4 | 17 | Organization health score | A sortable score from recent sign-ins, documents per week and setup completeness, so inactive or struggling organizations stand out. | Accepted (Phase 17) |
 | RF-17.5 | 17 | "Login As" reason & transparency | The superadmin enters a reason when impersonating. Optionally, the organization's admin sees "Support accessed your account on …" in their notifications. | Declined (2026-10-20) |
-| RF-18.1 | 18 | Custom product attributes per category | Superadmin-defined fields per category or industry (e.g. Brand, Warranty months, Material, Expiry required). They appear in the product dialog, filters and CSV, and optionally on documents. This is the "optional custom attributes" idea from `docs/upgrade.md`. | Not asked yet |
-| RF-18.2 | 18 | Category images & colours | An image or colour per category in pickers, the catalog editor and category chips, for faster recognition. | Not asked yet |
-| RF-18.3 | 18 | Industry onboarding checklist | A guided setup per industry for new organizations: profile, stores, import products, opening stock, opening balances, first invoice. Progress shows for the superadmin too. | Not asked yet |
+| RF-18.1 | 18 | Custom product attributes per category | Superadmin-defined fields per category or industry (e.g. Brand, Warranty months, Material, Expiry required). They appear in the product dialog, filters and CSV, and optionally on documents. This is the "optional custom attributes" idea from `docs/upgrade.md`. | Accepted (Phase 18, 2026-10-21) |
+| RF-18.2 | 18 | Category images & colours | An image or colour per category in pickers, the catalog editor and category chips, for faster recognition. | Accepted (Phase 18, 2026-10-21) |
+| RF-18.3 | 18 | Industry onboarding checklist | A guided setup per industry for new organizations: profile, stores, import products, opening stock, opening balances, first invoice. Progress shows for the superadmin too. | Accepted (Phase 18, 2026-10-21) |
+| RF-18.4 | Later | Additional industry catalogs per organization | An organization keeps one primary industry (defaults, modules, onboarding checklist) and the superadmin can link more industry catalogs to it, e.g. a mobile shop that also sells computer items sees the Computers & IT tree and its attributes too. Needs a link table, a change to the `categories` / `category_attributes` read policies, and the picker showing which catalog a category comes from (both trees have *Others*, power and security categories). Until then: organization-specific categories and category requests. Raised by the product owner during Phase 18. | Deferred (2026-10-22): a later item, not in Phase 18; built when the product owner names it |
 | RF-19.1 | 19 | Separate purchase and sale units | Buy in cartons, sell in pieces: each item has a default purchase unit used on POs/GRNs and a default sale unit used on invoices, converted automatically. | Not asked yet |
 | RF-19.2 | 19 | Customer groups & tags | Group or tag customers (e.g. "Lahore dealers", "Monthly billing") to filter lists, statements, price lists and reports. | Not asked yet |
 | RF-20.1 | 20 | Store-level price overrides | A store can sell an item at a different price from the organization's price (e.g. a mall branch). | Not asked yet |
@@ -1329,9 +1374,10 @@ Ideas are drawn from what comparable inventory/invoicing products offer: custome
 | RF-22.2 | 22 | Two-factor sign-in for organization users | Optional authenticator-app codes per organization, which an admin can require for admins/managers. | Not asked yet |
 | RF-22.3 | 22 | Sign-in hours per role | Restrict when roles can sign in (e.g. sales staff only 9am–9pm, shop time). | Not asked yet |
 | RF-23.1 | 23 | Phone camera barcode scanning | Use the phone or tablet camera as a scanner in every scan field (browser BarcodeDetector + fallback library). No USB scanner needed. | Not asked yet |
-| RF-24.1 | 24 | Batch / lot & expiry tracking | Record batch numbers and expiry dates on receiving. Pick earliest-expiry first on invoices, show expiry alerts and an "expiring soon" report. Important for pharmacy, grocery and cosmetics. | Not asked yet |
+| RF-24.1 | 24 | Batch / lot & expiry tracking | Record batch numbers and expiry dates on receiving. Pick earliest-expiry first on invoices, show expiry alerts and an "expiring soon" report. Important for pharmacy, grocery and cosmetics. | Moved into scope (Rev 7, 2026-10-22): now Phase 24 deliverable 6, not offered as an extra |
 | RF-24.2 | 24 | Scheduled cycle counts | Automatically plan small counts (e.g. two categories a week) so the whole stock is counted over a period without closing the store. | Not asked yet |
 | RF-24.3 | 24 | Stock ageing report | Shows how long stock has been sitting (0–30, 31–90, 90+ days) and its value, to spot dead money. | Not asked yet |
+| RF-24.4 | 24 | Serial numbers / IMEI per unit | Items marked "serialised" record each unit's serial number (or one or two IMEIs for phones) when stock comes in: opening stock, goods receipts, transfers. The serial can be scanned. Selling such an item means choosing which serials go on the invoice line. They print on the invoice and slip for warranty. A serial can't be sold twice, and duplicate IMEIs are refused. Searching a serial shows its whole history (received, sold to whom, returned), for warranty claims and theft checks. Important for mobile phone, electronics and computer shops. Added by the product owner (Rev 7, 2026-10-22). | Not asked yet |
 | RF-25.1 | 25 | Landed cost | Spread freight, customs and loading charges across the GRN lines, so item cost and margin are true. | Not asked yet |
 | RF-25.2 | 25 | Auto-draft purchase orders | Reorder suggestions turn into draft POs per supplier on a schedule, ready to review and send. | Not asked yet |
 | RF-25.3 | 25 | Supplier price history & comparison | The cost history per item and supplier, and the cheapest recent supplier, shown when creating a PO. | Not asked yet |
@@ -1379,10 +1425,10 @@ ProductLogik POS fits any business that **buys, stocks and sells physical produc
 | 3 | **Wholesale & FMCG Distribution** | Cartons/packs of branded consumer goods supplied to retailers | Sales orders, delivery challans, price lists (distributor / retailer), credit limits, receipt vouchers, cheques, statements of account, collections |
 | 4 | **Apparel & Footwear** | Men/women/kids clothing, shalwar kameez, unstitched suits, shoes, accessories | Variants (size × colour), barcode labels, multi-store stock with transfers, returns & exchanges |
 | 5 | **Textile, Fabric & Cloth Houses** | Lawn, cotton, khaddar, wash & wear, bedsheets, towels (by meter, than, piece) | Meter/yard decimal quantities, roll/than units, wholesale price lists, delivery challans, khata |
-| 6 | **Electronics, Mobile Phones & Accessories** | Phones, chargers, cables, covers, home appliances, small electronics | Variants (model × colour × capacity), barcodes, warranty info on documents, multi-store stock |
-| 7 | **Computers & IT Equipment** | Laptops, parts, networking, printers, toner, CCTV | B2B quotations → orders → delivery challans, sales tax invoices, supplier bills, recurring maintenance billing |
-| 8 | **Pharmacy & Medical Supplies** | Medicines, surgical items, medical devices, OTC products | Batch & expiry tracking (RF-24.1), packs/strips/tablets units, supplier purchasing, tax categories |
-| 9 | **Cosmetics, Beauty & Personal Care** | Skin care, makeup, fragrances, salon supplies | Variants (shade, size), expiry (RF-24.1), barcodes, retail + wholesale price lists |
+| 6 | **Electronics, Mobile Phones & Accessories** | Phones, chargers, cables, covers, home appliances, small electronics | Variants (model × colour × capacity), barcodes, serial numbers / IMEI (RF-24.4), warranty info on documents, multi-store stock |
+| 7 | **Computers & IT Equipment** | Laptops, parts, networking, printers, toner, CCTV | B2B quotations → orders → delivery challans, sales tax invoices, supplier bills, serial numbers (RF-24.4), recurring maintenance billing |
+| 8 | **Pharmacy & Medical Supplies** | Medicines, surgical items, medical devices, OTC products | Batch & expiry tracking (Phase 24), packs/strips/tablets units, supplier purchasing, tax categories |
+| 9 | **Cosmetics, Beauty & Personal Care** | Skin care, makeup, fragrances, salon supplies | Variants (shade, size), expiry (Phase 24), barcodes, retail + wholesale price lists |
 | 10 | **Hardware, Building Materials & Sanitary** | Tools, fasteners, paint, cement, pipes, fittings, sanitary ware, tiles | Many UOMs (bag, kg, ft, box, sq ft), contractor credit accounts, delivery challans, statements |
 | 11 | **Electrical & Lighting** | Cables (by meter/coil), switches, breakers, lights, fans, solar accessories | Meter/coil units, price lists for electricians/contractors, project quotations, credit control |
 | 12 | **Automotive Accessories & Parts** *(existing V1 shops)* | Car accessories, parts, tint/wrap/PPF, audio, lighting, care products | Vehicle Fitment module (YMM), quotations, POS slip — all V1 behaviour kept |
@@ -1397,7 +1443,7 @@ ProductLogik POS fits any business that **buys, stocks and sells physical produc
 | **Water, LPG & Gas Cylinder Distribution** | Water bottles, LPG cylinders, refills | Recurring delivery billing (Phase 31), usage-based lines (RF-31.1), customer khata, statements |
 | **Furniture & Home Décor** | Furniture, mattresses, curtains, décor | Orders with advance payments, delivery challans, variants (size/finish) |
 | **Kitchenware, Crockery & Home Appliances** | Cookware, crockery sets, small appliances | Variants, sets/kits (RF-21.1), wholesale price lists |
-| **Paints, Chemicals & Coatings** | Paints by litre/gallon/drum, chemicals, adhesives | Decimal volumes, batch tracking (RF-24.1), dealer credit accounts |
+| **Paints, Chemicals & Coatings** | Paints by litre/gallon/drum, chemicals, adhesives | Decimal volumes, batch tracking (Phase 24), dealer credit accounts |
 | **Agriculture Inputs** | Seeds, fertilizer, pesticides, sprayers, farm tools | Bag/kg/litre units, batch & expiry, seasonal credit to farmers with statements |
 | **Veterinary & Pet Supplies** | Animal medicines, feed, pet food & accessories | Batch & expiry, bag/kg units, dealer credit |
 | **Industrial Supplies & Tools** | Bearings, belts, valves, safety equipment, lubricants | B2B quotations → orders, price lists per client, sales tax invoices, supplier bills |
@@ -1432,6 +1478,8 @@ ProductLogik POS fits any business that **buys, stocks and sells physical produc
 ## APPENDIX A · CHECKOUT-REGISTER FEATURES (FROM `docs/upgrade.md`, NOT SCHEDULED)
 
 Moved out of Version 2 by the product owner on 2026-10-20 (the target is inventory, invoicing, SOA and billing, not supermarket checkout). They're kept here so they aren't lost, and could form a later optional "Counter Sales" module on top of V2's foundations (stores, roles, barcodes, ledger, print engine). Nothing in V2 blocks them.
+
+> **Not planned (product owner, 2026-10-22, Rev 7)**: ProductLogik POS is a hosted web app. It can't be hosted locally at the counter, and over the internet a scan-and-pay checkout queue would be too slow. Counter needs are covered by walk-in invoices, barcode scanning (Phase 23) and the POS slip.
 
 - **Dedicated `/pos` cashier screen**: full-screen register, quick-pick grid with category tabs and favourites, keyboard shortcuts, customer-facing display.
 - **Park / hold carts**: suspend and resume sales.

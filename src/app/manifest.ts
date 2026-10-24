@@ -3,7 +3,7 @@ import type { MetadataRoute } from "next";
 // Installable app (Add to Home Screen / Install app). Icons: public/icons, made from the ProductLogik logo.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "ProductLogik POS",
+    name: "ProductLogik Invoicing System",
     short_name: "ProductLogik",
     description: "Inventory, invoicing, statements and billing.",
     start_url: "/dashboard",

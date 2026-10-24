@@ -70,39 +70,217 @@ export type Database = {
       }
       categories: {
         Row: {
+          color: string | null
           created_at: string
+          created_by: string | null
+          icon: string | null
           id: string
+          image_path: string | null
+          industry_id: string | null
+          is_archived: boolean
           name: string
           parent_id: string | null
+          sku_prefix: string | null
           sort_order: number
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          image_path?: string | null
+          industry_id?: string | null
+          is_archived?: boolean
+          name: string
+          parent_id?: string | null
+          sku_prefix?: string | null
+          sort_order?: number
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          icon?: string | null
+          id?: string
+          image_path?: string | null
+          industry_id?: string | null
+          is_archived?: boolean
+          name?: string
+          parent_id?: string | null
+          sku_prefix?: string | null
+          sort_order?: number
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_industry_id_fkey"
+            columns: ["industry_id"]
+            isOneToOne: false
+            referencedRelation: "industries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_parent_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_attributes: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          id: string
+          industry_id: string | null
+          is_archived: boolean
+          is_required: boolean
+          key: string
+          label: string
+          options: string[]
+          show_on_documents: boolean
+          sort_order: number
+          tenant_id: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          industry_id?: string | null
+          is_archived?: boolean
+          is_required?: boolean
+          key: string
+          label: string
+          options?: string[]
+          show_on_documents?: boolean
+          sort_order?: number
+          tenant_id?: string | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          industry_id?: string | null
+          is_archived?: boolean
+          is_required?: boolean
+          key?: string
+          label?: string
+          options?: string[]
+          show_on_documents?: boolean
+          sort_order?: number
+          tenant_id?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_attributes_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_attributes_industry_id_fkey"
+            columns: ["industry_id"]
+            isOneToOne: false
+            referencedRelation: "industries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_attributes_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_requests: {
+        Row: {
+          created_at: string
+          created_category_id: string | null
+          id: string
+          name: string
+          note: string | null
+          requested_by: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          suggested_parent_id: string | null
           tenant_id: string
         }
         Insert: {
           created_at?: string
+          created_category_id?: string | null
           id?: string
           name: string
-          parent_id?: string | null
-          sort_order?: number
+          note?: string | null
+          requested_by?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          suggested_parent_id?: string | null
           tenant_id?: string
         }
         Update: {
           created_at?: string
+          created_category_id?: string | null
           id?: string
           name?: string
-          parent_id?: string | null
-          sort_order?: number
+          note?: string | null
+          requested_by?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          suggested_parent_id?: string | null
           tenant_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "categories_parent_fkey"
-            columns: ["tenant_id", "parent_id"]
+            foreignKeyName: "category_requests_created_category_id_fkey"
+            columns: ["created_category_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["tenant_id", "id"]
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "categories_tenant_id_fkey"
+            foreignKeyName: "category_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_requests_suggested_parent_id_fkey"
+            columns: ["suggested_parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_requests_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -275,8 +453,57 @@ export type Database = {
           },
         ]
       }
+      industries: {
+        Row: {
+          created_at: string
+          default_modules: string[]
+          default_settings: Json
+          default_uoms: string[]
+          description: string | null
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
+          onboarding_steps: string[]
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_modules?: string[]
+          default_settings?: Json
+          default_uoms?: string[]
+          description?: string | null
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          onboarding_steps?: string[]
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_modules?: string[]
+          default_settings?: Json
+          default_uoms?: string[]
+          description?: string | null
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          onboarding_steps?: string[]
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       inventory_items: {
         Row: {
+          attributes: Json
           available_quantity: number | null
           category_id: string
           cost_price: number
@@ -297,6 +524,7 @@ export type Database = {
           vendor_name: string | null
         }
         Insert: {
+          attributes?: Json
           available_quantity?: number | null
           category_id: string
           cost_price: number
@@ -317,6 +545,7 @@ export type Database = {
           vendor_name?: string | null
         }
         Update: {
+          attributes?: Json
           available_quantity?: number | null
           category_id?: string
           cost_price?: number
@@ -339,10 +568,10 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "inventory_items_category_fkey"
-            columns: ["tenant_id", "category_id"]
+            columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
-            referencedColumns: ["tenant_id", "id"]
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "inventory_items_tenant_id_fkey"
@@ -578,7 +807,6 @@ export type Database = {
           payment_wallets: Json
           reminder_days: number[]
           signup_default_status: string
-          signup_open: boolean
           updated_at: string
           updated_by: string | null
         }
@@ -601,7 +829,6 @@ export type Database = {
           payment_wallets?: Json
           reminder_days?: number[]
           signup_default_status?: string
-          signup_open?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -624,7 +851,6 @@ export type Database = {
           payment_wallets?: Json
           reminder_days?: number[]
           signup_default_status?: string
-          signup_open?: boolean
           updated_at?: string
           updated_by?: string | null
         }
@@ -1380,6 +1606,39 @@ export type Database = {
           },
         ]
       }
+      tenant_hidden_categories: {
+        Row: {
+          category_id: string
+          created_at: string
+          tenant_id: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          tenant_id: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_hidden_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_hidden_categories_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenant_notes: {
         Row: {
           author_id: string | null
@@ -1626,12 +1885,15 @@ export type Database = {
           draft_start_number: number
           email: string | null
           id: string
+          industry_id: string
           invoice_prefix: string
           invoice_start_number: number
           invoice_terms: string | null
           logo_url: string | null
+          modules: string[]
           name: string
           ntn: string | null
+          onboarding_dismissed_at: string | null
           owner_id: string | null
           phone: string | null
           prices_include_tax: boolean
@@ -1641,6 +1903,7 @@ export type Database = {
           quote_start_number: number
           quote_validity_days: number
           show_clock: boolean
+          show_overview_logo: boolean
           show_paisa: boolean
           slug: string
           status: string
@@ -1672,12 +1935,15 @@ export type Database = {
           draft_start_number?: number
           email?: string | null
           id?: string
+          industry_id: string
           invoice_prefix?: string
           invoice_start_number?: number
           invoice_terms?: string | null
           logo_url?: string | null
+          modules?: string[]
           name: string
           ntn?: string | null
+          onboarding_dismissed_at?: string | null
           owner_id?: string | null
           phone?: string | null
           prices_include_tax?: boolean
@@ -1687,6 +1953,7 @@ export type Database = {
           quote_start_number?: number
           quote_validity_days?: number
           show_clock?: boolean
+          show_overview_logo?: boolean
           show_paisa?: boolean
           slug: string
           status?: string
@@ -1718,12 +1985,15 @@ export type Database = {
           draft_start_number?: number
           email?: string | null
           id?: string
+          industry_id?: string
           invoice_prefix?: string
           invoice_start_number?: number
           invoice_terms?: string | null
           logo_url?: string | null
+          modules?: string[]
           name?: string
           ntn?: string | null
+          onboarding_dismissed_at?: string | null
           owner_id?: string | null
           phone?: string | null
           prices_include_tax?: boolean
@@ -1733,6 +2003,7 @@ export type Database = {
           quote_start_number?: number
           quote_validity_days?: number
           show_clock?: boolean
+          show_overview_logo?: boolean
           show_paisa?: boolean
           slug?: string
           status?: string
@@ -1744,6 +2015,13 @@ export type Database = {
           week_start?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "tenants_industry_id_fkey"
+            columns: ["industry_id"]
+            isOneToOne: false
+            referencedRelation: "industries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tenants_owner_id_fkey"
             columns: ["owner_id"]
@@ -1809,6 +2087,23 @@ export type Database = {
           year: number
         }[]
       }
+      admin_category_usage: {
+        Args: { p_industry: string }
+        Returns: {
+          category_id: string
+          items: number
+          tenants: number
+        }[]
+      }
+      admin_create_organization: {
+        Args: {
+          p_full_name: string
+          p_industry: string
+          p_shop_name: string
+          p_user: string
+        }
+        Returns: string
+      }
       admin_create_subscription_invoice: {
         Args: {
           p_by: string
@@ -1837,9 +2132,28 @@ export type Database = {
           used: number
         }[]
       }
+      admin_onboarding: {
+        Args: { p_tenant: string }
+        Returns: {
+          done: boolean
+          step: string
+        }[]
+      }
+      admin_onboarding_summary: {
+        Args: never
+        Returns: {
+          done: number
+          tenant_id: string
+          total: number
+        }[]
+      }
       admin_platform_metrics: { Args: never; Returns: Json }
       admin_reconcile_tenant: { Args: { p_tenant: string }; Returns: Json }
       admin_refresh_health: { Args: { p_date: string }; Returns: number }
+      admin_remap_tenant_industry: {
+        Args: { p_mapping: Json; p_new_industry: string; p_tenant: string }
+        Returns: number
+      }
       admin_set_platform_admin: {
         Args: {
           p_active: boolean
@@ -2061,6 +2375,8 @@ export type Database = {
           vehicle_id: number
         }[]
       }
+      my_modules: { Args: never; Returns: string[] }
+      my_onboarding: { Args: never; Returns: Json }
       my_shop_status: { Args: never; Returns: string }
       my_status_reason: { Args: never; Returns: string }
       my_subscription: { Args: never; Returns: Json }
@@ -2085,6 +2401,7 @@ export type Database = {
       run_subscription_cycle: { Args: { p_date: string }; Returns: Json }
       save_inventory_item: {
         Args: {
+          p_attributes?: Json
           p_category_id: string
           p_cost_price: number
           p_description?: string
@@ -2192,6 +2509,7 @@ export type Database = {
       search_inventory_items: {
         Args: { p_query: string }
         Returns: {
+          attributes: Json
           available_quantity: number | null
           category_id: string
           cost_price: number
@@ -2219,7 +2537,6 @@ export type Database = {
         }
       }
       shop_alerts: { Args: never; Returns: Json }
-      signup_open: { Args: never; Returns: boolean }
       submit_subscription_payment: {
         Args: {
           p_amount: number

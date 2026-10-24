@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   Ban,
+  CalendarCog,
   CalendarPlus,
   ChevronDown,
   CircleCheck,
@@ -50,12 +51,13 @@ import {
 } from "@/lib/subscription";
 import { adminDateTime } from "./format";
 import { PlanFormDialog, codeFrom, type PlanDraft } from "./plan-form";
-import { AdjustmentDialog, ChangePlanDialog, ExtendDialog, PricingDialog, ReasonDialog, RecordPaymentDialog } from "./subscription-dialogs";
+import { AdjustmentDialog, ChangePlanDialog, ExtendDialog, PricingDialog, ReasonDialog, RecordPaymentDialog, StartDateDialog } from "./subscription-dialogs";
 
 type Open =
   | { kind: "plan" }
   | { kind: "pricing" }
   | { kind: "extend" }
+  | { kind: "start" }
   | { kind: "adjust" }
   | { kind: "custom" }
   | { kind: "record"; invoice: SubscriptionInvoice }
@@ -185,6 +187,7 @@ export function TenantSubscriptionPanel({ sub, plans, tenantName }: { sub: Tenan
                 <DropdownMenuItem onSelect={() => act("Invoice created", () => createSubscriptionInvoiceNow(sub.tenantId))}><FilePlus size={14} /> Create invoice now</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setOpen({ kind: "adjust" })}><Wallet size={14} /> Add charge or credit</DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => setOpen({ kind: "extend" })} disabled={sub.status === "cancelled"}><CalendarPlus size={14} /> Extend {sub.paidUntil === null && sub.trialEndsAt ? "trial" : "due date"}</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setOpen({ kind: "start" })} disabled={sub.status === "cancelled" || sub.invoices.some((i) => i.status !== "void")}><CalendarCog size={14} /> Change start date</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {sub.status === "cancelled" || sub.cancelAt ? (
                   <DropdownMenuItem
@@ -478,6 +481,7 @@ export function TenantSubscriptionPanel({ sub, plans, tenantName }: { sub: Tenan
       {open?.kind === "plan" && <ChangePlanDialog sub={sub} plans={plans} icon={Layers} onClose={close} />}
       {open?.kind === "pricing" && <PricingDialog sub={sub} icon={SlidersHorizontal} onClose={close} />}
       {open?.kind === "extend" && <ExtendDialog sub={sub} icon={CalendarPlus} onClose={close} />}
+      {open?.kind === "start" && <StartDateDialog sub={sub} icon={CalendarCog} onClose={close} />}
       {open?.kind === "adjust" && <AdjustmentDialog tenantId={sub.tenantId} icon={Wallet} onClose={close} />}
       {open?.kind === "record" && <RecordPaymentDialog invoice={open.invoice} icon={CreditCard} onClose={close} />}
       {open?.kind === "reason" && <ReasonDialog {...open.props} onClose={close} />}
@@ -495,7 +499,7 @@ export function TenantSubscriptionPanel({ sub, plans, tenantName }: { sub: Tenan
             keepPrice: false,
             reason: "Custom plan created for this organization",
           });
-          if (result.status === "error") notify.error("Plan created but not assigned", result.message);
+          if (result.status === "error") notify.warning("Plan created but not assigned", result.message);
           else notify.success("Custom plan assigned", result.message);
         }}
       />

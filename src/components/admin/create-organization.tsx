@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Copy, KeyRound, Loader2, Plus, X } from "lucide-react";
 import { ModalSheet } from "@/components/shared/modal-sheet";
 import { createOrganization } from "@/lib/actions/admin";
+import type { IndustryChoice } from "@/lib/admin-category-data";
 import { notify } from "@/lib/notify";
 import { createOrganizationSchema, type CreateOrganizationInput } from "@/lib/validations/admin.schema";
 
@@ -17,7 +18,7 @@ export type PlanChoice = { id: string; name: string; monthly: boolean; yearly: b
  * /admin/tenants → Create Organization: a new shop on a plan, and its owner, who is emailed a link to
  * choose a password or given a temporary one (Phase 17).
  */
-export function CreateOrganizationButton({ plans }: { plans: PlanChoice[] }) {
+export function CreateOrganizationButton({ plans, industries }: { plans: PlanChoice[]; industries: IndustryChoice[] }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -25,13 +26,13 @@ export function CreateOrganizationButton({ plans }: { plans: PlanChoice[] }) {
         <Plus size={14} /> Create Organization
       </button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
-        <ModalSheet className="modal modal-sm">{open && <CreateOrganizationForm plans={plans} onDone={() => setOpen(false)} />}</ModalSheet>
+        <ModalSheet className="modal modal-sm">{open && <CreateOrganizationForm plans={plans} industries={industries} onDone={() => setOpen(false)} />}</ModalSheet>
       </Dialog.Root>
     </>
   );
 }
 
-function CreateOrganizationForm({ plans, onDone }: { plans: PlanChoice[]; onDone: () => void }) {
+function CreateOrganizationForm({ plans, industries, onDone }: { plans: PlanChoice[]; industries: IndustryChoice[]; onDone: () => void }) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ tenantId: string; password: string; name: string; email: string } | null>(null);
@@ -46,6 +47,7 @@ function CreateOrganizationForm({ plans, onDone }: { plans: PlanChoice[]; onDone
     defaultValues: {
       shopName: "",
       fullName: "",
+      industryId: "",
       email: "",
       phone: "",
       status: "active",
@@ -62,7 +64,7 @@ function CreateOrganizationForm({ plans, onDone }: { plans: PlanChoice[]; onDone
       setServerError(result.message);
       return;
     }
-    notify.success("Shop created", result.message);
+    notify.success("Organization created", result.message);
     if (result.password && result.tenantId) {
       setCreated({ tenantId: result.tenantId, password: result.password, name: values.fullName, email: values.email });
       return;
@@ -92,7 +94,7 @@ function CreateOrganizationForm({ plans, onDone }: { plans: PlanChoice[]; onDone
           <div>
             <Dialog.Title asChild><h2>Create organization</h2></Dialog.Title>
             <Dialog.Description asChild>
-              <p>Sets up the shop like a normal sign-up: default categories and a walk-in customer.</p>
+              <p>Sets up the organization with its industry&apos;s categories and modules, and a walk-in customer.</p>
             </Dialog.Description>
           </div>
         </div>
@@ -105,7 +107,17 @@ function CreateOrganizationForm({ plans, onDone }: { plans: PlanChoice[]; onDone
         <fieldset className="form-grid" disabled={isSubmitting}>
           <label className="span-two">
             <span>SHOP NAME</span>
-            <input {...register("shopName")} placeholder="e.g. Lahore Auto Styling" maxLength={80} autoFocus aria-invalid={errors.shopName ? true : undefined} />
+            <input {...register("shopName")} placeholder="e.g. Hamza Traders" maxLength={80} autoFocus aria-invalid={errors.shopName ? true : undefined} />
+          </label>
+          <label className="span-two">
+            <span>INDUSTRY</span>
+            <select {...register("industryId")} aria-invalid={errors.industryId ? true : undefined}>
+              <option value="" disabled>Choose an industry…</option>
+              {industries.map((i) => (
+                <option key={i.id} value={i.id}>{i.name}</option>
+              ))}
+            </select>
+            <small>Decides the category catalog and which modules start switched on. It can be changed later on the organization&apos;s Industry tab.</small>
           </label>
           <label>
             <span>OWNER&apos;S FULL NAME</span>
@@ -159,7 +171,7 @@ function CreateOrganizationForm({ plans, onDone }: { plans: PlanChoice[]; onDone
           <button type="button" className="button" disabled={isSubmitting}>Cancel</button>
         </Dialog.Close>
         <button type="submit" className="button button-primary" disabled={isSubmitting}>
-          {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Create Shop
+          {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Create Organization
         </button>
       </div>
     </form>

@@ -38,6 +38,8 @@ type Props = {
   readOnly: boolean;
   /** Main categories, for the phone search's filter chips. */
   categories: CategoryChip[];
+  /** The product search also matches linked vehicles (Vehicle Fitment module on). */
+  vehicleSearch: boolean;
 };
 
 const numberValue = (n: number) => (Number.isFinite(n) ? n : "");
@@ -63,7 +65,7 @@ const salePrice = (line: BuilderLine) => round2(line.unitPrice - unitDiscount(li
  * (Rs.) discount. Line total = qty × sale price.
  * Below 768px the table becomes touch cards; tapping one opens an edit sheet.
  */
-export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly, categories }: Props) {
+export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly, categories, vehicleSearch }: Props) {
   const [editing, setEditing] = useState<string | null>(null);
   const update = (key: string, patch: Partial<BuilderLine>) =>
     onChange((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -98,7 +100,7 @@ export function LineItems({ lines, onChange, onAdd, onAddCustom, money, readOnly
           </p>
         </div>
       </div>
-      {!readOnly && <LineSearch money={money} addedIds={addedIds} onAdd={onAdd} onAddCustom={onAddCustom} categories={categories} />}
+      {!readOnly && <LineSearch money={money} addedIds={addedIds} onAdd={onAdd} onAddCustom={onAddCustom} categories={categories} vehicleSearch={vehicleSearch} />}
 
       {lines.length > 0 && (
         <div className="doc-table" role="table" aria-label="Line items">

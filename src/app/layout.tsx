@@ -22,10 +22,10 @@ const urdu = Noto_Sans_Arabic({
 
 export const metadata: Metadata = {
   title: {
-    default: "ProductLogik POS — Inventory, Invoicing & Billing",
-    template: "%s · ProductLogik POS",
+    default: "ProductLogik Invoicing System — Inventory, Statements & Billing",
+    template: "%s · ProductLogik Invoicing System",
   },
-  applicationName: "ProductLogik POS",
+  applicationName: "ProductLogik Invoicing System",
   description:
     "Cloud inventory tracking, quotations, invoicing, statements of account and billing for retailers, wholesalers and distributors.",
 };

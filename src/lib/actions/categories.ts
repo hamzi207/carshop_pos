@@ -1,124 +1,57 @@
 "use server";
 
 import { refresh } from "next/cache";
-import { z } from "zod";
-import { audit } from "@/lib/superadmin";
-import { resolveTarget, type Target } from "@/lib/target";
+import { appOrigin } from "@/lib/account-links";
+import { getShopSession } from "@/lib/auth";
+import { buildCategoryIndex, fullPath } from "@/lib/categories";
+import { getCategories } from "@/lib/category-data";
+import { sendTransactionalEmail } from "@/lib/email/send";
+import { categoryRequestNotice } from "@/lib/email/templates/categories";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import { categoryRequestSchema, type CategoryRequestInput } from "@/lib/validations/category.schema";
 
-// Product categories: admins add, rename and delete (RLS enforces admin-only too).
-// tenant_id is the caller's own organization (also the database default), never the client.
-// Phase 17: the superadmin console passes `tenantId` to edit any organization's categories (audited).
+// Phase 18: categories are platform data the superadmin manages (src/lib/actions/admin-categories.ts).
+// An organization only browses its tree and asks for what's missing.
 
-export type CategoryActionResult = { status: "success"; id: string } | { status: "error"; message: string };
+export type CategoryRequestResult = { status: "success" } | { status: "error"; message: string };
 
-const nameSchema = z
-  .string()
-  .trim()
-  .min(1, "Enter a category name.")
-  .max(60, "Category names must be 60 characters or fewer.");
-const idSchema = z.uuid();
+/** Any member can ask for a category; the superadmins get an email and see it in /admin/categories/requests. */
+export async function requestCategory(input: CategoryRequestInput): Promise<CategoryRequestResult> {
+  const parsed = categoryRequestSchema.safeParse(input);
+  if (!parsed.success) return { status: "error", message: parsed.error.issues[0].message };
+  const { name, parentId, note } = parsed.data;
+  const session = await getShopSession();
+  if (session.impersonating) return { status: "error", message: "Login As is read-only. Add the category from the console instead." };
 
-async function categoryTarget(tenantId?: string) {
-  return resolveTarget(tenantId, "Only shop admins can change categories.");
-}
+  const index = buildCategoryIndex(await getCategories());
+  const existing = index.flat.find((n) => n.name.toLowerCase() === name.toLowerCase() && (n.parent_id ?? null) === parentId);
+  if (existing) return { status: "error", message: `“${fullPath(existing)}” already exists.` };
+  const parent = parentId ? index.byId.get(parentId) : undefined;
+  if (parentId && !parent) return { status: "error", message: "The suggested parent category wasn't found. Refresh the page." };
 
-async function auditCategory(target: Target, action: string, details: Record<string, string | null>) {
-  if (target.adminId) await audit({ adminId: target.adminId, action, tenantId: target.tenantId, details });
-}
-
-function saveError(error: { code: string; message: string }, name: string): CategoryActionResult {
-  switch (error.code) {
-    case "23505":
-      return { status: "error", message: `There is already a category called “${name}” here.` };
-    case "22023":
-      return { status: "error", message: "Categories can be at most 4 levels deep." };
-    case "23503":
-      return { status: "error", message: "The parent category no longer exists. Refresh the page." };
-    default:
-      console.error("Category save failed:", error);
-      return { status: "error", message: "We couldn't save this category. Please try again." };
-  }
-}
-
-/** Adds a main category (no parent) or a subcategory, placed last among its siblings. */
-export async function createCategory(input: { name: string; parentId: string | null }, tenantId?: string): Promise<CategoryActionResult> {
-  const name = nameSchema.safeParse(input.name);
-  if (!name.success) return { status: "error", message: name.error.issues[0].message };
-  if (input.parentId !== null && !idSchema.safeParse(input.parentId).success) {
-    return { status: "error", message: "Invalid parent category." };
-  }
-  const target = await categoryTarget(tenantId);
-  if (!target.ok) return { status: "error", message: target.message };
-  const supabase = target.client;
-
-  if (input.parentId) {
-    const { data: parent } = await supabase.from("categories").select("id").eq("id", input.parentId).eq("tenant_id", target.tenantId).maybeSingle();
-    if (!parent) return { status: "error", message: "The parent category no longer exists. Refresh the page." };
-  }
-  const siblings = supabase
-    .from("categories")
-    .select("sort_order")
-    .eq("tenant_id", target.tenantId)
-    .order("sort_order", { ascending: false })
-    .limit(1);
-  const { data: last } = await (input.parentId ? siblings.eq("parent_id", input.parentId) : siblings.is("parent_id", null));
-
-  const { data, error } = await supabase
-    .from("categories")
-    // Own organization: the column default (authenticated can't write tenant_id). Console: explicit.
-    .insert({
-      ...(target.adminId ? { tenant_id: target.tenantId } : {}),
-      name: name.data,
-      parent_id: input.parentId,
-      sort_order: (last?.[0]?.sort_order ?? 0) + 10,
-    })
-    .select("id")
-    .single();
-  if (error) return saveError(error, name.data);
-
-  await auditCategory(target, "category.create", { id: data.id, name: name.data, parent_id: input.parentId });
-  refresh();
-  return { status: "success", id: data.id };
-}
-
-export async function renameCategory(id: string, newName: string, tenantId?: string): Promise<CategoryActionResult> {
-  const name = nameSchema.safeParse(newName);
-  if (!name.success) return { status: "error", message: name.error.issues[0].message };
-  if (!idSchema.safeParse(id).success) return { status: "error", message: "Invalid category." };
-  const target = await categoryTarget(tenantId);
-  if (!target.ok) return { status: "error", message: target.message };
-
-  const { data, error } = await target.client
-    .from("categories")
-    .update({ name: name.data })
-    .eq("id", id)
-    .eq("tenant_id", target.tenantId)
-    .select("id");
-  if (error) return saveError(error, name.data);
-  if (data.length === 0) return { status: "error", message: "This category no longer exists." };
-
-  await auditCategory(target, "category.rename", { id, name: name.data });
-  refresh();
-  return { status: "success", id };
-}
-
-/** Only empty categories can go: no items and no subcategories (the foreign keys refuse otherwise). */
-export async function deleteCategory(id: string, tenantId?: string): Promise<CategoryActionResult> {
-  if (!idSchema.safeParse(id).success) return { status: "error", message: "Invalid category." };
-  const target = await categoryTarget(tenantId);
-  if (!target.ok) return { status: "error", message: target.message };
-
-  const { data, error } = await target.client.from("categories").delete().eq("id", id).eq("tenant_id", target.tenantId).select("id, name");
+  const supabase = await createClient();
+  const { error } = await supabase.from("category_requests").insert({ name, suggested_parent_id: parentId, note: note || null });
   if (error) {
-    if (error.code === "23503") {
-      return { status: "error", message: "Move its items and delete its subcategories first." };
-    }
-    console.error("deleteCategory failed:", error);
-    return { status: "error", message: "We couldn't delete this category. Please try again." };
+    if (error.code === "54000") return { status: "error", message: "Your organization has sent 20 requests today. Try again tomorrow." };
+    console.error("requestCategory failed:", error);
+    return { status: "error", message: "We couldn't send your request. Please try again." };
   }
-  if (data.length === 0) return { status: "error", message: "This category no longer exists." };
 
-  await auditCategory(target, "category.delete", { id, name: data[0].name });
+  // Tell the superadmins; a failed email doesn't undo the request (it's listed in the console either way).
+  const { data: supers } = await createAdminClient().from("platform_admins").select("email").is("removed_at", null);
+  const content = categoryRequestNotice({
+    tenantName: session.tenant.name,
+    name,
+    parentPath: parent ? fullPath(parent) : null,
+    note: note || null,
+    requester: `${session.fullName} (${session.email})`,
+    url: `${await appOrigin()}/admin/categories/requests`,
+  });
+  for (const s of supers ?? []) {
+    await sendTransactionalEmail({ template: "category_request", to: s.email, content, tenantId: session.tenant.id, sentBy: session.userId });
+  }
+
   refresh();
-  return { status: "success", id };
+  return { status: "success" };
 }

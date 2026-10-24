@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
       href: `/inventory?q=${encodeURIComponent(i.sku)}`,
       title: i.name,
       detail: `${i.sku} · ${money(i.selling_price)}`,
-      badge: `${i.quantity_on_hand - i.reserved_quantity} free`,
+      badge: `${i.quantity_on_hand - i.reserved_quantity} available`,
     })),
     documents: docs.data.map((d) => ({
       href: documentHref(d),

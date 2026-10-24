@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2, CreditCard, Database, FileText, FolderTree, Globe, History, LayoutDashboard, Printer, Users } from "lucide-react";
+import { Blocks, Building2, CreditCard, Database, FileText, FolderTree, Globe, History, LayoutDashboard, Package, Printer, Users } from "lucide-react";
 
 // The organization page's tabs (Phase 17, deliverable 3): each renders the organization's own
 // settings form, saved to it and audited. Later phases add their tabs here.
@@ -12,7 +12,9 @@ const TABS = [
   { path: "/localization", label: "Localization", icon: Globe },
   { path: "/documents", label: "Documents", icon: FileText },
   { path: "/printing", label: "Printing & POS", icon: Printer },
+  { path: "/products", label: "Products", icon: Package },
   { path: "/categories", label: "Categories", icon: FolderTree },
+  { path: "/industry", label: "Industry & modules", icon: Blocks },
   { path: "/users", label: "Users", icon: Users },
   { path: "/subscription", label: "Subscription", icon: CreditCard },
   { path: "/data", label: "Data", icon: Database },

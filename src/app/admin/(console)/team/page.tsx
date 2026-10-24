@@ -19,7 +19,7 @@ export default function TeamPage() {
         <div>
           <span className="eyebrow">PLATFORM</span>
           <h1>Team</h1>
-          <p>The people who run ProductLogik POS. Every grant, removal and two-factor reset is audited.</p>
+          <p>The people who run ProductLogik Invoicing System. Every grant, removal and two-factor reset is audited.</p>
         </div>
       </div>
       <Suspense fallback={<section className="card"><div className="empty-state">Loading…</div></section>}>

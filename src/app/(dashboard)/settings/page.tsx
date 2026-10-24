@@ -1,6 +1,9 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getShopSession } from "@/lib/auth";
+import { getMyModules } from "@/lib/module-data";
+import { MODULES } from "@/lib/modules";
+import { createClient } from "@/lib/supabase/server";
 import { formatPhone } from "@/lib/phone";
 import { formatStrn } from "@/lib/tax-id";
 import { ShopProfileForm } from "@/components/settings/shop-profile-form";
@@ -11,7 +14,16 @@ export const metadata: Metadata = { title: "Settings · Profile" };
 
 async function ProfileContent() {
   const { tenant, role, fullName, email } = await getShopSession();
+  const supabase = await createClient();
+  const [{ data: industry }, modules] = await Promise.all([
+    supabase.from("industries").select("name").eq("id", tenant.industryId).maybeSingle(),
+    getMyModules(),
+  ]);
+  const moduleNames = MODULES.filter((m) => modules.includes(m.key)).map((m) => m.label);
+  // Phase 18: the industry and modules are set by ProductLogik support (superadmin), so they're read-only here.
   const facts = [
+    { label: "Industry", value: industry?.name ?? "—" },
+    { label: "Modules", value: moduleNames.length ? moduleNames.join(", ") : "None" },
     { label: "Shop handle", value: tenant.slug, mono: true },
     { label: "Shop ID", value: tenant.id, mono: true },
     { label: "Signed in as", value: `${fullName} · ${email}` },
